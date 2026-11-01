@@ -4,132 +4,246 @@ from pathlib import Path
 
 PATH = Path("artifacts/demo/authority-regression.json")
 
-if not PATH.is_file():
-    raise SystemExit("ERROR: Witness file not found")
 
-data = json.loads(PATH.read_text())
-failures = []
-
-
-def check(name, condition):
-    passed = bool(condition)
-    print(f'{"PASS" if passed else "FAIL"} | {name}')
-    if not passed:
-        failures.append(name)
+def require(condition, message):
+    if not condition:
+        raise SystemExit(f"FAIL | {message}")
+    print(f"PASS | {message}")
 
 
-def is_hex(value, size):
-    return (
-        isinstance(value, str)
-        and value.startswith("0x")
-        and len(value) == 2 + size * 2
-        and all(c in "0123456789abcdefABCDEF" for c in value[2:])
+def is_hex(value, size=None):
+    if not isinstance(value, str) or not value.startswith("0x"):
+        return False
+
+    digits = value[2:]
+
+    if len(digits) % 2:
+        return False
+
+    if size is not None and len(digits) != size * 2:
+        return False
+
+    return all(c in "0123456789abcdefABCDEF" for c in digits)
+
+
+def is_uint(value):
+    return type(value) is int and 0 <= value < 2**256
+
+
+def nonzero_hex(value):
+    return int(value, 16) != 0
+
+
+def unique_keys(pairs):
+    result = {}
+
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON field: {key}")
+        result[key] = value
+
+    return result
+
+
+require(PATH.is_file(), "Witness exists")
+
+try:
+    data = json.loads(
+        PATH.read_text(),
+        object_pairs_hook=unique_keys
     )
+except (ValueError, UnicodeDecodeError) as exc:
+    raise SystemExit(f"FAIL | Invalid JSON: {exc}")
 
+require(isinstance(data, dict), "JSON root is an object")
 
 required = [
-    "policy_id", "policy_rule", "result",
-    "actor", "target", "calldata", "call_success",
-    "implementation_before", "implementation_after",
-    "minimum_delay", "timestamp_before", "timestamp_after",
-    "timelock_operation_id", "timelock_scheduled_at",
-    "timelock_ready_at", "timelock_executed_at",
-    "source_commit", "proxy_codehash",
+    "schema_version",
+    "run_kind",
+    "fixture_id",
+    "policy_id",
+    "policy_rule",
+    "result",
+    "actor",
+    "target",
+    "owner",
+    "calldata",
+    "call_success",
+    "return_data",
+    "implementation_before",
+    "implementation_after",
+    "proxy_admin_slot",
+    "minimum_delay",
+    "timestamp_before",
+    "timestamp_after",
+    "timelock_operation_id",
+    "timelock_scheduled_at",
+    "timelock_ready_at",
+    "timelock_executed_at",
+    "source_commit",
+    "proxy_codehash",
     "implementation_before_codehash",
-    "implementation_after_codehash"
+    "implementation_after_codehash",
+    "coverage",
+    "reproduce",
 ]
 
-missing = [key for key in required if key not in data]
-
-if missing:
-    raise SystemExit(f"ERROR: Missing fields: {missing}")
-
-check("Policy AR-001", data["policy_id"] == "AR-001")
-check(
-    "Expected policy rule",
-    data["policy_rule"] == "NO_IMPLEMENTATION_REPLACEMENT"
+require(
+    all(field in data for field in required),
+    "All required fields present"
 )
-check("Regression detected", data["result"] == "FAIL")
-check("Call succeeded", data["call_success"] is True)
 
-# Verify exact ABI call format.
-calldata = data["calldata"]
+require(data["schema_version"] == "0.1", "Supported schema")
+require(data["run_kind"] == "local_fixture", "Local fixture")
+require(
+    data["fixture_id"] == "transparent_uups_authority_regression_v0.1",
+    "Expected fixture"
+)
 
-if not is_hex(calldata, 100):
-    raise SystemExit("ERROR: Invalid calldata format")
+require(data["policy_id"] == "AR-001", "Policy AR-001")
+require(
+    data["policy_rule"] == "NO_IMPLEMENTATION_REPLACEMENT",
+    "Expected policy rule"
+)
+require(data["result"] == "FAIL", "Regression detected")
+require(data["call_success"] is True, "Successful observed call")
 
-raw = bytes.fromhex(calldata[2:])
+# Validate address fields.
+for field in ("actor", "target", "owner"):
+    value = data[field]
+    require(
+        is_hex(value, 20) and nonzero_hex(value),
+        f"Valid address: {field}"
+    )
+
+# Validate storage words and implementation addresses.
+for field in (
+    "implementation_before",
+    "implementation_after",
+    "proxy_admin_slot"
+):
+    require(
+        is_hex(data[field], 32),
+        f"Valid bytes32: {field}"
+    )
+
+before = int(data["implementation_before"], 16)
+after = int(data["implementation_after"], 16)
+
+require(
+    0 < before < 2**160 and 0 < after < 2**160,
+    "Valid implementation addresses"
+)
+require(before != after, "Implementation changed")
+
+require(
+    is_hex(data["return_data"]),
+    "Valid return data"
+)
+
+# Validate canonical upgradeToAndCall(address,bytes).
+require(is_hex(data["calldata"], 100), "Canonical calldata length")
+
+raw = bytes.fromhex(data["calldata"][2:])
 
 selector = subprocess.check_output(
     ["cast", "sig", "upgradeToAndCall(address,bytes)"],
     text=True
-).strip()
+).strip().lower()
 
-check("Correct function selector", raw[:4].hex() == selector[2:].lower())
+require(
+    raw[:4].hex() == selector[2:],
+    "Correct function selector"
+)
 
 requested = int.from_bytes(raw[4:36], "big")
 offset = int.from_bytes(raw[36:68], "big")
 payload_length = int.from_bytes(raw[68:100], "big")
 
-check("Valid ABI address", requested < 2**160)
-check("Valid ABI offset", offset == 64)
-check("Empty upgrade calldata", payload_length == 0)
+require(0 < requested < 2**160, "Valid candidate address")
+require(offset == 64, "Canonical ABI offset")
+require(payload_length == 0, "Empty initialization data")
+require(after == requested, "Requested implementation installed")
 
-before = int(data["implementation_before"], 16)
-after = int(data["implementation_after"], 16)
-
-check("Valid implementation addresses", before < 2**160 and after < 2**160)
-check("Implementation changed", before != after)
-check("Requested implementation installed", after == requested)
-
-# Verify observed time relationships.
-scheduled = int(data["timelock_scheduled_at"])
-ready = int(data["timelock_ready_at"])
-executed = int(data["timelock_executed_at"])
-delay = int(data["minimum_delay"])
-
-check("Timelock operation ID", is_hex(data["timelock_operation_id"], 32))
-check("Positive timelock delay", delay > 0)
-check("Scheduled delay respected", ready - scheduled == delay)
-check("Execution not premature", executed >= ready)
-check(
-    "No time advancement during direct call",
-    data["timestamp_before"] == data["timestamp_after"]
-)
-check(
-    "Direct call after authorized upgrade",
-    data["timestamp_before"] >= executed
+# Validate unsigned timestamps and delay.
+time_fields = (
+    "minimum_delay",
+    "timestamp_before",
+    "timestamp_after",
+    "timelock_scheduled_at",
+    "timelock_ready_at",
+    "timelock_executed_at"
 )
 
-# Source and bytecode provenance.
+for field in time_fields:
+    require(is_uint(data[field]), f"Valid uint256: {field}")
+
+delay = data["minimum_delay"]
+scheduled = data["timelock_scheduled_at"]
+ready = data["timelock_ready_at"]
+executed = data["timelock_executed_at"]
+
+require(delay > 0, "Positive timelock delay")
+require(ready - scheduled == delay, "Timelock delay respected")
+require(executed >= ready, "Timelock execution not premature")
+require(
+    data["timestamp_before"] == data["timestamp_after"],
+    "No time advancement during direct call"
+)
+require(
+    data["timestamp_before"] >= executed,
+    "Direct call after authorized upgrade"
+)
+
+# Validate operation ID.
+operation_id = data["timelock_operation_id"]
+
+require(
+    is_hex(operation_id, 32) and nonzero_hex(operation_id),
+    "Nonzero Timelock operation ID"
+)
+
+# Validate source provenance.
 head = subprocess.check_output(
     ["git", "rev-parse", "HEAD"],
     text=True
 ).strip()
 
-check("Source commit matches HEAD", data["source_commit"] == head)
+require(
+    isinstance(data["source_commit"], str)
+    and data["source_commit"] == head,
+    "Source commit matches HEAD"
+)
 
-zero_hash = "0x" + "00" * 32
-
-for field in [
+# Validate code hashes as bytes, not case-sensitive strings.
+hash_fields = (
     "proxy_codehash",
     "implementation_before_codehash",
     "implementation_after_codehash"
-]:
-    check(
-        f"Valid {field}",
-        is_hex(data[field], 32) and data[field].lower() != zero_hash
-    )
-
-check(
-    "Implementation code changed",
-    data["implementation_before_codehash"]
-    != data["implementation_after_codehash"]
 )
 
+for field in hash_fields:
+    value = data[field]
+    require(
+        is_hex(value, 32) and nonzero_hex(value),
+        f"Valid code hash: {field}"
+    )
+
+before_hash = bytes.fromhex(
+    data["implementation_before_codehash"][2:]
+)
+after_hash = bytes.fromhex(
+    data["implementation_after_codehash"][2:]
+)
+
+require(before_hash != after_hash, "Implementation code changed")
+
+for field in ("coverage", "reproduce"):
+    require(
+        isinstance(data[field], str) and bool(data[field].strip()),
+        f"Valid metadata: {field}"
+    )
+
 print()
-
-if failures:
-    raise SystemExit(f"FAILED: {len(failures)} checks")
-
 print("Protocol Sentinel witness verification PASSED")
+print("Mode: internal consistency validation only")
