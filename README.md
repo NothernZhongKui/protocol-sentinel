@@ -52,11 +52,14 @@ To reproduce the authority regression:
 To generate an execution witness:
 
     mkdir -p artifacts/demo
-    EXPORT_WITNESS=true forge test --match-test test_ExportRiskyWitness -vv
+    bash scripts/export_witness.sh
 
-To verify the witness:
+The script requires a clean Git working tree, records the
+current source commit, runs the witness exporter and verifies
+the resulting JSON.
 
-    python3 scripts/verify_witness.py
+The verifier checks internal consistency only. It does not
+independently replay EVM execution.
 
 ## Policy Results
 

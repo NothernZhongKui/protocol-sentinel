@@ -443,7 +443,7 @@ contract AuthorityRegressionTest is AuthorityProbe {
         );
 
         string memory json = vm.serializeString(
-            key, "reproduce", "EXPORT_WITNESS=true forge test --match-test test_ExportRiskyWitness -vvvv"
+            key, "reproduce", "bash scripts/export_witness.sh"
         );
 
         if (vm.envOr("EXPORT_WITNESS", false)) {
