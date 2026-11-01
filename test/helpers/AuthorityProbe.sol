@@ -110,16 +110,13 @@ abstract contract AuthorityProbe is Test {
             return PolicyStatus.UNKNOWN;
         }
 
-        // Unexpected state transition: do not guess.
-        if (!unchanged && obs.implementationAfter != expectedImplementation) {
-            return PolicyStatus.UNKNOWN;
-        }
-
         if (policy == UpgradePolicy.NO_SUCCESSFUL_UPGRADE_CALL) {
             return PolicyStatus.FAIL;
         }
 
-        if (!unchanged && obs.implementationAfter == expectedImplementation) {
+        // Any successful implementation replacement violates this policy,
+        // even when the installed address differs from the requested candidate.
+        if (!unchanged) {
             return PolicyStatus.FAIL;
         }
 
