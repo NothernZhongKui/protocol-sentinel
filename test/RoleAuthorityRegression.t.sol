@@ -122,4 +122,37 @@ contract RoleAuthorityRegressionTest is AuthorityProbe {
 
         assertEq(vm.load(address(roleProxy), ERC1967_IMPL_SLOT), _word(address(fixedVersion)));
     }
+
+    function test_RoleFixedGovernorCanStillUpgrade() public {
+        RoleVaultV2Fixed fixedVersion = new RoleVaultV2Fixed();
+        RoleVaultCandidate candidate = new RoleVaultCandidate();
+
+        // Install the fixed implementation through the authorized route.
+        _install(address(fixedVersion));
+
+        assertEq(vault.version(), 2);
+        assertEq(
+            vm.load(address(roleProxy), ERC1967_IMPL_SLOT),
+            _word(address(fixedVersion))
+        );
+
+        // The authorization model must remain intact.
+        assertTrue(vault.hasRole(vault.UPGRADER_ROLE(), governor));
+        assertFalse(vault.hasRole(vault.UPGRADER_ROLE(), operator));
+
+        // The governor must still be able to perform a real UUPS upgrade.
+        _install(address(candidate));
+
+        assertEq(vault.version(), 3);
+        assertEq(
+            vm.load(address(roleProxy), ERC1967_IMPL_SLOT),
+            _word(address(candidate))
+        );
+
+        // Roles must survive both upgrades.
+        assertTrue(vault.hasRole(vault.UPGRADER_ROLE(), governor));
+        assertFalse(vault.hasRole(vault.UPGRADER_ROLE(), operator));
+        assertTrue(vault.hasRole(vault.OPERATOR_ROLE(), operator));
+    }
+
 }
