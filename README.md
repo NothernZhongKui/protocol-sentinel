@@ -2,8 +2,8 @@
 
 Execution-based authority regression testing for upgradeable Ethereum contracts.
 
-**Status:** Research Proof of Concept  
-**Scope:** Local synthetic fixture, not a production security scanner.
+**Status:** Experimental Foundry library (pre-1.0)  
+**Scope:** Local authority regression tests for declared actors and actions.
 
 ## The Problem
 
@@ -31,11 +31,17 @@ without scheduling a new operation or advancing EVM time.
 
 ## Components
 
-- `src/VaultV1.sol` - Baseline implementation
-- `test/fixtures/VaultVersions.sol` - Risky, fixed and probe implementations
-- `test/helpers/AuthorityProbe.sol` - Execution observer and classifier
-- `test/AuthorityRegression.t.sol` - Security regression tests
-- `scripts/verify_witness.py` - JSON consistency verifier
+- `src/AuthorityProbe.sol` — public Foundry test helper and policy evaluator
+- `test/AuthorityRegression.t.sol` — Transparent proxy / Timelock regression
+- `test/RoleAuthorityRegression.t.sol` — ERC-1967 / UUPS / AccessControl regression
+- `test/fixtures/` — synthetic upgrade implementations
+- `scripts/export_witness.sh` — local JSON evidence export
+- `scripts/verify_witness.py` — witness consistency validation
+- `scripts/replay_policy.py` — Python policy evaluation from recorded JSON
+- `scripts/check_policy_replay.py` — Solidity/Python verdict comparison
+- `scripts/test_witness_mutations.py` — negative controls for witness validation
+- `examples/x402/` — external Fortytwo contract integration experiment
+- `docs/library-quickstart.md` — integration guide
 
 ## Foundry Library API
 
@@ -53,27 +59,43 @@ for usage examples, supported scenarios, and limitations.
 
 ## Quick Start
 
-Requirements: Foundry, Git.
+Requirements: Foundry, Git, Python 3.
 
-Clone the repository with submodules and run:
+Clone with Git submodules:
 
-    forge test
+~~~bash
+git clone --recurse-submodules https://github.com/NothernZhongKui/protocol-sentinel.git
+cd protocol-sentinel
+~~~
 
-To reproduce the authority regression:
+Build and test:
 
-    forge test --match-path test/AuthorityRegression.t.sol -vv
+~~~bash
+forge fmt --check
+forge build
+forge test
+~~~
 
-To generate an execution witness:
+Check policy replay against fresh Solidity observations:
 
-    mkdir -p artifacts/demo
-    bash scripts/export_witness.sh
+~~~bash
+python3 scripts/check_policy_replay.py
+~~~
 
-The script requires a clean Git working tree, records the
-current source commit, runs the witness exporter and verifies
-the resulting JSON.
+Generate and validate a local execution witness:
 
-The verifier checks internal consistency only. It does not
-independently replay EVM execution.
+~~~bash
+bash scripts/export_witness.sh
+python3 scripts/test_witness_mutations.py
+~~~
+
+The witness exporter requires a clean Git working tree.
+
+For importing the public helper into another Foundry project,
+see [Library Quick Start](docs/library-quickstart.md).
+
+For the third-party integration experiment,
+see [Fortytwo x402Escrow](examples/x402/README.md).
 
 ## Policy Results
 
@@ -106,26 +128,62 @@ A passing Foundry test may correctly confirm a FAIL security verdict.
 
 ## Evidence
 
-The JSON witness contains actor, target, calldata, execution result,
-implementation before and after, administrative state, timelock
-operation identifier and timestamps.
+The local execution witness uses schema version `0.2`.
 
-Output:
+It records the declared actor, transaction origin, target,
+calldata, call result, effective implementation observations,
+candidate preconditions, governance context, source commit
+and selected bytecode hashes.
+
+Generated output:
 
     artifacts/demo/authority-regression.json
 
+The witness verifier checks internal consistency, including
+expected identities, ERC-1967 slot identity, calldata,
+source commit and selected governance invariants.
+
+It does not independently prove that EVM execution occurred.
+
+The Python policy replay independently evaluates saved
+observations using the declared policy rules.
+
+The project includes five Solidity/Python comparison scenarios
+and eleven Python replay self-tests.
+
+Policy replay is not independent execution attestation.
+
 ## Limitations
 
-This prototype uses a known synthetic fixture.
+Protocol Sentinel is an experimental Foundry test helper,
+not a production security scanner or comprehensive audit.
 
-It does not discover arbitrary actors, selectors, upgrade paths,
-or provide exhaustive authorization analysis.
+Its current convenience API supports:
 
-The Transparent/UUPS combination is intentionally used to demonstrate
-a composition risk, not as a recommended production architecture.
+- Declared actors and targets
+- Direct EOA execution
+- ERC-1967 implementation-slot observation
+- Canonical UUPS `upgradeToAndCall(address,bytes)`
+- Empty initialization calldata
+- Local EVM execution with snapshot restoration
 
-The JSON verifier validates selected fields for consistency.
-It does not independently replay EVM execution.
+The helper does not discover arbitrary actors, selectors,
+privilege paths or contract-mediated execution flows.
+
+A `PASS` means the specified expected rejection was observed.
+It does not establish that a contract is generally secure.
+
+Candidate validation checks UUPS compatibility through
+`proxiableUUID()`. It does not validate storage layout safety.
+
+The initial Transparent/UUPS fixture intentionally demonstrates
+a composition risk and is not a recommended production design.
+
+The external Fortytwo example is a developer-authored local
+integration experiment, not an independent adoption claim.
+
+See [Threat Model](docs/threat-model.md) for assumptions
+and outstanding validation gaps.
 
 ## License
 

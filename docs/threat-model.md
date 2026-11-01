@@ -1,6 +1,6 @@
 # Protocol Sentinel — Threat Model
 
-Status: Research PoC v0.1
+Status: Experimental Foundry library (pre-1.0)
 Scope: Authority Regression / Local EVM
 
 ## 1. Security Objective
@@ -14,32 +14,47 @@ The operator must not directly replace the proxy implementation.
 
 ## 2. System Under Test
 
-The synthetic fixture contains:
+Two independent synthetic fixture families use the same
+AuthorityProbe observer and evaluator.
+
+### Transparent proxy / Timelock fixture
 
 - TransparentUpgradeableProxy
-- ProxyAdmin owned by TimelockController
+- ProxyAdmin controlled by TimelockController
 - TimelockController with a 48-hour minimum delay
-- VaultV1
-- VaultV2Risky
-- VaultV2Fixed
-- UpgradeProbe
+- VaultV1, VaultV2Risky, VaultV2Fixed and UpgradeProbe
 
-The UUPS-compatible implementation behind a transparent proxy
-is an intentional composition-risk demonstration.
+The Transparent/UUPS composition is an intentional
+risk demonstration, not a production recommendation.
 
-It is not a production architecture recommendation.
+### ERC-1967 / UUPS / AccessControl fixture
+
+- ERC1967Proxy
+- AccessControl-based upgrade authority
+- RoleVaultV1, RoleVaultV2Risky and RoleVaultV2Fixed
+
+The project also includes a local integration experiment
+with the open-source Fortytwo x402Escrow contract.
+
+The external contract is not modified.
 
 ## 3. Actors
 
-Proposer: schedules authorized timelock operations.
+The Transparent proxy fixture declares:
 
-Executor: executes ready timelock operations.
+- Proposer: schedules timelock operations
+- Executor: executes ready timelock operations
+- Operator: must not upgrade directly
+- Outsider: has no upgrade privileges
+- Timelock: controls the authorized administrative upgrade path
 
-Operator: must not upgrade the proxy directly.
+The AccessControl fixture separates authorized governance
+from an operator that must not acquire upgrade authority.
 
-Outsider: has no privileged authority.
+The Fortytwo experiment distinguishes an authorized owner
+from DEFAULT_ADMIN_ROLE and FACILITATOR_ROLE accounts.
 
-Timelock: authorized owner of the administrative upgrade path.
+Only explicitly declared actor/action pairs are evaluated.
 
 ## 4. Threat Scenario
 
@@ -146,48 +161,63 @@ not from a public Ethereum transaction.
 
 ## 9. Evidence Limitations
 
-The JSON witness records observed execution data and
-the preparatory Timelock operation context.
+The JSON witness is generated from local Foundry execution.
+It is not a public-chain transaction record or cryptographic
+proof that the claimed execution occurred.
 
-The Python verifier checks selected internal consistency
-conditions but does not independently execute or replay EVM code.
+The verifier checks internal consistency, known identities,
+the recorded source commit, selected governance invariants
+and the shape of recorded bytecode hashes.
 
-The report is not a cryptographic proof of execution.
+The verifier does not independently reconstruct the entire
+EVM execution or authenticate an external deployment.
 
-Source provenance, code hashes and independently verified
-deployment identity require further work.
+Python policy replay checks verdict semantics from recorded
+observations. Five Solidity/Python scenarios and eleven Python
+self-tests are included.
+
+Mutation tests exercise rejection of malformed or
+inconsistent witness data.
+
+Pinned Foundry dependencies and explicit remappings support
+reproducible builds, but identical results across arbitrary
+external environments are not guaranteed.
 
 ## 10. Open Validation Gaps
 
-Completed in the current research iteration:
+Implemented and tested:
 
-- Invalid-candidate negative controls
-- Unexpected-revert classification tests
-- Clean-checkout reproduction
-- EVM snapshot isolation tests
-- Actor/target binding tests
-- Redirected implementation replacement regression test
-- Direct EOA sender/origin regression test
-- Deterministic pure-evaluator regression test
-- Strict witness consistency validation with mutation tests
+- Two independent upgrade fixture families
+- Actor, transaction-origin and target binding
+- ERC-1967 implementation-slot identity checks
+- Effective implementation address comparison
+- Candidate precondition negative controls
+- Unexpected-revert and redirected-upgrade scenarios
+- Snapshot-based state restoration
+- Pure policy evaluation
+- JSON consistency validation and mutation controls
+- Solidity/Python policy replay comparison
+- One local integration with an external open-source contract
 
 Remaining limitations:
 
-- Observation depends on a trusted implementation slot identity.
-- Only declared actors and entrypoints are covered.
-- Contract-mediated execution requires a separate adapter.
-- A passing rejection does not establish its root cause.
-- JSON consistency validation is not independent execution replay.
-- Timelock operation identity is not fully reconstructed from JSON.
-- Exact cross-environment binary reproduction remains unverified.
-- A second independent upgrade fixture is required to demonstrate reuse.
-- A standalone security-policy CI gate is not yet implemented.
+- Only declared actors and entrypoints are covered
+- No arbitrary privilege-path discovery
+- No contract-mediated execution adapter
+- No live blockchain monitoring
+- Matching revert data cannot prove its root cause
+- No independent EVM execution attestation
+- No independent confirmation of deployed bytecode identity
+- No general storage-layout compatibility verification
+- No independently maintained third-party integration
+- CI does not yet run every evidence-pipeline check
 
-These limitations must remain visible in reports and documentation.
+These limitations must remain visible in reports
+and release documentation.
 
 ## 11. Intended Use
 
-Educational research, deterministic regression testing,
-and evaluation of an execution-based authorization probe.
+Local security regression testing, research and evaluation
+of execution-based authorization checks in Foundry.
 
 Not a substitute for a security audit.
