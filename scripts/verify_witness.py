@@ -70,6 +70,7 @@ required = [
     "calldata",
     "call_success",
     "return_data",
+    "observed_slot",
     "implementation_before",
     "implementation_after",
     "proxy_admin_slot",
@@ -115,6 +116,22 @@ for field in ("actor", "target", "owner"):
         is_hex(value, 20) and nonzero_hex(value),
         f"Valid address: {field}"
     )
+
+# Verify ERC-1967 implementation slot identity.
+ERC1967_IMPLEMENTATION_SLOT = (
+    "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"
+)
+
+require(
+    is_hex(data["observed_slot"], 32),
+    "Valid observed slot"
+)
+
+require(
+    int(data["observed_slot"], 16)
+    == int(ERC1967_IMPLEMENTATION_SLOT, 16),
+    "Correct ERC-1967 implementation slot"
+)
 
 # Validate storage words and implementation addresses.
 for field in (

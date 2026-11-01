@@ -409,6 +409,7 @@ contract AuthorityRegressionTest is AuthorityProbe {
         vm.serializeBool(key, "call_success", obs.success);
         vm.serializeBytes(key, "return_data", obs.returnData);
 
+        vm.serializeBytes32(key, "observed_slot", obs.observedSlot);
         vm.serializeBytes32(key, "implementation_before", obs.implementationBefore);
 
         vm.serializeBytes32(key, "implementation_after", obs.implementationAfter);
@@ -442,9 +443,7 @@ contract AuthorityRegressionTest is AuthorityProbe {
             key, "implementation_after_codehash", address(uint160(uint256(obs.implementationAfter))).codehash
         );
 
-        string memory json = vm.serializeString(
-            key, "reproduce", "bash scripts/export_witness.sh"
-        );
+        string memory json = vm.serializeString(key, "reproduce", "bash scripts/export_witness.sh");
 
         if (vm.envOr("EXPORT_WITNESS", false)) {
             vm.writeJson(json, "./artifacts/demo/authority-regression.json");

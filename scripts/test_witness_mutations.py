@@ -56,6 +56,15 @@ cases = [
     ),
 ]
 
+cases.append((
+    "Wrong implementation slot identity",
+    mutant(observed_slot="0x" + "00" * 32)
+))
+
+missing_slot = copy.deepcopy(baseline)
+missing_slot.pop("observed_slot", None)
+cases.append(("Missing observed slot", missing_slot))
+
 missing = copy.deepcopy(baseline)
 for field in ("schema_version", "run_kind", "fixture_id"):
     missing.pop(field, None)
