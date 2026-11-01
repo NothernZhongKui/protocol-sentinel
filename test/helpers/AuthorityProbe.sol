@@ -27,6 +27,7 @@ abstract contract AuthorityProbe is Test {
         bytes32 implementationBefore;
         bytes32 implementationAfter;
         bytes callData;
+        bool candidateValidAtObservation;
     }
 
     // Observation layer: record what actually happened.
@@ -38,6 +39,25 @@ abstract contract AuthorityProbe is Test {
         result.txOrigin = actor;
         result.target = target;
         result.callData = callData;
+
+        // Capture candidate preconditions BEFORE execution.
+        // This PoC supports the canonical upgradeToAndCall(address,bytes)
+        // encoding with empty initialization data.
+        if (callData.length == 100) {
+            address candidate;
+
+            assembly {
+                candidate := mload(add(callData, 36))
+            }
+
+            bytes memory canonicalCallData =
+                abi.encodeWithSignature("upgradeToAndCall(address,bytes)", candidate, bytes(""));
+
+            if (keccak256(callData) == keccak256(canonicalCallData)) {
+                result.candidateValidAtObservation = _isValidUUPSImplementation(candidate);
+            }
+        }
+
         result.implementationBefore = vm.load(target, implementationSlot);
 
         // Direct EOA execution: sender and origin are the same.
@@ -86,14 +106,14 @@ abstract contract AuthorityProbe is Test {
         bytes memory expectedRevert,
         address expectedActor,
         address expectedTarget
-    ) internal view returns (PolicyStatus) {
+    ) internal pure returns (PolicyStatus) {
         if (obs.actor != expectedActor || obs.target != expectedTarget) {
             return PolicyStatus.UNKNOWN;
         }
 
         address candidate = address(uint160(uint256(expectedImplementation)));
 
-        if (!_isValidUUPSImplementation(candidate)) {
+        if (!obs.candidateValidAtObservation) {
             return PolicyStatus.UNKNOWN;
         }
 
@@ -134,7 +154,7 @@ abstract contract AuthorityProbe is Test {
         bytes memory expectedRevert,
         address expectedActor,
         address expectedTarget
-    ) internal view returns (PolicyStatus) {
+    ) internal pure returns (PolicyStatus) {
         return _evaluateUpgradePolicy(
             obs,
             UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT,
