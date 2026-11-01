@@ -1,66 +1,95 @@
-## Foundry
+# Protocol Sentinel
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Execution-based authority regression testing for upgradeable Ethereum contracts.
 
-Foundry consists of:
+**Status:** Research Proof of Concept  
+**Scope:** Local synthetic fixture, not a production security scanner.
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+## The Problem
 
-## Documentation
+Upgradeable contracts may introduce new privileged execution paths
+without changing their visible administrative configuration.
 
-https://book.getfoundry.sh/
+A proxy may retain the same owner, administrator and timelock delay,
+while a new implementation introduces an unauthorized upgrade path.
 
-## Usage
+## The Experiment
 
-### Build
+Protocol Sentinel demonstrates this behavior using OpenZeppelin
+TransparentUpgradeableProxy, ProxyAdmin, TimelockController and
+UUPS-compatible implementations.
 
-```shell
-$ forge build
-```
+| Version | Behavior |
+|---------|----------|
+| VaultV1 | Operator cannot upgrade directly |
+| VaultV2Risky | Operator bypasses the timelock |
+| VaultV2Fixed | Direct operator upgrade is rejected |
 
-### Test
+The risky implementation is installed through an authorized timelock
+operation. Afterward, the operator performs another upgrade directly,
+without scheduling a new operation or advancing EVM time.
 
-```shell
-$ forge test
-```
+## Components
 
-### Format
+- `src/VaultV1.sol` - Baseline implementation
+- `test/fixtures/VaultVersions.sol` - Risky, fixed and probe implementations
+- `test/helpers/AuthorityProbe.sol` - Execution observer and classifier
+- `test/AuthorityRegression.t.sol` - Security regression tests
+- `scripts/verify_witness.py` - JSON consistency verifier
 
-```shell
-$ forge fmt
-```
+## Quick Start
 
-### Gas Snapshots
+Requirements: Foundry, Git.
 
-```shell
-$ forge snapshot
-```
+Clone the repository with submodules and run:
 
-### Anvil
+    forge test
 
-```shell
-$ anvil
-```
+To reproduce the authority regression:
 
-### Deploy
+    forge test --match-path test/AuthorityRegression.t.sol -vv
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
+To generate an execution witness:
 
-### Cast
+    mkdir -p artifacts/demo
+    EXPORT_WITNESS=true forge test --match-test test_ExportRiskyWitness -vv
 
-```shell
-$ cast <subcommand>
-```
+To verify the witness:
 
-### Help
+    python3 scripts/verify_witness.py
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+## Policy Results
+
+- PASS: Expected authorization rejection observed.
+- FAIL: Unauthorized upgrade changed the implementation.
+- UNKNOWN: Observation is insufficient for a conclusion.
+- ERROR: Reserved for execution or setup failures.
+
+A passing Foundry test can confirm a FAIL security policy result.
+
+## Evidence
+
+The JSON witness contains actor, target, calldata, execution result,
+implementation before and after, administrative state, timelock
+operation identifier and timestamps.
+
+Output:
+
+    artifacts/demo/authority-regression.json
+
+## Limitations
+
+This prototype uses a known synthetic fixture.
+
+It does not discover arbitrary actors, selectors, upgrade paths,
+or provide exhaustive authorization analysis.
+
+The Transparent/UUPS combination is intentionally used to demonstrate
+a composition risk, not as a recommended production architecture.
+
+The JSON verifier validates selected fields for consistency.
+It does not independently replay EVM execution.
+
+## License
+
+To be determined before public release.
