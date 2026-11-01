@@ -24,6 +24,7 @@ abstract contract AuthorityProbe is Test {
         address target;
         bool success;
         bytes returnData;
+        bytes32 observedSlot;
         bytes32 implementationBefore;
         bytes32 implementationAfter;
         bytes callData;
@@ -58,6 +59,7 @@ abstract contract AuthorityProbe is Test {
             }
         }
 
+        result.observedSlot = implementationSlot;
         result.implementationBefore = vm.load(target, implementationSlot);
 
         // Direct EOA execution: sender and origin are the same.
@@ -107,6 +109,12 @@ abstract contract AuthorityProbe is Test {
         address expectedActor,
         address expectedTarget
     ) internal pure returns (PolicyStatus) {
+        // ERC-1967 policies require the actual implementation slot.
+        // An unrelated storage observation cannot justify PASS or FAIL.
+        if (obs.observedSlot != ERC1967_IMPL_SLOT) {
+            return PolicyStatus.UNKNOWN;
+        }
+
         if (obs.actor != expectedActor || obs.target != expectedTarget) {
             return PolicyStatus.UNKNOWN;
         }
