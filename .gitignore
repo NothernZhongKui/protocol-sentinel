@@ -18,3 +18,10 @@ docs/
 .env
 .env.*
 !.env.example
+
+# Generated Protocol Sentinel evidence
+/artifacts/demo/*.json
+
+# Python cache
+__pycache__/
+*.pyc

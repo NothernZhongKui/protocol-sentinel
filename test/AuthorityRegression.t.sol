@@ -188,7 +188,17 @@ contract AuthorityRegressionTest is AuthorityProbe {
         assertEq(ProxyAdmin(adminAddress).owner(), address(timelock));
     }
 
-    function _upgradeViaTimelock(address nextImplementation, bytes32 salt) internal {
+    struct TimelockEvidence {
+        bytes32 operationId;
+        uint256 scheduledAt;
+        uint256 readyAt;
+        uint256 executedAt;
+    }
+
+    function _upgradeViaTimelock(address nextImplementation, bytes32 salt)
+        internal
+        returns (TimelockEvidence memory history)
+    {
         address admin = address(uint160(uint256(vm.load(address(proxy), ADMIN_SLOT))));
 
         bytes memory data = abi.encodeCall(
@@ -197,17 +207,27 @@ contract AuthorityRegressionTest is AuthorityProbe {
 
         bytes32 predecessor = bytes32(0);
 
+        history.scheduledAt = block.timestamp;
+
         vm.prank(proposer);
         timelock.schedule(admin, 0, data, predecessor, salt, DELAY);
 
-        bytes32 operationId = timelock.hashOperation(admin, 0, data, predecessor, salt);
+        history.operationId = timelock.hashOperation(admin, 0, data, predecessor, salt);
 
-        vm.warp(timelock.getTimestamp(operationId));
+        history.readyAt = timelock.getTimestamp(history.operationId);
+
+        assertEq(history.readyAt, history.scheduledAt + DELAY);
+
+        vm.warp(history.readyAt);
 
         vm.prank(executor);
         timelock.execute(admin, 0, data, predecessor, salt);
 
-        assertTrue(timelock.isOperationDone(operationId));
+        history.executedAt = block.timestamp;
+
+        assertTrue(timelock.isOperationDone(history.operationId));
+
+        assertGe(history.executedAt, history.readyAt);
     }
 
     function test_RiskyUpgradeRejectsOutsider() public {
@@ -327,5 +347,82 @@ contract AuthorityRegressionTest is AuthorityProbe {
         );
 
         assertEq(uint256(actual), uint256(PolicyStatus.UNKNOWN));
+    }
+
+    function test_ExportRiskyWitness() public {
+        VaultV2Risky risky = new VaultV2Risky();
+        UpgradeProbe candidate = new UpgradeProbe();
+
+        assertEq(candidate.proxiableUUID(), IMPLEMENTATION_SLOT);
+
+        // First upgrade: authorized via Timelock.
+        TimelockEvidence memory history = _upgradeViaTimelock(address(risky), keccak256("export-risky"));
+
+        assertEq(vault.version(), 2);
+
+        address ownerBefore = vault.owner();
+        bytes32 adminBefore = vm.load(address(proxy), ADMIN_SLOT);
+        uint256 delayBefore = timelock.getMinDelay();
+        uint256 timestampBefore = block.timestamp;
+
+        bytes memory callData =
+            abi.encodeWithSignature("upgradeToAndCall(address,bytes)", address(candidate), bytes(""));
+
+        // Second upgrade: operator attempts direct execution.
+        Observation memory obs = _observeCall(operator, address(proxy), callData, IMPLEMENTATION_SLOT);
+
+        PolicyStatus status = _classifyUpgrade(
+            obs,
+            bytes32(uint256(uint160(address(candidate)))),
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator)
+        );
+
+        // Confirm the regression and unchanged admin settings.
+        assertEq(uint256(status), uint256(PolicyStatus.FAIL));
+        assertTrue(obs.success);
+        assertEq(vault.version(), 3);
+        assertEq(vault.owner(), ownerBefore);
+        assertEq(vm.load(address(proxy), ADMIN_SLOT), adminBefore);
+        assertEq(timelock.getMinDelay(), delayBefore);
+        assertEq(block.timestamp, timestampBefore);
+
+        // Build evidence from actual execution observations.
+        string memory key = "sentinel_witness";
+
+        vm.serializeString(key, "schema_version", "0.1");
+        vm.serializeString(key, "run_kind", "local_fixture");
+        vm.serializeString(key, "policy_id", "AR-001");
+        vm.serializeString(key, "result", "FAIL");
+
+        vm.serializeAddress(key, "actor", operator);
+        vm.serializeAddress(key, "target", address(proxy));
+        vm.serializeAddress(key, "owner", ownerBefore);
+
+        vm.serializeBytes(key, "calldata", callData);
+        vm.serializeBool(key, "call_success", obs.success);
+        vm.serializeBytes(key, "return_data", obs.returnData);
+
+        vm.serializeBytes32(key, "implementation_before", obs.implementationBefore);
+
+        vm.serializeBytes32(key, "implementation_after", obs.implementationAfter);
+
+        vm.serializeBytes32(key, "proxy_admin_slot", adminBefore);
+        vm.serializeUint(key, "minimum_delay", delayBefore);
+        vm.serializeUint(key, "timestamp_before", timestampBefore);
+        vm.serializeUint(key, "timestamp_after", block.timestamp);
+
+        vm.serializeString(key, "coverage", "operator; proxy.upgradeToAndCall; synthetic fixture");
+
+        vm.serializeBytes32(key, "timelock_operation_id", history.operationId);
+        vm.serializeUint(key, "timelock_scheduled_at", history.scheduledAt);
+        vm.serializeUint(key, "timelock_ready_at", history.readyAt);
+        vm.serializeUint(key, "timelock_executed_at", history.executedAt);
+
+        string memory json =
+            vm.serializeString(key, "reproduce", "forge test --match-test test_ExportRiskyWitness -vvvv");
+
+        if (vm.envOr("EXPORT_WITNESS", false)) {
+            vm.writeJson(json, "./artifacts/demo/authority-regression.json");
+        }
     }
 }
