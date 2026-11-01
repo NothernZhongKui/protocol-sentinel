@@ -376,10 +376,13 @@ contract AuthorityRegressionTest is AuthorityProbe {
         // Second upgrade: operator attempts direct execution.
         Observation memory obs = _observeCall(operator, address(proxy), callData, IMPLEMENTATION_SLOT);
 
+        bytes32 expectedImplementation = bytes32(uint256(uint160(address(candidate))));
+        bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator);
+
         PolicyStatus status = _classifyUpgrade(
             obs,
-            bytes32(uint256(uint160(address(candidate)))),
-            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator),
+            expectedImplementation,
+            expectedRevert,
             operator,
             address(proxy)
         );
@@ -396,23 +399,29 @@ contract AuthorityRegressionTest is AuthorityProbe {
         // Build evidence from actual execution observations.
         string memory key = "sentinel_witness";
 
-        vm.serializeString(key, "schema_version", "0.1");
+        vm.serializeString(key, "schema_version", "0.2");
         vm.serializeString(key, "run_kind", "local_fixture");
         vm.serializeString(key, "policy_id", "AR-001");
         vm.serializeString(key, "result", "FAIL");
 
         vm.serializeAddress(key, "actor", obs.actor);
+        vm.serializeAddress(key, "tx_origin", obs.txOrigin);
         vm.serializeAddress(key, "target", obs.target);
+        vm.serializeAddress(key, "expected_actor", operator);
+        vm.serializeAddress(key, "expected_target", address(proxy));
         vm.serializeAddress(key, "owner", ownerBefore);
 
         vm.serializeBytes(key, "calldata", obs.callData);
         vm.serializeBool(key, "call_success", obs.success);
         vm.serializeBytes(key, "return_data", obs.returnData);
+        vm.serializeBool(key, "candidate_valid_at_observation", obs.candidateValidAtObservation);
+        vm.serializeBytes(key, "expected_revert", expectedRevert);
 
         vm.serializeBytes32(key, "observed_slot", obs.observedSlot);
         vm.serializeBytes32(key, "implementation_before", obs.implementationBefore);
 
         vm.serializeBytes32(key, "implementation_after", obs.implementationAfter);
+        vm.serializeBytes32(key, "expected_implementation", expectedImplementation);
 
         vm.serializeBytes32(key, "proxy_admin_slot", adminBefore);
         vm.serializeUint(key, "minimum_delay", delayBefore);

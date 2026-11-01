@@ -61,6 +61,25 @@ cases.append((
     mutant(observed_slot="0x" + "00" * 32)
 ))
 
+cases.extend([
+    ("Wrong tx origin", mutant(tx_origin=baseline["owner"])),
+    ("Wrong expected actor", mutant(expected_actor=baseline["owner"])),
+    ("Wrong expected target", mutant(expected_target=baseline["owner"])),
+    (
+        "Wrong expected implementation",
+        mutant(expected_implementation="0x" + "00" * 32)
+    ),
+    (
+        "Invalid candidate flag type",
+        mutant(candidate_valid_at_observation="true")
+    ),
+    ("Invalid expected revert", mutant(expected_revert="0x")),
+])
+
+missing_input = copy.deepcopy(baseline)
+missing_input.pop("tx_origin", None)
+cases.append(("Missing evaluator input", missing_input))
+
 missing_slot = copy.deepcopy(baseline)
 missing_slot.pop("observed_slot", None)
 cases.append(("Missing observed slot", missing_slot))

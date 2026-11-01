@@ -65,11 +65,17 @@ required = [
     "policy_rule",
     "result",
     "actor",
+    "tx_origin",
     "target",
     "owner",
+    "expected_actor",
+    "expected_target",
     "calldata",
     "call_success",
     "return_data",
+    "candidate_valid_at_observation",
+    "expected_revert",
+    "expected_implementation",
     "observed_slot",
     "implementation_before",
     "implementation_after",
@@ -94,7 +100,7 @@ require(
     "All required fields present"
 )
 
-require(data["schema_version"] == "0.1", "Supported schema")
+require(data["schema_version"] == "0.2", "Supported schema")
 require(data["run_kind"] == "local_fixture", "Local fixture")
 require(
     data["fixture_id"] == "transparent_uups_authority_regression_v0.1",
@@ -110,12 +116,42 @@ require(data["result"] == "FAIL", "Regression detected")
 require(data["call_success"] is True, "Successful observed call")
 
 # Validate address fields.
-for field in ("actor", "target", "owner"):
+for field in ("actor", "tx_origin", "target", "owner", "expected_actor", "expected_target"):
     value = data[field]
     require(
         is_hex(value, 20) and nonzero_hex(value),
         f"Valid address: {field}"
     )
+
+require(
+    data["tx_origin"].lower() == data["actor"].lower(),
+    "Direct EOA origin binding"
+)
+require(
+    data["expected_actor"].lower() == data["actor"].lower(),
+    "Expected actor binding"
+)
+require(
+    data["expected_target"].lower() == data["target"].lower(),
+    "Expected target binding"
+)
+require(
+    type(data["candidate_valid_at_observation"]) is bool,
+    "Valid candidate precondition flag"
+)
+require(
+    is_hex(data["expected_implementation"], 32),
+    "Valid expected implementation word"
+)
+expected_candidate = int(data["expected_implementation"], 16)
+require(
+    0 < expected_candidate < 2**160,
+    "Canonical expected implementation address"
+)
+require(
+    is_hex(data["expected_revert"], 36),
+    "Valid expected revert bytes"
+)
 
 # Verify ERC-1967 implementation slot identity.
 ERC1967_IMPLEMENTATION_SLOT = (
@@ -181,6 +217,28 @@ require(0 < requested < 2**160, "Valid candidate address")
 require(offset == 64, "Canonical ABI offset")
 require(payload_length == 0, "Empty initialization data")
 require(after == requested, "Requested implementation installed")
+require(
+    requested == expected_candidate,
+    "Calldata matches expected implementation"
+)
+
+revert_selector = subprocess.check_output(
+    ["cast", "sig", "OwnableUnauthorizedAccount(address)"],
+    text=True
+).strip().lower()
+
+expected_revert_bytes = (
+    bytes.fromhex(revert_selector[2:])
+    + int(data["expected_actor"], 16).to_bytes(32, "big")
+)
+
+require(
+    bytes.fromhex(data["expected_revert"][2:])
+    == expected_revert_bytes,
+    "Expected revert matches Ownable authorization and actor"
+)
+
+
 
 # Validate unsigned timestamps and delay.
 time_fields = (
