@@ -187,4 +187,46 @@ abstract contract AuthorityProbe is Test {
             expectedTarget
         );
     }
+
+    // Convenience API for a direct EOA, ERC-1967 UUPS upgrade probe.
+    // Only canonical upgradeToAndCall with empty initialization data.
+    struct UpgradeCheck {
+        address actor;
+        address target;
+        address candidate;
+        bytes expectedRevert;
+        UpgradePolicy policy;
+    }
+
+    struct UpgradeCheckResult {
+        Observation observation;
+        PolicyStatus status;
+    }
+
+    function _checkIsolatedUpgrade(
+        UpgradeCheck memory spec
+    ) internal returns (UpgradeCheckResult memory result) {
+        bytes memory payload = abi.encodeWithSignature(
+            "upgradeToAndCall(address,bytes)",
+            spec.candidate,
+            bytes("")
+        );
+
+        result.observation = _observeIsolatedCall(
+            spec.actor,
+            spec.target,
+            payload,
+            ERC1967_IMPL_SLOT
+        );
+
+        result.status = _evaluateUpgradePolicy(
+            result.observation,
+            spec.policy,
+            bytes32(uint256(uint160(spec.candidate))),
+            spec.expectedRevert,
+            spec.actor,
+            spec.target
+        );
+    }
+
 }
