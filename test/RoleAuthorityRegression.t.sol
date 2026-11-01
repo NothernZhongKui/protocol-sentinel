@@ -131,10 +131,7 @@ contract RoleAuthorityRegressionTest is AuthorityProbe {
         _install(address(fixedVersion));
 
         assertEq(vault.version(), 2);
-        assertEq(
-            vm.load(address(roleProxy), ERC1967_IMPL_SLOT),
-            _word(address(fixedVersion))
-        );
+        assertEq(vm.load(address(roleProxy), ERC1967_IMPL_SLOT), _word(address(fixedVersion)));
 
         // The authorization model must remain intact.
         assertTrue(vault.hasRole(vault.UPGRADER_ROLE(), governor));
@@ -144,15 +141,11 @@ contract RoleAuthorityRegressionTest is AuthorityProbe {
         _install(address(candidate));
 
         assertEq(vault.version(), 3);
-        assertEq(
-            vm.load(address(roleProxy), ERC1967_IMPL_SLOT),
-            _word(address(candidate))
-        );
+        assertEq(vm.load(address(roleProxy), ERC1967_IMPL_SLOT), _word(address(candidate)));
 
         // Roles must survive both upgrades.
         assertTrue(vault.hasRole(vault.UPGRADER_ROLE(), governor));
         assertFalse(vault.hasRole(vault.UPGRADER_ROLE(), operator));
         assertTrue(vault.hasRole(vault.OPERATOR_ROLE(), operator));
     }
-
 }

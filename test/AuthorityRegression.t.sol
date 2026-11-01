@@ -379,13 +379,7 @@ contract AuthorityRegressionTest is AuthorityProbe {
         bytes32 expectedImplementation = bytes32(uint256(uint160(address(candidate))));
         bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator);
 
-        PolicyStatus status = _classifyUpgrade(
-            obs,
-            expectedImplementation,
-            expectedRevert,
-            operator,
-            address(proxy)
-        );
+        PolicyStatus status = _classifyUpgrade(obs, expectedImplementation, expectedRevert, operator, address(proxy));
 
         // Confirm the regression and unchanged admin settings.
         assertEq(uint256(status), uint256(PolicyStatus.FAIL));

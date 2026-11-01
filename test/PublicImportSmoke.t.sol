@@ -9,9 +9,6 @@ contract PublicImportSmokeTest is AuthorityProbe {
         assertEq(uint256(PolicyStatus.FAIL), 1);
         assertEq(uint256(PolicyStatus.UNKNOWN), 2);
 
-        assertEq(
-            uint256(UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT),
-            0
-        );
+        assertEq(uint256(UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT), 0);
     }
 }

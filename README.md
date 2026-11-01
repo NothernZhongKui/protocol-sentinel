@@ -129,4 +129,4 @@ It does not independently replay EVM execution.
 
 ## License
 
-To be determined before public release.
+MIT License. See [LICENSE](LICENSE).

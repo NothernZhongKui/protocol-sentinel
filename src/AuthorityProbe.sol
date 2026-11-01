@@ -117,11 +117,7 @@ abstract contract AuthorityProbe is Test {
 
         // Direct EOA observation requires matching sender and origin.
         // Contract-mediated execution is outside the current scope.
-        if (
-            obs.actor != expectedActor
-                || obs.txOrigin != expectedActor
-                || obs.target != expectedTarget
-        ) {
+        if (obs.actor != expectedActor || obs.txOrigin != expectedActor || obs.target != expectedTarget) {
             return PolicyStatus.UNKNOWN;
         }
 
@@ -136,11 +132,9 @@ abstract contract AuthorityProbe is Test {
 
         // ERC-1967 implementation addresses occupy the lower 160 bits.
         // Preserve full storage words in Observation for diagnostics.
-        address implementationBefore =
-            address(uint160(uint256(obs.implementationBefore)));
+        address implementationBefore = address(uint160(uint256(obs.implementationBefore)));
 
-        address implementationAfter =
-            address(uint160(uint256(obs.implementationAfter)));
+        address implementationAfter = address(uint160(uint256(obs.implementationAfter)));
 
         bool unchanged = implementationBefore == implementationAfter;
 
@@ -203,21 +197,10 @@ abstract contract AuthorityProbe is Test {
         PolicyStatus status;
     }
 
-    function _checkIsolatedUpgrade(
-        UpgradeCheck memory spec
-    ) internal returns (UpgradeCheckResult memory result) {
-        bytes memory payload = abi.encodeWithSignature(
-            "upgradeToAndCall(address,bytes)",
-            spec.candidate,
-            bytes("")
-        );
+    function _checkIsolatedUpgrade(UpgradeCheck memory spec) internal returns (UpgradeCheckResult memory result) {
+        bytes memory payload = abi.encodeWithSignature("upgradeToAndCall(address,bytes)", spec.candidate, bytes(""));
 
-        result.observation = _observeIsolatedCall(
-            spec.actor,
-            spec.target,
-            payload,
-            ERC1967_IMPL_SLOT
-        );
+        result.observation = _observeIsolatedCall(spec.actor, spec.target, payload, ERC1967_IMPL_SLOT);
 
         result.status = _evaluateUpgradePolicy(
             result.observation,
@@ -228,5 +211,4 @@ abstract contract AuthorityProbe is Test {
             spec.target
         );
     }
-
 }

@@ -8,8 +8,7 @@ import {UpgradeProbe} from "./fixtures/VaultVersions.sol";
 // Synthetic fixture: modifies only a high bit of the ERC-1967 word.
 contract HighBitsOnlyVaultP2 is VaultV1 {
     function upgradeToAndCall(address, bytes memory) public payable override {
-        bytes32 slot =
-            0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+        bytes32 slot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
 
         assembly {
             sstore(slot, xor(sload(slot), shl(200, 1)))
@@ -22,42 +21,25 @@ contract ReviewImplementationAddressTest is AuthorityRegressionTest {
         HighBitsOnlyVaultP2 scenario = new HighBitsOnlyVaultP2();
         UpgradeProbe candidate = new UpgradeProbe();
 
-        _upgradeViaTimelock(
-            address(scenario),
-            keccak256("review-P2-high-bits")
-        );
+        _upgradeViaTimelock(address(scenario), keccak256("review-P2-high-bits"));
 
         assertEq(vault.version(), 1);
 
-        bytes memory payload = abi.encodeWithSignature(
-            "upgradeToAndCall(address,bytes)",
-            address(candidate),
-            bytes("")
-        );
+        bytes memory payload = abi.encodeWithSignature("upgradeToAndCall(address,bytes)", address(candidate), bytes(""));
 
         // Observe the actual execution and resulting proxy behavior.
-        Observation memory obs = _observeCall(
-            operator,
-            address(proxy),
-            payload,
-            IMPLEMENTATION_SLOT
-        );
+        Observation memory obs = _observeCall(operator, address(proxy), payload, IMPLEMENTATION_SLOT);
 
         assertTrue(obs.success);
         assertTrue(obs.candidateValidAtObservation);
 
         // Full storage words differ.
-        assertNotEq(
-            obs.implementationBefore,
-            obs.implementationAfter
-        );
+        assertNotEq(obs.implementationBefore, obs.implementationAfter);
 
         // Effective implementation addresses do not.
-        address beforeAddress =
-            address(uint160(uint256(obs.implementationBefore)));
+        address beforeAddress = address(uint160(uint256(obs.implementationBefore)));
 
-        address afterAddress =
-            address(uint160(uint256(obs.implementationAfter)));
+        address afterAddress = address(uint160(uint256(obs.implementationAfter)));
 
         assertEq(beforeAddress, afterAddress);
         assertEq(afterAddress, address(scenario));
@@ -65,13 +47,9 @@ contract ReviewImplementationAddressTest is AuthorityRegressionTest {
         // The proxy still executes the original implementation.
         assertEq(vault.version(), 1);
 
-        bytes32 expectedImplementation =
-            bytes32(uint256(uint160(address(candidate))));
+        bytes32 expectedImplementation = bytes32(uint256(uint160(address(candidate))));
 
-        bytes memory expectedRevert = abi.encodeWithSignature(
-            "OwnableUnauthorizedAccount(address)",
-            operator
-        );
+        bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator);
 
         PolicyStatus replacement = _evaluateUpgradePolicy(
             obs,
@@ -97,10 +75,6 @@ contract ReviewImplementationAddressTest is AuthorityRegressionTest {
             "P2: storage word change is not implementation replacement"
         );
 
-        assertEq(
-            uint256(successfulCall),
-            uint256(PolicyStatus.FAIL),
-            "P2: successful upgrade call must remain FAIL"
-        );
+        assertEq(uint256(successfulCall), uint256(PolicyStatus.FAIL), "P2: successful upgrade call must remain FAIL");
     }
 }
