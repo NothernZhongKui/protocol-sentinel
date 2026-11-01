@@ -20,6 +20,7 @@ abstract contract AuthorityProbe is Test {
 
     struct Observation {
         address actor;
+        address txOrigin;
         address target;
         bool success;
         bytes returnData;
@@ -34,11 +35,14 @@ abstract contract AuthorityProbe is Test {
         returns (Observation memory result)
     {
         result.actor = actor;
+        result.txOrigin = actor;
         result.target = target;
         result.callData = callData;
         result.implementationBefore = vm.load(target, implementationSlot);
 
-        vm.prank(actor);
+        // Direct EOA execution: sender and origin are the same.
+        // Contract-mediated calls require a separate execution adapter.
+        vm.prank(actor, actor);
         (result.success, result.returnData) = target.call(callData);
 
         result.implementationAfter = vm.load(target, implementationSlot);
