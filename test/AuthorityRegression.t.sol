@@ -626,4 +626,89 @@ contract AuthorityRegressionTest is AuthorityProbe {
 
         assertEq(uint256(mismatch), uint256(PolicyStatus.UNKNOWN));
     }
+
+    function test_IsolatedProbesRestoreOriginalImplementation() public {
+        VaultV2Risky risky = new VaultV2Risky();
+        UpgradeProbe candidate = new UpgradeProbe();
+
+        _upgradeViaTimelock(address(risky), keccak256("isolation-test"));
+
+        bytes32 baseline = vm.load(address(proxy), IMPLEMENTATION_SLOT);
+
+        bytes32 expected = bytes32(uint256(uint160(address(candidate))));
+
+        uint256 originalTime = block.timestamp;
+
+        assertEq(vault.version(), 2);
+
+        bytes memory callData =
+            abi.encodeWithSignature("upgradeToAndCall(address,bytes)", address(candidate), bytes(""));
+
+        bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator);
+
+        // Run the same operation twice.
+        for (uint256 i = 0; i < 2; i++) {
+            Observation memory obs = _observeIsolatedCall(operator, address(proxy), callData, IMPLEMENTATION_SLOT);
+
+            assertTrue(obs.success);
+            assertEq(obs.implementationBefore, baseline);
+            assertEq(obs.implementationAfter, expected);
+
+            PolicyStatus status = _evaluateUpgradePolicy(
+                obs, UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT, expected, expectedRevert, operator, address(proxy)
+            );
+
+            assertEq(uint256(status), uint256(PolicyStatus.FAIL));
+
+            // The actual EVM state must be restored.
+            assertEq(vm.load(address(proxy), IMPLEMENTATION_SLOT), baseline);
+
+            assertEq(vault.version(), 2);
+            assertEq(block.timestamp, originalTime);
+        }
+    }
+
+    function test_IsolatedRejectedProbesPreserveState() public {
+        UpgradeProbe candidate = new UpgradeProbe();
+        address outsider = makeAddr("outsider");
+
+        bytes32 baseline = vm.load(address(proxy), IMPLEMENTATION_SLOT);
+
+        uint256 originalTime = block.timestamp;
+
+        bytes memory callData =
+            abi.encodeWithSignature("upgradeToAndCall(address,bytes)", address(candidate), bytes(""));
+
+        address[2] memory actors = [operator, outsider];
+
+        for (uint256 i = 0; i < actors.length; i++) {
+            address actor = actors[i];
+
+            Observation memory obs = _observeIsolatedCall(actor, address(proxy), callData, IMPLEMENTATION_SLOT);
+
+            bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", actor);
+
+            assertFalse(obs.success);
+            assertEq(obs.returnData, expectedRevert);
+            assertEq(obs.actor, actor);
+            assertEq(obs.target, address(proxy));
+
+            PolicyStatus status = _evaluateUpgradePolicy(
+                obs,
+                UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT,
+                bytes32(uint256(uint160(address(candidate)))),
+                expectedRevert,
+                actor,
+                address(proxy)
+            );
+
+            assertEq(uint256(status), uint256(PolicyStatus.PASS));
+
+            // State remains unchanged after every probe.
+            assertEq(vm.load(address(proxy), IMPLEMENTATION_SLOT), baseline);
+
+            assertEq(vault.version(), 1);
+            assertEq(block.timestamp, originalTime);
+        }
+    }
 }

@@ -44,6 +44,21 @@ abstract contract AuthorityProbe is Test {
         result.implementationAfter = vm.load(target, implementationSlot);
     }
 
+    // Execute a probe and restore the original EVM state.
+    // Observation remains available in memory.
+    function _observeIsolatedCall(address actor, address target, bytes memory callData, bytes32 implementationSlot)
+        internal
+        returns (Observation memory result)
+    {
+        uint256 snapshotId = vm.snapshotState();
+
+        result = _observeCall(actor, target, callData, implementationSlot);
+
+        bool restored = vm.revertToStateAndDelete(snapshotId);
+
+        require(restored, "Sentinel: snapshot restore failed");
+    }
+
     // Preconditions for our known UUPS fixture.
     function _isValidUUPSImplementation(address candidate) internal view returns (bool) {
         if (candidate.code.length == 0) {
