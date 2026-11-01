@@ -11,6 +11,8 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
+import {NonUUPSImplementation} from "./fixtures/NonUUPSImplementation.sol";
+
 contract AuthorityRegressionTest is AuthorityProbe {
     uint256 constant DELAY = 48 hours;
 
@@ -424,5 +426,48 @@ contract AuthorityRegressionTest is AuthorityProbe {
         if (vm.envOr("EXPORT_WITNESS", false)) {
             vm.writeJson(json, "./artifacts/demo/authority-regression.json");
         }
+    }
+
+    function test_InvalidUpgradeCandidateMustBeUnknown() public {
+        address invalidCandidate = makeAddr("invalid-candidate");
+
+        // The candidate has no deployed code.
+        assertEq(invalidCandidate.code.length, 0);
+
+        bytes memory callData = abi.encodeWithSignature("upgradeToAndCall(address,bytes)", invalidCandidate, bytes(""));
+
+        Observation memory obs = _observeCall(operator, address(proxy), callData, IMPLEMENTATION_SLOT);
+
+        bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator);
+
+        PolicyStatus actual = _classifyUpgrade(obs, bytes32(uint256(uint160(invalidCandidate))), expectedRevert);
+
+        // Invalid test input must not establish security.
+        assertEq(uint256(actual), uint256(PolicyStatus.UNKNOWN), "Invalid candidate must produce UNKNOWN");
+    }
+
+    function test_DeployedNonUUPSCandidateMustBeUnknown() public {
+        NonUUPSImplementation candidate = new NonUUPSImplementation();
+
+        // Code exists, but UUPS is not supported.
+        assertGt(address(candidate).code.length, 0);
+
+        bytes32 implementationBefore = vm.load(address(proxy), IMPLEMENTATION_SLOT);
+
+        bytes memory callData =
+            abi.encodeWithSignature("upgradeToAndCall(address,bytes)", address(candidate), bytes(""));
+
+        Observation memory obs = _observeCall(operator, address(proxy), callData, IMPLEMENTATION_SLOT);
+
+        PolicyStatus result = _classifyUpgrade(
+            obs,
+            bytes32(uint256(uint160(address(candidate)))),
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator)
+        );
+
+        assertEq(uint256(result), uint256(PolicyStatus.UNKNOWN));
+
+        assertFalse(obs.success);
+        assertEq(obs.implementationAfter, implementationBefore);
     }
 }
