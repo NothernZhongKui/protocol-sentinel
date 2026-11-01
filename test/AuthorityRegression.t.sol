@@ -401,11 +401,11 @@ contract AuthorityRegressionTest is AuthorityProbe {
         vm.serializeString(key, "policy_id", "AR-001");
         vm.serializeString(key, "result", "FAIL");
 
-        vm.serializeAddress(key, "actor", operator);
-        vm.serializeAddress(key, "target", address(proxy));
+        vm.serializeAddress(key, "actor", obs.actor);
+        vm.serializeAddress(key, "target", obs.target);
         vm.serializeAddress(key, "owner", ownerBefore);
 
-        vm.serializeBytes(key, "calldata", callData);
+        vm.serializeBytes(key, "calldata", obs.callData);
         vm.serializeBool(key, "call_success", obs.success);
         vm.serializeBytes(key, "return_data", obs.returnData);
 
@@ -425,8 +425,26 @@ contract AuthorityRegressionTest is AuthorityProbe {
         vm.serializeUint(key, "timelock_ready_at", history.readyAt);
         vm.serializeUint(key, "timelock_executed_at", history.executedAt);
 
-        string memory json =
-            vm.serializeString(key, "reproduce", "forge test --match-test test_ExportRiskyWitness -vvvv");
+        string memory defaultSourceCommit = "unrecorded";
+        vm.serializeString(key, "source_commit", vm.envOr("SOURCE_COMMIT", defaultSourceCommit));
+
+        vm.serializeString(key, "fixture_id", "transparent_uups_authority_regression_v0.1");
+
+        vm.serializeString(key, "policy_rule", "NO_IMPLEMENTATION_REPLACEMENT");
+
+        vm.serializeBytes32(key, "proxy_codehash", address(proxy).codehash);
+
+        vm.serializeBytes32(
+            key, "implementation_before_codehash", address(uint160(uint256(obs.implementationBefore))).codehash
+        );
+
+        vm.serializeBytes32(
+            key, "implementation_after_codehash", address(uint160(uint256(obs.implementationAfter))).codehash
+        );
+
+        string memory json = vm.serializeString(
+            key, "reproduce", "EXPORT_WITNESS=true forge test --match-test test_ExportRiskyWitness -vvvv"
+        );
 
         if (vm.envOr("EXPORT_WITNESS", false)) {
             vm.writeJson(json, "./artifacts/demo/authority-regression.json");
