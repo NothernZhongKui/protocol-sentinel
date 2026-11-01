@@ -12,7 +12,6 @@ out/
 /broadcast/**/dry-run/
 
 # Docs
-docs/
 
 # Dotenv file
 .env
