@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""Run Solidity observations and independently replay policy verdicts."""
+
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+OUTPUT = ROOT / "artifacts/demo"
+
+CASES = {
+    "baseline": ("PASS", "NO_IMPLEMENTATION_REPLACEMENT"),
+    "risky": ("FAIL", "NO_IMPLEMENTATION_REPLACEMENT"),
+    "self-replacement": ("UNKNOWN", "NO_IMPLEMENTATION_REPLACEMENT"),
+    "self-call": ("FAIL", "NO_SUCCESSFUL_UPGRADE_CALL"),
+    "fixed": ("PASS", "NO_IMPLEMENTATION_REPLACEMENT"),
+}
+
+
+def run(*args, env=None):
+    subprocess.run(
+        list(args),
+        cwd=ROOT,
+        env=env,
+        check=True
+    )
+
+
+def main():
+    OUTPUT.mkdir(parents=True, exist_ok=True)
+
+    # Delete only the five generated matrix files, never the main witness.
+    for name in CASES:
+        path = OUTPUT / f"policy-replay-{name}.json"
+        path.unlink(missing_ok=True)
+
+    env = os.environ.copy()
+    env["EXPORT_POLICY_MATRIX"] = "true"
+
+    print("=== Generating fresh Solidity observations ===", flush=True)
+
+    run(
+        "forge", "test",
+        "--match-contract", "PolicyReplayMatrixTest",
+        "--match-test", "test_ExportPolicyReplayMatrix",
+        "-vv",
+        env=env
+    )
+
+    print("\n=== Checking independent policy replay ===", flush=True)
+
+    for name, (expected, policy) in CASES.items():
+        path = OUTPUT / f"policy-replay-{name}.json"
+
+        if not path.is_file():
+            raise SystemExit(f"FAIL | Missing generated witness: {name}")
+
+        data = json.loads(path.read_text(encoding="utf-8"))
+
+        if data.get("result") != expected:
+            raise SystemExit(f"FAIL | Unexpected Solidity verdict: {name}")
+
+        if data.get("policy_rule") != policy:
+            raise SystemExit(f"FAIL | Unexpected policy: {name}")
+
+        run(
+            sys.executable,
+            str(ROOT / "scripts/replay_policy.py"),
+            str(path)
+        )
+
+        print(f"PASS | {name}: {expected}", flush=True)
+
+    print("\n=== Python controls ===", flush=True)
+
+    run(
+        sys.executable,
+        str(ROOT / "scripts/replay_policy.py"),
+        "--self-test"
+    )
+
+    print("\nPASS | Solidity/Python matrix: 5/5")
+    print("PASS | Replay controls: 11/11")
+    print("Policy replay integration PASSED")
+
+
+if __name__ == "__main__":
+    main()
