@@ -303,7 +303,8 @@ contract AuthorityRegressionTest is AuthorityProbe {
 
         bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator);
 
-        PolicyStatus actual = _classifyUpgrade(observation, expectedImplementation, expectedRevert);
+        PolicyStatus actual =
+            _classifyUpgrade(observation, expectedImplementation, expectedRevert, operator, address(proxy));
 
         assertEq(uint256(actual), uint256(expected));
 
@@ -345,7 +346,9 @@ contract AuthorityRegressionTest is AuthorityProbe {
         PolicyStatus actual = _classifyUpgrade(
             observation,
             bytes32(uint256(uint160(address(candidate)))),
-            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator)
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator),
+            operator,
+            address(proxy)
         );
 
         assertEq(uint256(actual), uint256(PolicyStatus.UNKNOWN));
@@ -376,7 +379,9 @@ contract AuthorityRegressionTest is AuthorityProbe {
         PolicyStatus status = _classifyUpgrade(
             obs,
             bytes32(uint256(uint160(address(candidate)))),
-            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator)
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator),
+            operator,
+            address(proxy)
         );
 
         // Confirm the regression and unchanged admin settings.
@@ -440,7 +445,9 @@ contract AuthorityRegressionTest is AuthorityProbe {
 
         bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator);
 
-        PolicyStatus actual = _classifyUpgrade(obs, bytes32(uint256(uint160(invalidCandidate))), expectedRevert);
+        PolicyStatus actual = _classifyUpgrade(
+            obs, bytes32(uint256(uint160(invalidCandidate))), expectedRevert, operator, address(proxy)
+        );
 
         // Invalid test input must not establish security.
         assertEq(uint256(actual), uint256(PolicyStatus.UNKNOWN), "Invalid candidate must produce UNKNOWN");
@@ -462,7 +469,9 @@ contract AuthorityRegressionTest is AuthorityProbe {
         PolicyStatus result = _classifyUpgrade(
             obs,
             bytes32(uint256(uint160(address(candidate)))),
-            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator)
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator),
+            operator,
+            address(proxy)
         );
 
         assertEq(uint256(result), uint256(PolicyStatus.UNKNOWN));
@@ -487,7 +496,9 @@ contract AuthorityRegressionTest is AuthorityProbe {
         PolicyStatus status = _classifyUpgrade(
             obs,
             bytes32(uint256(uint160(address(risky)))),
-            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator)
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator),
+            operator,
+            address(proxy)
         );
 
         assertEq(uint256(status), uint256(PolicyStatus.UNKNOWN));
@@ -511,11 +522,13 @@ contract AuthorityRegressionTest is AuthorityProbe {
 
         bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator);
 
-        PolicyStatus replacementPolicy =
-            _evaluateUpgradePolicy(obs, UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT, candidate, expectedRevert);
+        PolicyStatus replacementPolicy = _evaluateUpgradePolicy(
+            obs, UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT, candidate, expectedRevert, operator, address(proxy)
+        );
 
-        PolicyStatus callPolicy =
-            _evaluateUpgradePolicy(obs, UpgradePolicy.NO_SUCCESSFUL_UPGRADE_CALL, candidate, expectedRevert);
+        PolicyStatus callPolicy = _evaluateUpgradePolicy(
+            obs, UpgradePolicy.NO_SUCCESSFUL_UPGRADE_CALL, candidate, expectedRevert, operator, address(proxy)
+        );
 
         assertEq(uint256(replacementPolicy), uint256(PolicyStatus.UNKNOWN));
 
@@ -538,9 +551,79 @@ contract AuthorityRegressionTest is AuthorityProbe {
             obs,
             UpgradePolicy.NO_SUCCESSFUL_UPGRADE_CALL,
             bytes32(uint256(uint160(address(candidate)))),
-            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator)
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator),
+            operator,
+            address(proxy)
         );
 
         assertEq(uint256(status), uint256(PolicyStatus.UNKNOWN));
+    }
+
+    function test_OutsiderObservationCannotProveOperatorPolicy() public {
+        UpgradeProbe candidate = new UpgradeProbe();
+        address outsider = makeAddr("outsider");
+
+        bytes memory callData =
+            abi.encodeWithSignature("upgradeToAndCall(address,bytes)", address(candidate), bytes(""));
+
+        // Observe outsider, not the intended operator.
+        Observation memory obs = _observeCall(outsider, address(proxy), callData, IMPLEMENTATION_SLOT);
+
+        assertEq(obs.actor, outsider);
+        assertEq(obs.target, address(proxy));
+        assertTrue(obs.actor != operator);
+
+        bytes memory outsiderRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", outsider);
+
+        PolicyStatus actual = _evaluateUpgradePolicy(
+            obs,
+            UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT,
+            bytes32(uint256(uint160(address(candidate)))),
+            outsiderRevert,
+            operator,
+            address(proxy)
+        );
+
+        // An outsider's result cannot certify operator policy.
+        assertEq(uint256(actual), uint256(PolicyStatus.UNKNOWN), "Actor mismatch must produce UNKNOWN");
+    }
+
+    function test_TargetMismatchCannotCertifyPolicy() public {
+        UpgradeProbe candidate = new UpgradeProbe();
+
+        bytes memory callData =
+            abi.encodeWithSignature("upgradeToAndCall(address,bytes)", address(candidate), bytes(""));
+
+        Observation memory obs = _observeCall(operator, address(proxy), callData, IMPLEMENTATION_SLOT);
+
+        bytes32 expectedImplementation = bytes32(uint256(uint160(address(candidate))));
+
+        bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator);
+
+        // Correctly bound observation establishes PASS.
+        PolicyStatus correct = _evaluateUpgradePolicy(
+            obs,
+            UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT,
+            expectedImplementation,
+            expectedRevert,
+            operator,
+            address(proxy)
+        );
+
+        assertEq(uint256(correct), uint256(PolicyStatus.PASS));
+
+        // Same observation cannot certify another target.
+        address otherTarget = makeAddr("other-target");
+
+        PolicyStatus mismatch = _evaluateUpgradePolicy(
+            obs,
+            UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT,
+            expectedImplementation,
+            expectedRevert,
+            operator,
+            otherTarget
+        );
+
+        assertEq(uint256(mismatch), uint256(PolicyStatus.UNKNOWN));
     }
 }

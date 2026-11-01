@@ -19,6 +19,8 @@ abstract contract AuthorityProbe is Test {
     bytes32 internal constant ERC1967_IMPL_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
 
     struct Observation {
+        address actor;
+        address target;
         bool success;
         bytes returnData;
         bytes32 implementationBefore;
@@ -31,6 +33,8 @@ abstract contract AuthorityProbe is Test {
         internal
         returns (Observation memory result)
     {
+        result.actor = actor;
+        result.target = target;
         result.callData = callData;
         result.implementationBefore = vm.load(target, implementationSlot);
 
@@ -60,8 +64,14 @@ abstract contract AuthorityProbe is Test {
         Observation memory obs,
         UpgradePolicy policy,
         bytes32 expectedImplementation,
-        bytes memory expectedRevert
+        bytes memory expectedRevert,
+        address expectedActor,
+        address expectedTarget
     ) internal view returns (PolicyStatus) {
+        if (obs.actor != expectedActor || obs.target != expectedTarget) {
+            return PolicyStatus.UNKNOWN;
+        }
+
         address candidate = address(uint160(uint256(expectedImplementation)));
 
         if (!_isValidUUPSImplementation(candidate)) {
@@ -102,13 +112,20 @@ abstract contract AuthorityProbe is Test {
     }
 
     // Compatibility with existing regression tests.
-    function _classifyUpgrade(Observation memory obs, bytes32 expectedImplementation, bytes memory expectedRevert)
-        internal
-        view
-        returns (PolicyStatus)
-    {
+    function _classifyUpgrade(
+        Observation memory obs,
+        bytes32 expectedImplementation,
+        bytes memory expectedRevert,
+        address expectedActor,
+        address expectedTarget
+    ) internal view returns (PolicyStatus) {
         return _evaluateUpgradePolicy(
-            obs, UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT, expectedImplementation, expectedRevert
+            obs,
+            UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT,
+            expectedImplementation,
+            expectedRevert,
+            expectedActor,
+            expectedTarget
         );
     }
 }
