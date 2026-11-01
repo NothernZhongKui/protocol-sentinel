@@ -115,15 +115,17 @@ abstract contract AuthorityProbe is Test {
             return PolicyStatus.UNKNOWN;
         }
 
-        if (obs.actor != expectedActor || obs.target != expectedTarget) {
+        // Direct EOA observation requires matching sender and origin.
+        // Contract-mediated execution is outside the current scope.
+        if (
+            obs.actor != expectedActor
+                || obs.txOrigin != expectedActor
+                || obs.target != expectedTarget
+        ) {
             return PolicyStatus.UNKNOWN;
         }
 
         address candidate = address(uint160(uint256(expectedImplementation)));
-
-        if (!obs.candidateValidAtObservation) {
-            return PolicyStatus.UNKNOWN;
-        }
 
         // This PoC covers upgradeToAndCall with empty data.
         bytes memory expectedCallData = abi.encodeWithSignature("upgradeToAndCall(address,bytes)", candidate, bytes(""));
@@ -132,9 +134,22 @@ abstract contract AuthorityProbe is Test {
             return PolicyStatus.UNKNOWN;
         }
 
-        bool unchanged = obs.implementationAfter == obs.implementationBefore;
+        // ERC-1967 implementation addresses occupy the lower 160 bits.
+        // Preserve full storage words in Observation for diagnostics.
+        address implementationBefore =
+            address(uint160(uint256(obs.implementationBefore)));
+
+        address implementationAfter =
+            address(uint160(uint256(obs.implementationAfter)));
+
+        bool unchanged = implementationBefore == implementationAfter;
 
         if (!obs.success) {
+            // A rejected upgrade is meaningful only with a valid candidate.
+            if (!obs.candidateValidAtObservation) {
+                return PolicyStatus.UNKNOWN;
+            }
+
             if (unchanged && keccak256(obs.returnData) == keccak256(expectedRevert)) {
                 return PolicyStatus.PASS;
             }
