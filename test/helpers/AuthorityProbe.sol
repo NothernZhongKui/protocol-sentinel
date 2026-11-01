@@ -11,17 +11,27 @@ abstract contract AuthorityProbe is Test {
         ERROR
     }
 
+    enum UpgradePolicy {
+        NO_IMPLEMENTATION_REPLACEMENT,
+        NO_SUCCESSFUL_UPGRADE_CALL
+    }
+
+    bytes32 internal constant ERC1967_IMPL_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
     struct Observation {
         bool success;
         bytes returnData;
         bytes32 implementationBefore;
         bytes32 implementationAfter;
+        bytes callData;
     }
 
+    // Observation layer: record what actually happened.
     function _observeCall(address actor, address target, bytes memory callData, bytes32 implementationSlot)
         internal
         returns (Observation memory result)
     {
+        result.callData = callData;
         result.implementationBefore = vm.load(target, implementationSlot);
 
         vm.prank(actor);
@@ -30,48 +40,75 @@ abstract contract AuthorityProbe is Test {
         result.implementationAfter = vm.load(target, implementationSlot);
     }
 
-    function _classifyUpgrade(Observation memory result, bytes32 expectedImplementation, bytes memory expectedRevert)
+    // Preconditions for our known UUPS fixture.
+    function _isValidUUPSImplementation(address candidate) internal view returns (bool) {
+        if (candidate.code.length == 0) {
+            return false;
+        }
+
+        (bool success, bytes memory response) = candidate.staticcall(abi.encodeWithSignature("proxiableUUID()"));
+
+        if (!success || response.length != 32) {
+            return false;
+        }
+
+        return abi.decode(response, (bytes32)) == ERC1967_IMPL_SLOT;
+    }
+
+    // Policy layer: interpret an observation.
+    function _evaluateUpgradePolicy(
+        Observation memory obs,
+        UpgradePolicy policy,
+        bytes32 expectedImplementation,
+        bytes memory expectedRevert
+    ) internal view returns (PolicyStatus) {
+        address candidate = address(uint160(uint256(expectedImplementation)));
+
+        if (!_isValidUUPSImplementation(candidate)) {
+            return PolicyStatus.UNKNOWN;
+        }
+
+        // This PoC covers upgradeToAndCall with empty data.
+        bytes memory expectedCallData = abi.encodeWithSignature("upgradeToAndCall(address,bytes)", candidate, bytes(""));
+
+        if (keccak256(obs.callData) != keccak256(expectedCallData)) {
+            return PolicyStatus.UNKNOWN;
+        }
+
+        bool unchanged = obs.implementationAfter == obs.implementationBefore;
+
+        if (!obs.success) {
+            if (unchanged && keccak256(obs.returnData) == keccak256(expectedRevert)) {
+                return PolicyStatus.PASS;
+            }
+
+            return PolicyStatus.UNKNOWN;
+        }
+
+        // Unexpected state transition: do not guess.
+        if (!unchanged && obs.implementationAfter != expectedImplementation) {
+            return PolicyStatus.UNKNOWN;
+        }
+
+        if (policy == UpgradePolicy.NO_SUCCESSFUL_UPGRADE_CALL) {
+            return PolicyStatus.FAIL;
+        }
+
+        if (!unchanged && obs.implementationAfter == expectedImplementation) {
+            return PolicyStatus.FAIL;
+        }
+
+        return PolicyStatus.UNKNOWN;
+    }
+
+    // Compatibility with existing regression tests.
+    function _classifyUpgrade(Observation memory obs, bytes32 expectedImplementation, bytes memory expectedRevert)
         internal
         view
         returns (PolicyStatus)
     {
-        address candidate = address(uint160(uint256(expectedImplementation)));
-
-        // Precondition 1: implementation must exist.
-        if (candidate.code.length == 0) {
-            return PolicyStatus.UNKNOWN;
-        }
-
-        // Precondition 2: confirm UUPS compatibility
-        // for this ERC-1967 fixture.
-        (bool valid, bytes memory response) = candidate.staticcall(abi.encodeWithSignature("proxiableUUID()"));
-
-        bytes32 expectedSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
-
-        if (!valid || response.length != 32) {
-            return PolicyStatus.UNKNOWN;
-        }
-
-        if (abi.decode(response, (bytes32)) != expectedSlot) {
-            return PolicyStatus.UNKNOWN;
-        }
-
-        // Confirmed unauthorized implementation change.
-        if (
-            result.success && result.implementationAfter == expectedImplementation
-                && result.implementationAfter != result.implementationBefore
-        ) {
-            return PolicyStatus.FAIL;
-        }
-
-        // Expected authorization rejection.
-        if (
-            !result.success && result.implementationAfter == result.implementationBefore
-                && keccak256(result.returnData) == keccak256(expectedRevert)
-        ) {
-            return PolicyStatus.PASS;
-        }
-
-        return PolicyStatus.UNKNOWN;
+        return _evaluateUpgradePolicy(
+            obs, UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT, expectedImplementation, expectedRevert
+        );
     }
 }

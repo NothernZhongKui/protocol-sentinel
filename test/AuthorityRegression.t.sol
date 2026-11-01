@@ -494,4 +494,53 @@ contract AuthorityRegressionTest is AuthorityProbe {
 
         assertEq(vault.version(), 2);
     }
+
+    function test_SelfUpgradeViolatesCallPolicy() public {
+        VaultV2Risky risky = new VaultV2Risky();
+
+        _upgradeViaTimelock(address(risky), keccak256("policy-self-upgrade"));
+
+        bytes memory callData = abi.encodeWithSignature("upgradeToAndCall(address,bytes)", address(risky), bytes(""));
+
+        Observation memory obs = _observeCall(operator, address(proxy), callData, IMPLEMENTATION_SLOT);
+
+        assertTrue(obs.success);
+        assertEq(obs.implementationBefore, obs.implementationAfter);
+
+        bytes32 candidate = bytes32(uint256(uint160(address(risky))));
+
+        bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator);
+
+        PolicyStatus replacementPolicy =
+            _evaluateUpgradePolicy(obs, UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT, candidate, expectedRevert);
+
+        PolicyStatus callPolicy =
+            _evaluateUpgradePolicy(obs, UpgradePolicy.NO_SUCCESSFUL_UPGRADE_CALL, candidate, expectedRevert);
+
+        assertEq(uint256(replacementPolicy), uint256(PolicyStatus.UNKNOWN));
+
+        assertEq(uint256(callPolicy), uint256(PolicyStatus.FAIL));
+    }
+
+    function test_RegularCallDoesNotViolateUpgradePolicy() public {
+        UpgradeProbe candidate = new UpgradeProbe();
+
+        bytes32 beforeCall = vm.load(address(proxy), IMPLEMENTATION_SLOT);
+
+        Observation memory obs =
+            _observeCall(operator, address(proxy), abi.encodeWithSignature("version()"), IMPLEMENTATION_SLOT);
+
+        assertTrue(obs.success);
+        assertEq(obs.implementationBefore, beforeCall);
+        assertEq(obs.implementationAfter, beforeCall);
+
+        PolicyStatus status = _evaluateUpgradePolicy(
+            obs,
+            UpgradePolicy.NO_SUCCESSFUL_UPGRADE_CALL,
+            bytes32(uint256(uint160(address(candidate)))),
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator)
+        );
+
+        assertEq(uint256(status), uint256(PolicyStatus.UNKNOWN));
+    }
 }
