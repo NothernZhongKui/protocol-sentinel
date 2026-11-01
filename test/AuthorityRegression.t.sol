@@ -470,4 +470,28 @@ contract AuthorityRegressionTest is AuthorityProbe {
         assertFalse(obs.success);
         assertEq(obs.implementationAfter, implementationBefore);
     }
+
+    function test_SelfUpgradeReturnsUnknown() public {
+        VaultV2Risky risky = new VaultV2Risky();
+
+        _upgradeViaTimelock(address(risky), keccak256("self-upgrade"));
+
+        bytes memory callData = abi.encodeWithSignature("upgradeToAndCall(address,bytes)", address(risky), bytes(""));
+
+        Observation memory obs = _observeCall(operator, address(proxy), callData, IMPLEMENTATION_SLOT);
+
+        // The call succeeds, but implementation stays the same.
+        assertTrue(obs.success);
+        assertEq(obs.implementationBefore, obs.implementationAfter);
+
+        PolicyStatus status = _classifyUpgrade(
+            obs,
+            bytes32(uint256(uint160(address(risky)))),
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator)
+        );
+
+        assertEq(uint256(status), uint256(PolicyStatus.UNKNOWN));
+
+        assertEq(vault.version(), 2);
+    }
 }
