@@ -67,31 +67,51 @@ Unchanged owner and delay do not establish AR-001.
 
 ## 6. Detection Method
 
-The AuthorityProbe observes an actual local EVM call.
+The observer executes a declared local EVM call and records:
 
-Inputs:
-- Actor
-- Target
-- Calldata
-- Implementation storage slot
-- Expected implementation and authorization rejection
+- Actor and transaction origin
+- Target and exact calldata
+- Execution success and return/revert data
+- Implementation slot values before and after execution
+- Candidate validation result captured at observation time
 
-Observations:
-- Execution success
-- Return or revert data
-- Implementation before execution
-- Implementation after execution
+The current helper supports a canonical
+upgradeToAndCall(address,bytes) call with empty initialization data.
 
-PASS means the expected authorization rejection occurred
-and the implementation remained unchanged.
+The evaluator uses the recorded Observation and declared
+expectations without making additional EVM calls.
 
-FAIL means a successful unauthorized call changed the
-implementation to the expected target.
+Two policies are implemented:
 
-UNKNOWN means the observation does not justify either conclusion.
+### NO_IMPLEMENTATION_REPLACEMENT
 
-ERROR is reserved for setup or execution failures and is
-not yet separately implemented by the probe.
+A successful call changing the implementation is FAIL,
+even if the resulting address differs from the requested candidate.
+
+An expected rejection with unchanged implementation is PASS.
+
+A successful call without implementation replacement is UNKNOWN.
+
+### NO_SUCCESSFUL_UPGRADE_CALL
+
+A successful matching upgrade call is FAIL, regardless of
+whether the implementation address changes.
+
+An expected rejection with unchanged implementation is PASS.
+
+Unexpected reverts and insufficient evidence produce UNKNOWN.
+
+### Result limitations
+
+Candidate preconditions and the expected rejection are defined
+for a known fixture. A matching revert payload does not prove
+the exact source-level authorization path.
+
+ERROR is reserved and is not yet emitted independently.
+
+Isolated probes restore EVM state using Foundry snapshots.
+The current default execution model is direct EOA impersonation,
+not arbitrary contract-mediated execution.
 
 ## 7. Assumptions
 
@@ -139,16 +159,31 @@ deployment identity require further work.
 
 ## 10. Open Validation Gaps
 
-Before declaring the experiment complete:
+Completed in the current research iteration:
 
-- Add an invalid-upgrade-target negative control.
-- Parameterize the operator and delay in repeated tests.
-- Confirm that unexpected reverts produce UNKNOWN.
-- Separate policy failures from tool execution errors.
-- Document the exact dependency revisions.
-- Reproduce the suite from a clean checkout.
+- Invalid-candidate negative controls
+- Unexpected-revert classification tests
+- Clean-checkout reproduction
+- EVM snapshot isolation tests
+- Actor/target binding tests
+- Redirected implementation replacement regression test
+- Direct EOA sender/origin regression test
+- Deterministic pure-evaluator regression test
+- Strict witness consistency validation with mutation tests
 
-These gaps must remain visible in reports and documentation.
+Remaining limitations:
+
+- Observation depends on a trusted implementation slot identity.
+- Only declared actors and entrypoints are covered.
+- Contract-mediated execution requires a separate adapter.
+- A passing rejection does not establish its root cause.
+- JSON consistency validation is not independent execution replay.
+- Timelock operation identity is not fully reconstructed from JSON.
+- Exact cross-environment binary reproduction remains unverified.
+- A second independent upgrade fixture is required to demonstrate reuse.
+- A standalone security-policy CI gate is not yet implemented.
+
+These limitations must remain visible in reports and documentation.
 
 ## 11. Intended Use
 

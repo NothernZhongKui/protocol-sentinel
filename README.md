@@ -63,12 +63,32 @@ independently replay EVM execution.
 
 ## Policy Results
 
-- PASS: Expected authorization rejection observed.
-- FAIL: Unauthorized upgrade changed the implementation.
-- UNKNOWN: Observation is insufficient for a conclusion.
-- ERROR: Reserved for execution or setup failures.
+Protocol Sentinel currently implements two policies.
 
-A passing Foundry test can confirm a FAIL security policy result.
+| Observation | NO_IMPLEMENTATION_REPLACEMENT | NO_SUCCESSFUL_UPGRADE_CALL |
+|---|---|---|
+| Expected rejection; implementation unchanged | PASS | PASS |
+| Successful replacement with requested implementation | FAIL | FAIL |
+| Successful replacement with unexpected implementation | FAIL | FAIL |
+| Successful call; implementation unchanged | UNKNOWN | FAIL |
+| Unexpected revert | UNKNOWN | UNKNOWN |
+| Invalid preconditions or mismatched probe context | UNKNOWN | UNKNOWN |
+
+- **PASS**: The expected rejection was observed with unchanged implementation.
+- **FAIL**: The observed action violated the declared policy.
+- **UNKNOWN**: Available evidence does not justify PASS or FAIL.
+- **ERROR**: Reserved for execution or setup failures; not emitted separately yet.
+
+The evaluator is pure: it reads recorded Observation data rather
+than querying current EVM state.
+
+For the current fixture, the observer models direct EOA execution
+with msg.sender and tx.origin set to the actor.
+
+A matching revert payload is evidence of the observed rejection,
+not independent proof that a particular authorization branch ran.
+
+A passing Foundry test may correctly confirm a FAIL security verdict.
 
 ## Evidence
 
