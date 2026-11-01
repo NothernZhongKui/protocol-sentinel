@@ -37,6 +37,20 @@ without scheduling a new operation or advancing EVM time.
 - `test/AuthorityRegression.t.sol` - Security regression tests
 - `scripts/verify_witness.py` - JSON consistency verifier
 
+## Foundry Library API
+
+Protocol Sentinel is an experimental Foundry helper for
+execution-based authority regression testing.
+
+The public entry point is `src/AuthorityProbe.sol`.
+
+The convenience API `_checkIsolatedUpgrade()` executes a
+declared upgrade attempt, restores EVM state, and evaluates
+the selected authorization policy.
+
+See [Library Quick Start](docs/library-quickstart.md)
+for usage examples, supported scenarios, and limitations.
+
 ## Quick Start
 
 Requirements: Foundry, Git.
