@@ -2,6 +2,7 @@
 pragma solidity 0.8.24;
 
 import {Test} from "forge-std/Test.sol";
+import {AuthorityProbe} from "./helpers/AuthorityProbe.sol";
 import {ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {VaultV1} from "../src/VaultV1.sol";
 import {VaultV2Risky, VaultV2Fixed, UpgradeProbe} from "./fixtures/VaultVersions.sol";
@@ -10,7 +11,7 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
 import {TransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
 
-contract AuthorityRegressionTest is Test {
+contract AuthorityRegressionTest is AuthorityProbe {
     uint256 constant DELAY = 48 hours;
 
     bytes32 constant IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
@@ -262,5 +263,69 @@ contract AuthorityRegressionTest is Test {
         assertEq(vm.load(address(proxy), IMPLEMENTATION_SLOT), bytes32(uint256(uint160(address(probe)))));
 
         assertEq(vault.owner(), address(timelock));
+    }
+
+    function _checkOperatorPolicy(PolicyStatus expected) internal {
+        UpgradeProbe candidate = new UpgradeProbe();
+
+        // Confirm that the upgrade target is valid.
+        assertEq(candidate.proxiableUUID(), IMPLEMENTATION_SLOT);
+
+        bytes memory callData =
+            abi.encodeWithSignature("upgradeToAndCall(address,bytes)", address(candidate), bytes(""));
+
+        // Execute the same probe against the current proxy state.
+        Observation memory observation = _observeCall(operator, address(proxy), callData, IMPLEMENTATION_SLOT);
+
+        bytes32 expectedImplementation = bytes32(uint256(uint160(address(candidate))));
+
+        bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator);
+
+        PolicyStatus actual = _classifyUpgrade(observation, expectedImplementation, expectedRevert);
+
+        assertEq(uint256(actual), uint256(expected));
+
+        if (actual == PolicyStatus.FAIL) {
+            assertTrue(observation.success);
+            assertEq(vault.version(), 3);
+        } else if (actual == PolicyStatus.PASS) {
+            assertFalse(observation.success);
+        }
+    }
+
+    function test_ProbeClassifiesBaseline() public {
+        _checkOperatorPolicy(PolicyStatus.PASS);
+    }
+
+    function test_ProbeClassifiesRisky() public {
+        VaultV2Risky risky = new VaultV2Risky();
+
+        _upgradeViaTimelock(address(risky), keccak256("probe-risky"));
+
+        _checkOperatorPolicy(PolicyStatus.FAIL);
+    }
+
+    function test_ProbeClassifiesFixed() public {
+        VaultV2Fixed fixedVault = new VaultV2Fixed();
+
+        _upgradeViaTimelock(address(fixedVault), keccak256("probe-fixed"));
+
+        _checkOperatorPolicy(PolicyStatus.PASS);
+    }
+
+    function test_ProbeReturnsUnknownForNonUpgradeCall() public {
+        UpgradeProbe candidate = new UpgradeProbe();
+
+        Observation memory observation = _observeCall(
+            operator, address(proxy), abi.encodeWithSelector(VaultV1.version.selector), IMPLEMENTATION_SLOT
+        );
+
+        PolicyStatus actual = _classifyUpgrade(
+            observation,
+            bytes32(uint256(uint160(address(candidate)))),
+            abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator)
+        );
+
+        assertEq(uint256(actual), uint256(PolicyStatus.UNKNOWN));
     }
 }
