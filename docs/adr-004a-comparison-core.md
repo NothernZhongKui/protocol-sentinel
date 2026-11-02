@@ -1,6 +1,6 @@
 # ADR-004A: Comparative Authority Core
 
-Status: PROPOSED
+Status: ACCEPTED
 Target: Protocol Sentinel v0.4-A
 Parent: RFC-004
 Baseline: v0.3.0
@@ -501,4 +501,4 @@ Before accepting this ADR, independently check:
 7. Is reusing the existing evaluator sufficient?
 8. Are any new types or checks unnecessary?
 
-Status remains PROPOSED until reviewed.
+Status: ACCEPTED after adversarial design review and PR #10 merge.

@@ -32,6 +32,7 @@ without scheduling a new operation or advancing EVM time.
 ## Components
 
 - `src/AuthorityProbe.sol` — public Foundry test helper and policy evaluator
+- `src/ComparativeAuthorityProbe.sol` — experimental before/after comparison core
 - `test/AuthorityRegression.t.sol` — Transparent proxy / Timelock regression
 - `test/RoleAuthorityRegression.t.sol` — ERC-1967 / UUPS / AccessControl regression
 - `test/fixtures/` — synthetic upgrade implementations
