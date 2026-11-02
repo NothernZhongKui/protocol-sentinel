@@ -67,7 +67,7 @@ Proposed Solidity interface:
         }
 
         struct DirectStage {
-            bytes32 expectedActiveImplementation;
+            address expectedActiveImplementation;
             Observation observation;
         }
 
@@ -155,13 +155,22 @@ of the declared comparison, not authenticity of execution.
 Each stage declares the expected active implementation
 before its isolated probe.
 
+Implementation identity is an address, not a raw
+ERC-1967 storage word.
+
 Require:
 
-    observation.implementationBefore
-        == expectedActiveImplementation
+    address(uint160(uint256(
+        observation.implementationBefore
+    ))) == expectedActiveImplementation
 
-Require distinct before/after active implementations
-for a version-upgrade comparison.
+The two expected implementation addresses must differ.
+
+Changes only in the upper 96 bits of the storage word
+do not establish different implementation addresses.
+
+Raw bytes32 words remain available in Observation
+for diagnostics.
 
 Stage implementation differences are expected.
 
@@ -226,6 +235,18 @@ Such errors must never be converted into PASS.
 
 Retain the original PolicyReason for each stage.
 
+Both individual PolicyEvaluation results MUST be
+recomputed and populated on every ordinary return,
+including INCOMPARABLE.
+
+Never return uninitialized evaluation fields:
+Solidity enum defaults would appear as PASS / NONE.
+
+An individual PASS does not establish valid scenario
+identity, stage binding or execution provenance.
+
+If a future evaluator emits ERROR, abort explicitly.
+
 ## 7. Comparison Table
 
 Before       After        Comparison
@@ -240,15 +261,25 @@ any valid    UNKNOWN      INDETERMINATE
 Scenario mismatch             INCOMPARABLE
 Invalid stage binding         INCOMPARABLE
 Identical stage versions      INCOMPARABLE
-Execution or setup error      Abort
+Execution or setup error      Caller aborts before comparison
+
+Precondition: the caller has completed preparation
+and observation without infrastructure errors.
+
+The pure comparator does not receive RPC or runner
+error state and cannot verify those preconditions.
 
 Precedence:
 
-1. Validate scenario identity and stage bindings.
-2. Reject execution/setup errors.
-3. Recompute both detailed evaluations.
-4. Resolve UNKNOWN to INDETERMINATE.
+1. Recompute and store both detailed evaluations.
+2. Validate scenario identity and stage bindings.
+3. If mismatched, return INCOMPARABLE while retaining
+   both genuine individual evaluations.
+4. Otherwise resolve UNKNOWN to INDETERMINATE.
 5. Apply the four definite transitions.
+
+Individual PASS values must never override an
+overall INCOMPARABLE comparison verdict.
 
 Do not interpret STILL_VIOLATED as a safe result.
 
@@ -321,6 +352,17 @@ branch performed authorization.
 The comparison must preserve UNKNOWN when the existing
 evaluator cannot establish a definitive policy outcome.
 
+A scenarioKey does not establish identical chain ID,
+block state, roles, governance configuration, timestamp,
+candidate runtime bytecode or execution provenance.
+
+The consumer must establish a controlled environment
+and explicitly identify allowed state differences
+between stages.
+
+The pure comparator does not authenticate these
+external conditions.
+
 ## 11. Minimal API Usage
 
 The intended user workflow:
@@ -379,9 +421,14 @@ Negative:
     is insufficient.
 14. Invalid implementation slot.
 15. Stage implementation mismatch.
-16. Identical stage implementations.
-17. Malformed or inconsistent observations.
-18. Deliberately inverted comparison mapping.
+16. Identical stage implementation addresses,
+    including different upper 96 storage-word bits.
+17. INCOMPARABLE combined with a genuine stage FAIL
+    preserves the computed FAIL evaluation.
+18. INCOMPARABLE combined with a genuine stage UNKNOWN
+    preserves the computed UNKNOWN evaluation.
+19. Malformed or inconsistent observations.
+20. Deliberately inverted comparison mapping.
 
 The implementation must include deterministic tests
 for the full comparison table.
@@ -415,7 +462,10 @@ Phase A is complete only when:
 - All four definite transitions are classified correctly.
 - UNKNOWN never becomes a definitive PASS or FAIL.
 - Incomparable stages are rejected as comparable evidence.
-- Stage implementations are explicitly bound.
+- Stage implementations are explicitly bound by address.
+- Upper 96-bit differences cannot create false versions.
+- INCOMPARABLE always retains both computed evaluations.
+- The consumer controls and documents environment differences.
 - The before/after experiment preserves probe isolation.
 - Independent mutation tests detect faulty mapping.
 - A standalone Foundry consumer exercises the new API.
