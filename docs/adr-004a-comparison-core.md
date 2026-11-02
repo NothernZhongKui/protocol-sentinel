@@ -117,6 +117,16 @@ The scenario key must be derived from actual specification
 fields, not accepted solely from a caller-supplied hash.
 
 Use deterministic ABI encoding and domain separation.
+The domain must pin the comparison semantics version.
+
+The API receives one UpgradeCheck for both stages.
+Actor, target, candidate, policy and expected revert
+are therefore shared by construction.
+
+Observation does not independently record the policy
+or expected revert selected by its producer.
+The comparator reevaluates both observations using
+the same declared specification.
 
 Two observations must match the declared scenario identity.
 
@@ -128,7 +138,14 @@ In particular:
 - Calldata must match the canonical declared action.
 - Observed implementation slot must be ERC-1967.
 
-Mismatched scenario fields are INCOMPARABLE.
+Mismatched recorded actor, origin, target, calldata
+or implementation slot values are INCOMPARABLE.
+
+An unexpected revert under the shared policy may
+produce UNKNOWN rather than INCOMPARABLE.
+
+The comparison cannot establish which policy was
+originally intended when an observation was produced.
 
 A matching scenario key proves only internal consistency
 of the declared comparison, not authenticity of execution.
@@ -165,6 +182,15 @@ the result is INCOMPARABLE for this comparison API.
 The comparison must not claim that an implementation
 change caused all observed behavior differences.
 
+Stage binding validates internal consistency only.
+It does not authenticate observation provenance
+or prove that execution occurred on the claimed
+contract version.
+
+The Foundry test must explicitly establish the
+version transition and verify the deployed state.
+A pure comparator cannot prove that transition.
+
 ## 6. Evaluation
 
 Reuse the existing detailed policy evaluator.
@@ -186,9 +212,17 @@ Individual result mapping:
 PolicyStatus.ERROR is not a valid ordinary comparison
 result in phase A.
 
-An execution or observation failure must abort with
-an explicit error, not produce an apparently valid
-comparison verdict.
+Execution and setup failures must stop the caller
+before comparison input is constructed.
+
+The phase A comparator is pure and receives no
+RPC status, runner status or execution-error field.
+It cannot independently identify infrastructure
+failures from arbitrary recorded observations.
+
+The Foundry runner is responsible for failing
+explicitly on preparation or observation errors.
+Such errors must never be converted into PASS.
 
 Retain the original PolicyReason for each stage.
 
@@ -220,6 +254,11 @@ Do not interpret STILL_VIOLATED as a safe result.
 
 Do not interpret STILL_SATISFIED as proof that every
 privileged execution path is safe.
+
+CHANGED_TO_VIOLATION establishes a change in the
+declared policy verdict for the recorded scenario.
+It does not independently prove exploitability
+or establish implementation-code causality.
 
 ## 8. Meaning of Positive and Negative Properties
 
@@ -335,7 +374,9 @@ Negative:
 10. Actor mismatch.
 11. Target mismatch.
 12. Calldata mismatch.
-13. Policy or expected revert mismatch.
+13. Incorrect expected revert produces UNKNOWN and
+    therefore INDETERMINATE when rejection evidence
+    is insufficient.
 14. Invalid implementation slot.
 15. Stage implementation mismatch.
 16. Identical stage implementations.
@@ -406,6 +447,7 @@ Before accepting this ADR, independently check:
    unacceptable restrictions?
 5. Are INCOMPARABLE and INDETERMINATE correctly separated?
 6. Can a malicious stage report fabricate its version?
+   Does the trust boundary explain this limitation?
 7. Is reusing the existing evaluator sufficient?
 8. Are any new types or checks unnecessary?
 
