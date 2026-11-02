@@ -65,3 +65,62 @@ jobs:
 
       - name: Test witness mutations
         run: python3 scripts/test_witness_mutations.py
+
+  consumer:
+    name: Independent Foundry consumer
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.7
+
+      - name: Test published release and current API
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          consumer="$RUNNER_TEMP/sentinel-consumer"
+          mkdir -p "$consumer/src" "$consumer/test" "$consumer/lib"
+
+          cp examples/consumer/SentinelConsumer.t.sol "$consumer/test/"
+
+          git clone --quiet --depth 1 --single-branch --branch v1.17.0             https://github.com/foundry-rs/forge-std.git             "$consumer/lib/forge-std"
+
+          git clone --quiet --depth 1 --single-branch --branch v0.1.0             https://github.com/NothernZhongKui/protocol-sentinel.git             "$consumer/lib/protocol-sentinel"
+
+          cat > "$consumer/foundry.toml" <<'CONFIG'
+          [profile.default]
+          src = "src"
+          test = "test"
+          out = "out"
+          libs = ["lib"]
+          solc_version = "0.8.24"
+          auto_detect_remappings = false
+          remappings = [
+            "forge-std/=lib/forge-std/src/",
+            "protocol-sentinel/=lib/protocol-sentinel/src/"
+          ]
+          CONFIG
+
+          echo "=== Published v0.1.0 consumer ==="
+          (
+            cd "$consumer"
+            forge test --match-path test/SentinelConsumer.t.sol -vv
+          )
+
+          echo "=== Current checkout consumer ==="
+          rm -rf "$consumer/lib/protocol-sentinel"
+          mkdir -p "$consumer/lib/protocol-sentinel"
+          cp -R "$GITHUB_WORKSPACE/src"             "$consumer/lib/protocol-sentinel/src"
+
+          (
+            cd "$consumer"
+            forge test --match-path test/SentinelConsumer.t.sol -vv
+          )
