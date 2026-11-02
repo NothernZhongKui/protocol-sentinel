@@ -6,6 +6,8 @@ import copy
 import json
 from pathlib import Path
 
+from eth_hash.auto import keccak
+
 from eth_abi import encode
 
 from replay_timelock_comparison import (
@@ -224,7 +226,7 @@ def check_case(document, oracle, label, index):
     return "compared"
 
 
-def check(ready, waiting, oracle):
+def check(ready, waiting, oracle, evidence_paths):
     require(
         oracle["format"] ==
         "protocol-sentinel-routed-differential-v1",
@@ -250,6 +252,15 @@ def check(ready, waiting, oracle):
 
         key = f"{label}_scenario_key"
         expected_keys.add(key)
+
+        hash_key = f"{label}_evidence_keccak"
+        expected_keys.add(hash_key)
+
+        require(
+            oracle[hash_key].lower()
+            == "0x" + keccak(evidence_paths[label].read_bytes()).hex(),
+            f"{label}: Evidence input hash mismatch",
+        )
 
         require(
             oracle[key].lower()
@@ -307,6 +318,7 @@ def main():
             load_document(args.ready),
             load_document(args.waiting),
             load_document(args.oracle),
+            {"ready": args.ready, "waiting": args.waiting},
         )
     except (ValueError, KeyError, TypeError) as exc:
         parser.exit(1, f"DIFFERENTIAL MISMATCH | {exc}\n")

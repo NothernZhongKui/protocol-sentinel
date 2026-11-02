@@ -373,6 +373,7 @@ contract ComparisonTimelockDifferentialOracleTest is TimelockAuthorityProbe {
         assertEq(baseline.scenarioKey, vm.parseJsonBytes32(json, ".comparison.scenarioKey"));
 
         vm.serializeBytes32(key, string.concat(label, "_scenario_key"), baseline.scenarioKey);
+        vm.serializeBytes32(key, string.concat(label, "_evidence_keccak"), keccak256(bytes(json)));
 
         for (uint256 i = 0; i < CASES; ++i) {
             output = _executeCase(key, label, scenarioId, spec, beforeStage, afterStage, i);

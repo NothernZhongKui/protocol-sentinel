@@ -153,6 +153,7 @@ contract ComparisonDirectDifferentialOracleTest is ComparativeAuthorityProbe {
 
         vm.serializeString(key, "format", "protocol-sentinel-direct-differential-v1");
         vm.serializeBytes32(key, "scenario_key", baseline.scenarioKey);
+        vm.serializeBytes32(key, "evidence_keccak", keccak256(bytes(json)));
 
         string memory output;
 

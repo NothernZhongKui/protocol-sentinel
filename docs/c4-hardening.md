@@ -42,6 +42,14 @@ Timelock route:
 Both differential checkers reject deliberately modified
 Solidity oracle outputs.
 
+Each Solidity oracle also records the Keccak-256 hash of the
+exact input Evidence JSON bytes. The Python checker verifies
+this hash, preventing accidental pairing of an oracle with
+different observations under the same scenario key.
+
+This establishes input identity for differential replay,
+not authenticity of the underlying EVM execution.
+
 The oracle computations are performed by the frozen
 Solidity evaluators and comparators. Python independently
 computes its expectations from the same observations.

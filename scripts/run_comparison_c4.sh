@@ -113,6 +113,41 @@ fi
 grep -q 'ready_wrong_state_failure' "$LOG"
 echo "PASS | Both forged oracles rejected"
 
+echo "=== C4: Reject mismatched evidence inputs ==="
+
+"$PYTHON" - "$DIRECT" "$WAITING" "$BAD" <<'PYTEST'
+import json, sys
+from pathlib import Path
+
+for source, name in (
+    (sys.argv[1], "changed-direct.json"),
+    (sys.argv[2], "changed-waiting.json"),
+):
+    data = json.loads(Path(source).read_text())
+    old = data["provenance"]["runId"]
+    data["provenance"]["runId"] = (
+        "f" * 32 if old != "f" * 32 else "0" * 32
+    )
+    (Path(sys.argv[3]) / name).write_text(json.dumps(data))
+PYTEST
+
+if "$PYTHON" scripts/check_direct_differential_parity.py \
+  --evidence "$BAD/changed-direct.json" \
+  --oracle "$DIRECT_ORACLE" > "$LOG" 2>&1; then
+  echo "FAIL | Different Direct input accepted"
+  exit 1
+fi
+grep -q 'Evidence input hash mismatch' "$LOG"
+
+if "$PYTHON" scripts/check_timelock_differential_parity.py \
+  --ready "$READY" --waiting "$BAD/changed-waiting.json" \
+  --oracle "$ROUTED_ORACLE" > "$LOG" 2>&1; then
+  echo "FAIL | Different Timelock input accepted"
+  exit 1
+fi
+grep -q 'Evidence input hash mismatch' "$LOG"
+echo "PASS | Oracle bound to exact evidence bytes"
+
 echo "=== C4: External consumer ==="
 
 "$PYTHON" scripts/check_comparison_external_replay.py \

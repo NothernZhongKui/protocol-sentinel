@@ -11,6 +11,8 @@ import json
 import sys
 from pathlib import Path
 
+from eth_hash.auto import keccak
+
 from replay_direct_comparison import (
     ROUTE,
     canonical_call,
@@ -186,7 +188,7 @@ def python_classification(document, name):
     }
 
 
-def check(document, oracle):
+def check(document, oracle, evidence_path):
     # This verifies the original published classification
     # before applying any synthetic mutations.
     original = replay(document)
@@ -213,7 +215,13 @@ def check(document, oracle):
         "Solidity oracle does not belong to this evidence",
     )
 
-    expected_fields = {"format", "scenario_key"}
+    require(
+        oracle["evidence_keccak"].lower()
+        == "0x" + keccak(evidence_path.read_bytes()).hex(),
+        "Evidence input hash mismatch",
+    )
+
+    expected_fields = {"format", "scenario_key", "evidence_keccak"}
 
     for name in CASES:
         expected_fields.update(
@@ -284,7 +292,7 @@ def main():
     try:
         document = load_document(args.evidence)
         oracle = load_document(args.oracle)
-        check(document, oracle)
+        check(document, oracle, args.evidence)
 
     except (
         DifferentialMismatch,
