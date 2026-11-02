@@ -26,6 +26,13 @@ assert tests == [(sys.argv[2] + "()", "Success")], tests
 PY
 }
 
+echo "=== C4: Build provenance foundation ==="
+
+"$PYTHON" scripts/test_build_provenance.py > "$LOG" 2> "$ERROR"
+
+grep -q 'STEP 290: BUILD PROVENANCE FOUNDATION PASS' "$LOG"
+echo "PASS | Build provenance negative controls"
+
 echo "=== C4: Fresh evidence ==="
 
 "$PYTHON" scripts/run_direct_comparison.py > "$LOG" 2> "$ERROR"
