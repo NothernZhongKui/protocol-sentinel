@@ -97,6 +97,27 @@ see [Library Quick Start](docs/library-quickstart.md).
 For the third-party integration experiment,
 see [Fortytwo x402Escrow](examples/x402/README.md).
 
+## Reproducible Integrations
+
+The repository includes two independently exercised integration paths.
+
+- Standalone Foundry consumer: imports the published v0.1.0
+  helper and checks the current API for compatibility.
+- Fortytwo x402Escrow: reproduces a deliberately introduced
+  upgrade-authority regression using pinned external source.
+
+Run the Fortytwo regression experiment:
+
+    bash scripts/reproduce_x402.sh
+
+The scenario demonstrates PASS -> FAIL -> PASS as upgrade
+authority is preserved, accidentally expanded, and restored.
+
+CI runs four jobs: Foundry tests, evidence validation,
+independent consumer testing, and external regression testing.
+
+See examples/consumer/ and examples/x402/ for details.
+
 ## Policy Results
 
 Protocol Sentinel currently implements two policies.
