@@ -27,9 +27,12 @@ Three forged-evidence negative controls must be rejected.
 ### Solidity/Python differential parity
 
 Direct route:
-- 8 mutation cases
-- 48 classification fields
-- 48/48 Solidity/Python matches
+- 13 mutation cases across both Direct policies (26 evaluations)
+- 156 classification fields
+- 156/156 Solidity/Python matches
+- All four definitive status transitions plus indeterminate/incomparable
+- Successful call without implementation replacement distinguishes both policies
+- An injected false PASS in the Python classifier must fail C4
 
 Timelock route:
 - 21 cases for each of Ready and Waiting

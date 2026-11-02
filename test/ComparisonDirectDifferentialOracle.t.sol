@@ -87,6 +87,30 @@ contract ComparisonDirectDifferentialOracleTest is ComparativeAuthorityProbe {
             // Both stages bind to the same active implementation.
             afterStage.expectedActiveImplementation = beforeStage.expectedActiveImplementation;
             afterStage.observation.implementationBefore = beforeStage.observation.implementationBefore;
+        } else if (index == 8) {
+            // PASS -> PASS: both calls reject as expected.
+            afterStage.observation.success = false;
+            afterStage.observation.returnData = beforeStage.observation.returnData;
+            afterStage.observation.implementationAfter = afterStage.observation.implementationBefore;
+        } else if (index == 9) {
+            // FAIL -> FAIL: both calls replace implementation.
+            beforeStage.observation.success = true;
+            beforeStage.observation.returnData = hex"";
+            beforeStage.observation.implementationAfter = afterStage.observation.implementationAfter;
+        } else if (index == 10) {
+            // FAIL -> PASS.
+            afterStage.observation.success = false;
+            afterStage.observation.returnData = beforeStage.observation.returnData;
+            afterStage.observation.implementationAfter = afterStage.observation.implementationBefore;
+
+            beforeStage.observation.success = true;
+            beforeStage.observation.returnData = hex"";
+            beforeStage.observation.implementationAfter = originalAfter.observation.implementationAfter;
+        } else if (index == 11) {
+            // Successful call without implementation replacement.
+            afterStage.observation.implementationAfter = afterStage.observation.implementationBefore;
+        } else if (index == 12) {
+            beforeStage.observation.candidateValidAtObservation = false;
         } else {
             require(index == 0, "Oracle: invalid mutation index");
         }
@@ -101,6 +125,11 @@ contract ComparisonDirectDifferentialOracleTest is ComparativeAuthorityProbe {
         if (index == 5) return "scenario_precedence";
         if (index == 6) return "upper_bits";
         if (index == 7) return "same_impl";
+        if (index == 8) return "both_pass";
+        if (index == 9) return "both_fail";
+        if (index == 10) return "fail_to_pass";
+        if (index == 11) return "success_no_replacement";
+        if (index == 12) return "invalid_candidate";
         revert("Oracle: invalid case index");
     }
 
@@ -151,18 +180,28 @@ contract ComparisonDirectDifferentialOracleTest is ComparativeAuthorityProbe {
 
         string memory key = "sentinel_c4_direct_differential";
 
-        vm.serializeString(key, "format", "protocol-sentinel-direct-differential-v1");
+        vm.serializeString(key, "format", "protocol-sentinel-direct-differential-v2");
         vm.serializeBytes32(key, "scenario_key", baseline.scenarioKey);
         vm.serializeBytes32(key, "evidence_keccak", keccak256(bytes(json)));
 
         string memory output;
 
-        for (uint256 i = 0; i < 8; ++i) {
-            (DirectStage memory b, DirectStage memory a) = _mutate(i, beforeStage, afterStage);
+        for (uint256 policyIndex = 0; policyIndex < 2; ++policyIndex) {
+            UpgradeCheck memory policySpec = spec;
 
-            DirectComparisonResult memory comparison = _compareDirectUpgrade(scenarioId, spec, b, a);
+            if (policyIndex == 1) {
+                policySpec.policy = UpgradePolicy.NO_SUCCESSFUL_UPGRADE_CALL;
+            }
 
-            output = _record(key, _caseName(i), comparison);
+            string memory prefix = policyIndex == 0 ? "replacement_" : "successful_call_";
+
+            for (uint256 i = 0; i < 13; ++i) {
+                (DirectStage memory b, DirectStage memory a) = _mutate(i, beforeStage, afterStage);
+
+                DirectComparisonResult memory comparison = _compareDirectUpgrade(scenarioId, policySpec, b, a);
+
+                output = _record(key, string.concat(prefix, _caseName(i)), comparison);
+            }
         }
 
         vm.writeJson(output, vm.envString("DIRECT_DIFFERENTIAL_OUTPUT"));

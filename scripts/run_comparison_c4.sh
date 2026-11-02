@@ -71,8 +71,55 @@ echo "=== C4: Python differential parity ==="
 "$PYTHON" scripts/check_direct_differential_parity.py \
   --evidence "$DIRECT" --oracle "$DIRECT_ORACLE" \
   > "$LOG" 2> "$ERROR"
-grep -q '48/48 MATCH' "$LOG"
-echo "PASS | Direct 48/48"
+grep -q '156/156 MATCH' "$LOG"
+echo "PASS | Direct 156/156"
+
+echo "=== C4: Python classifier mutation control ==="
+
+"$PYTHON" - "$DIRECT" "$DIRECT_ORACLE" > "$LOG" 2> "$ERROR" <<'PYMUT'
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path("scripts").resolve()))
+
+import check_direct_differential_parity as checker
+from validate_comparison_schema import load_document
+
+original = checker.evaluate
+
+def false_pass(spec, obs, calldata):
+    decision = original(spec, obs, calldata)
+
+    if (
+        spec["policy"] == "NO_SUCCESSFUL_UPGRADE_CALL"
+        and obs["success"]
+        and decision["status"] == "FAIL"
+    ):
+        return {"status": "PASS", "reason": "NONE"}
+
+    return decision
+
+checker.evaluate = false_pass
+
+evidence_path = Path(sys.argv[1])
+oracle_path = Path(sys.argv[2])
+
+try:
+    checker.check(
+        load_document(evidence_path),
+        load_document(oracle_path),
+        evidence_path,
+    )
+except checker.DifferentialMismatch as exc:
+    assert "successful_call_baseline: unexpected after_status" in str(exc), str(exc)
+else:
+    raise SystemExit("False PASS classifier mutation was accepted")
+
+print("CLASSIFIER MUTATION REJECTED")
+PYMUT
+
+grep -q 'CLASSIFIER MUTATION REJECTED' "$LOG"
+echo "PASS | False PASS classifier mutation rejected"
 
 "$PYTHON" scripts/check_timelock_differential_parity.py \
   --ready "$READY" --waiting "$WAITING" \
@@ -87,7 +134,7 @@ echo "=== C4: Negative oracle controls ==="
 import json, sys
 from pathlib import Path
 for source, filename, field in (
-    (sys.argv[1], "direct.json", "slot_context_before_reason"),
+    (sys.argv[1], "direct.json", "replacement_slot_context_before_reason"),
     (sys.argv[2], "timelock.json", "ready_wrong_state_failure"),
 ):
     data = json.loads(Path(source).read_text())
@@ -101,7 +148,7 @@ if "$PYTHON" scripts/check_direct_differential_parity.py \
   echo "FAIL | Direct forged oracle accepted"
   exit 1
 fi
-grep -q 'slot_context_before_reason' "$LOG"
+grep -q 'replacement_slot_context_before_reason' "$LOG"
 
 if "$PYTHON" scripts/check_timelock_differential_parity.py \
   --ready "$READY" --waiting "$WAITING" \
