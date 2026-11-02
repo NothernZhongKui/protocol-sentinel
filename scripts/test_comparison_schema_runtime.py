@@ -116,6 +116,31 @@ class ComparisonRuntimeTests(unittest.TestCase):
             with self.subTest(route=route):
                 self.valid(sample(route))
 
+    def test_optional_build_provenance(self):
+        for route in (
+            "DIRECT_EOA_UUPS",
+            "OZ_TIMELOCK_SINGLE",
+        ):
+            doc = sample(route)
+
+            # Historical Evidence 1.0 is still accepted.
+            self.valid(doc)
+
+            doc["provenance"]["buildProvenance"] = {
+                "format": "protocol-sentinel-build-provenance-v1",
+                "manifestPath": "build/build-provenance.json",
+                "manifestSha256": "a" * 64,
+            }
+
+            self.valid(doc)
+
+            # The new extension is strict when present.
+            del doc["provenance"]["buildProvenance"][
+                "manifestSha256"
+            ]
+
+            self.invalid(doc)
+
     def test_missing_required_observation_field(self):
         for route, field in (
             ("DIRECT_EOA_UUPS", "target"),

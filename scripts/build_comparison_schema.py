@@ -305,7 +305,16 @@ def build():
             }),
         },
         "reproduceCommand": text(),
-    })
+        "buildProvenance": obj({
+            "format": {
+                "const": "protocol-sentinel-build-provenance-v1",
+            },
+            "manifestPath": {
+                "const": "build/build-provenance.json",
+            },
+            "manifestSha256": ref("sha256"),
+        }),
+    }, optional=("buildProvenance",))
 
     routes = []
 
