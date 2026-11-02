@@ -218,6 +218,124 @@ jobs:
           python scripts/check_comparison_identity_vectors.py --check
           python scripts/test_comparison_identity_mutations.py
 
+  comparison_c2:
+    name: Comparison Evidence C2
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version-file: evidence/python-version.txt
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.7
+
+      - name: Install replay dependencies
+        run: |
+          python -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
+          python -m pip check
+
+      - name: Run fresh Direct Evidence pipeline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/run_direct_comparison.py
+
+      - name: Verify completed evidence and mutations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PYTEST'
+          import json
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, str(Path("scripts").resolve()))
+
+          from validate_comparison_schema import (
+              load_document,
+              validate_document,
+          )
+          from replay_direct_comparison import replay
+          from run_direct_comparison import verify_run_identity
+
+          root = Path("artifacts/demo/comparison-runs/completed")
+
+          runs = sorted(
+              path for path in root.iterdir()
+              if path.is_dir()
+          )
+
+          assert len(runs) == 1, f"Expected one completed run: {runs}"
+
+          directory = runs[0]
+
+          assert {p.name for p in directory.iterdir()} == {
+              "raw-capture.json",
+              "evidence.json",
+              "forge-results.json",
+              "verification.json",
+          }
+
+          document = load_document(directory / "evidence.json")
+          report = json.loads(
+              (directory / "verification.json").read_text()
+          )
+
+          assert validate_document(document)
+          assert replay(document)["classification_replay"] == "MATCH"
+
+          verify_run_identity(document, directory.name)
+
+          assert report["run_id"] == directory.name
+          assert report["producer_test"] == "Success"
+          assert report["publication"] == "COMPLETED"
+          assert report["comparison"] == "CHANGED_TO_VIOLATION"
+          assert report["before"]["status"] == "PASS"
+          assert report["after"]["status"] == "FAIL"
+          assert report["source_context"] == "MATCHED_LOCAL_CHECKOUT"
+          assert report["execution_provenance"] == "UNAUTHENTICATED"
+
+          subprocess.run(
+              [
+                  sys.executable,
+                  "scripts/test_direct_comparison_mutations.py",
+                  str(directory / "evidence.json"),
+              ],
+              check=True,
+          )
+
+          print("PASS | Complete C2 evidence and mutations")
+          PYTEST
+
+      - name: Verify failed producer cannot publish
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          completed="artifacts/demo/comparison-runs/completed"
+
+          before="$(find "$completed" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+
+          python scripts/run_direct_comparison.py --inject-postwrite-failure
+
+          after="$(find "$completed" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+
+          test "$before" = "$after"
+
+          echo "PASS | Post-write failure did not publish evidence"
+
   x402:
     name: Fortytwo external regression
     runs-on: ubuntu-latest
