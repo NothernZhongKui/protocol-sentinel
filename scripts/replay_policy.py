@@ -231,16 +231,16 @@ def unique_keys(pairs):
 
 
 def main():
-    path = (
-        Path(__file__).resolve().parents[1]
-        / "artifacts/demo/authority-regression.json"
-    )
-
-    if len(sys.argv) > 2:
-        raise ValueError("Usage: replay_policy.py [--self-test | witness.json]")
-
-    if len(sys.argv) == 2 and sys.argv[1] != "--self-test":
+    if len(sys.argv) == 3 and sys.argv[1] == "--self-test":
+        self_test_mode = True
+        path = Path(sys.argv[2])
+    elif len(sys.argv) == 2 and sys.argv[1] != "--self-test":
+        self_test_mode = False
         path = Path(sys.argv[1])
+    else:
+        raise ValueError(
+            "Usage: replay_policy.py witness.json | --self-test witness.json"
+        )
 
     with path.open(encoding="utf-8") as f:
         data = json.load(f, object_pairs_hook=unique_keys)
@@ -248,7 +248,7 @@ def main():
     if not isinstance(data, dict):
         raise ValueError("Witness must be a JSON object")
 
-    if len(sys.argv) == 2 and sys.argv[1] == "--self-test":
+    if self_test_mode:
         self_test(data)
         return
 

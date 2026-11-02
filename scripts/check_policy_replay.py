@@ -78,7 +78,8 @@ def main():
     run(
         sys.executable,
         str(ROOT / "scripts/replay_policy.py"),
-        "--self-test"
+        "--self-test",
+        str(OUTPUT / "policy-replay-risky.json")
     )
 
     print("\nPASS | Solidity/Python matrix: 5/5")

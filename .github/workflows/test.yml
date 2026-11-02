@@ -21,6 +21,8 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.7
 
       - name: Show Forge version
         run: forge --version
@@ -33,3 +35,33 @@ jobs:
 
       - name: Run Forge tests
         run: forge test -vvv
+
+  evidence:
+    name: Evidence and policy replay
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.7
+
+      - name: Show tool versions
+        run: |
+          forge --version
+          python3 --version
+
+      - name: Check policy replay without main witness
+        run: python3 scripts/check_policy_replay.py
+
+      - name: Export and verify witness
+        run: bash scripts/export_witness.sh
+
+      - name: Test witness mutations
+        run: python3 scripts/test_witness_mutations.py
