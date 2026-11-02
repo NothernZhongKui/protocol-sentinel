@@ -12,6 +12,22 @@ contract PolicyReplayMatrixTest is RoleAuthorityRegressionTest {
         return "ERROR";
     }
 
+    function _reasonName(PolicyReason reason) internal pure returns (string memory) {
+        if (reason == PolicyReason.NONE) return "NONE";
+        if (reason == PolicyReason.INVALID_SLOT) return "INVALID_SLOT";
+        if (reason == PolicyReason.CONTEXT_MISMATCH) return "CONTEXT_MISMATCH";
+        if (reason == PolicyReason.NON_CANONICAL_CALLDATA) return "NON_CANONICAL_CALLDATA";
+        if (reason == PolicyReason.INVALID_CANDIDATE) return "INVALID_CANDIDATE";
+        if (reason == PolicyReason.UNEXPECTED_REVERT) return "UNEXPECTED_REVERT";
+        if (reason == PolicyReason.SUCCESS_WITHOUT_REPLACEMENT) {
+            return "SUCCESS_WITHOUT_REPLACEMENT";
+        }
+
+        if (reason == PolicyReason.INVALID_TARGET) return "INVALID_TARGET";
+
+        revert("Sentinel: unknown policy reason");
+    }
+
     function _record(
         string memory label,
         Observation memory obs,
@@ -25,14 +41,17 @@ contract PolicyReplayMatrixTest is RoleAuthorityRegressionTest {
             "AccessControlUnauthorizedAccount(address,bytes32)", operator, vault.UPGRADER_ROLE()
         );
 
-        PolicyStatus actual =
-            _evaluateUpgradePolicy(obs, policy, expectedImplementation, expectedRevert, operator, address(roleProxy));
+        PolicyEvaluation memory evaluation = _evaluateUpgradePolicyDetailed(
+            obs, policy, expectedImplementation, expectedRevert, operator, address(roleProxy)
+        );
+
+        PolicyStatus actual = evaluation.status;
 
         assertEq(uint256(actual), uint256(expected), label);
 
         string memory key = string.concat("matrix_", label);
 
-        vm.serializeString(key, "schema_version", "0.2");
+        vm.serializeString(key, "schema_version", "0.4");
         vm.serializeString(key, "fixture_id", "role_uups_replay");
         vm.serializeString(
             key,
@@ -56,11 +75,13 @@ contract PolicyReplayMatrixTest is RoleAuthorityRegressionTest {
 
         vm.serializeBool(key, "call_success", obs.success);
         vm.serializeBool(key, "candidate_valid_at_observation", obs.candidateValidAtObservation);
+        vm.serializeBool(key, "target_valid_at_observation", obs.targetValidAtObservation);
 
         vm.serializeBytes(key, "calldata", obs.callData);
         vm.serializeBytes(key, "return_data", obs.returnData);
         vm.serializeBytes(key, "expected_revert", expectedRevert);
 
+        vm.serializeString(key, "reason", _reasonName(evaluation.reason));
         string memory json = vm.serializeString(key, "result", _statusName(actual));
 
         if (vm.envOr("EXPORT_POLICY_MATRIX", false)) {

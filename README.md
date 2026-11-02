@@ -54,6 +54,16 @@ The convenience API `_checkIsolatedUpgrade()` executes a
 declared upgrade attempt, restores EVM state, and evaluates
 the selected authorization policy.
 
+The opt-in `_checkIsolatedUpgradeDetailed()` API returns the
+observation, policy status and a diagnostic reason.
+
+Seven reasons explain why an observation produces UNKNOWN:
+INVALID_SLOT, CONTEXT_MISMATCH, INVALID_TARGET,
+NON_CANONICAL_CALLDATA, INVALID_CANDIDATE,
+UNEXPECTED_REVERT and SUCCESS_WITHOUT_REPLACEMENT.
+
+The original status-only API remains available.
+
 See [Library Quick Start](docs/library-quickstart.md)
 for usage examples, supported scenarios, and limitations.
 
@@ -142,14 +152,27 @@ than querying current EVM state.
 For the current fixture, the observer models direct EOA execution
 with msg.sender and tx.origin set to the actor.
 
-A matching revert payload is evidence of the observed rejection,
+An empty expected revert cannot justify PASS.
+It produces UNKNOWN when a rejected call has no usable
+authorization evidence.
+
+A matching nonempty revert payload is evidence of the observed rejection,
 not independent proof that a particular authorization branch ran.
 
 A passing Foundry test may correctly confirm a FAIL security verdict.
 
 ## Evidence
 
-The local execution witness uses schema version `0.2`.
+The main execution witness retains schema version `0.2`.
+
+Current diagnostic policy matrices use schema `0.4`,
+requiring both `reason` and `target_valid_at_observation`.
+Python independently recomputes status and reason from
+the recorded observation.
+
+Historical schemas `0.2` and `0.3` remain readable,
+but they lack the new target-validity observation.
+Replay does not authenticate the recorded EVM state.
 
 It records the declared actor, transaction origin, target,
 calldata, call result, effective implementation observations,
@@ -170,7 +193,8 @@ The Python policy replay independently evaluates saved
 observations using the declared policy rules.
 
 The project includes five Solidity/Python comparison scenarios
-and eleven Python replay self-tests.
+and thirteen Python replay self-tests, plus seven
+cross-language diagnostic scenarios and reason mutation tests.
 
 Policy replay is not independent execution attestation.
 
@@ -196,6 +220,11 @@ It does not establish that a contract is generally secure.
 
 Candidate validation checks UUPS compatibility through
 `proxiableUUID()`. It does not validate storage layout safety.
+
+Target preconditions require code at the target, a nonzero
+ERC-1967 implementation address, and code at that address.
+These checks do not prove that the target is an authentic
+proxy or actually delegates to the recorded implementation.
 
 The initial Transparent/UUPS fixture intentionally demonstrates
 a composition risk and is not a recommended production design.

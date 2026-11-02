@@ -11,11 +11,14 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "artifacts/demo"
 
 CASES = {
-    "baseline": ("PASS", "NO_IMPLEMENTATION_REPLACEMENT"),
-    "risky": ("FAIL", "NO_IMPLEMENTATION_REPLACEMENT"),
-    "self-replacement": ("UNKNOWN", "NO_IMPLEMENTATION_REPLACEMENT"),
-    "self-call": ("FAIL", "NO_SUCCESSFUL_UPGRADE_CALL"),
-    "fixed": ("PASS", "NO_IMPLEMENTATION_REPLACEMENT"),
+    "baseline": ("PASS", "NO_IMPLEMENTATION_REPLACEMENT", "NONE"),
+    "risky": ("FAIL", "NO_IMPLEMENTATION_REPLACEMENT", "NONE"),
+    "self-replacement": (
+        "UNKNOWN", "NO_IMPLEMENTATION_REPLACEMENT",
+        "SUCCESS_WITHOUT_REPLACEMENT"
+    ),
+    "self-call": ("FAIL", "NO_SUCCESSFUL_UPGRADE_CALL", "NONE"),
+    "fixed": ("PASS", "NO_IMPLEMENTATION_REPLACEMENT", "NONE"),
 }
 
 
@@ -51,7 +54,7 @@ def main():
 
     print("\n=== Checking independent policy replay ===", flush=True)
 
-    for name, (expected, policy) in CASES.items():
+    for name, (expected, policy, reason) in CASES.items():
         path = OUTPUT / f"policy-replay-{name}.json"
 
         if not path.is_file():
@@ -59,11 +62,19 @@ def main():
 
         data = json.loads(path.read_text(encoding="utf-8"))
 
+        if data.get("schema_version") != "0.4":
+            raise SystemExit(f"FAIL | Unexpected schema: {name}")
+
         if data.get("result") != expected:
             raise SystemExit(f"FAIL | Unexpected Solidity verdict: {name}")
 
         if data.get("policy_rule") != policy:
             raise SystemExit(f"FAIL | Unexpected policy: {name}")
+
+        if data.get("reason") != reason:
+            raise SystemExit(
+                f"FAIL | Unexpected diagnostic reason: {name}"
+            )
 
         run(
             sys.executable,
@@ -83,7 +94,7 @@ def main():
     )
 
     print("\nPASS | Solidity/Python matrix: 5/5")
-    print("PASS | Replay controls: 11/11")
+    print("PASS | Replay controls: 13/13")
     print("Policy replay integration PASSED")
 
 

@@ -16,6 +16,22 @@ abstract contract AuthorityProbe is Test {
         NO_SUCCESSFUL_UPGRADE_CALL
     }
 
+    enum PolicyReason {
+        NONE,
+        INVALID_SLOT,
+        CONTEXT_MISMATCH,
+        NON_CANONICAL_CALLDATA,
+        INVALID_CANDIDATE,
+        UNEXPECTED_REVERT,
+        SUCCESS_WITHOUT_REPLACEMENT,
+        INVALID_TARGET
+    }
+
+    struct PolicyEvaluation {
+        PolicyStatus status;
+        PolicyReason reason;
+    }
+
     bytes32 internal constant ERC1967_IMPL_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
 
     struct Observation {
@@ -29,6 +45,7 @@ abstract contract AuthorityProbe is Test {
         bytes32 implementationAfter;
         bytes callData;
         bool candidateValidAtObservation;
+        bool targetValidAtObservation;
     }
 
     // Observation layer: record what actually happened.
@@ -61,6 +78,14 @@ abstract contract AuthorityProbe is Test {
 
         result.observedSlot = implementationSlot;
         result.implementationBefore = vm.load(target, implementationSlot);
+
+        // Capture target preconditions before executing the call.
+        // This checks plausible ERC-1967 backing state, not
+        // whether arbitrary bytecode is an authentic proxy.
+        address currentImplementation = address(uint160(uint256(result.implementationBefore)));
+
+        result.targetValidAtObservation =
+            target.code.length > 0 && currentImplementation != address(0) && currentImplementation.code.length > 0;
 
         // Direct EOA execution: sender and origin are the same.
         // Contract-mediated calls require a separate execution adapter.
@@ -100,7 +125,69 @@ abstract contract AuthorityProbe is Test {
         return abi.decode(response, (bytes32)) == ERC1967_IMPL_SLOT;
     }
 
-    // Policy layer: interpret an observation.
+    // Policy layer: interpret an observation with a diagnostic reason.
+    function _evaluateUpgradePolicyDetailed(
+        Observation memory obs,
+        UpgradePolicy policy,
+        bytes32 expectedImplementation,
+        bytes memory expectedRevert,
+        address expectedActor,
+        address expectedTarget
+    ) internal pure returns (PolicyEvaluation memory) {
+        if (obs.observedSlot != ERC1967_IMPL_SLOT) {
+            return _decision(PolicyStatus.UNKNOWN, PolicyReason.INVALID_SLOT);
+        }
+
+        if (obs.actor != expectedActor || obs.txOrigin != expectedActor || obs.target != expectedTarget) {
+            return _decision(PolicyStatus.UNKNOWN, PolicyReason.CONTEXT_MISMATCH);
+        }
+
+        if (!obs.targetValidAtObservation) {
+            return _decision(PolicyStatus.UNKNOWN, PolicyReason.INVALID_TARGET);
+        }
+
+        address candidate = address(uint160(uint256(expectedImplementation)));
+
+        bytes memory expectedCallData = abi.encodeWithSignature("upgradeToAndCall(address,bytes)", candidate, bytes(""));
+
+        if (keccak256(obs.callData) != keccak256(expectedCallData)) {
+            return _decision(PolicyStatus.UNKNOWN, PolicyReason.NON_CANONICAL_CALLDATA);
+        }
+
+        address beforeImpl = address(uint160(uint256(obs.implementationBefore)));
+
+        address afterImpl = address(uint160(uint256(obs.implementationAfter)));
+
+        bool unchanged = beforeImpl == afterImpl;
+
+        if (!obs.success) {
+            if (!obs.candidateValidAtObservation) {
+                return _decision(PolicyStatus.UNKNOWN, PolicyReason.INVALID_CANDIDATE);
+            }
+
+            if (unchanged && expectedRevert.length > 0 && keccak256(obs.returnData) == keccak256(expectedRevert)) {
+                return _decision(PolicyStatus.PASS, PolicyReason.NONE);
+            }
+
+            return _decision(PolicyStatus.UNKNOWN, PolicyReason.UNEXPECTED_REVERT);
+        }
+
+        if (policy == UpgradePolicy.NO_SUCCESSFUL_UPGRADE_CALL) {
+            return _decision(PolicyStatus.FAIL, PolicyReason.NONE);
+        }
+
+        if (!unchanged) {
+            return _decision(PolicyStatus.FAIL, PolicyReason.NONE);
+        }
+
+        return _decision(PolicyStatus.UNKNOWN, PolicyReason.SUCCESS_WITHOUT_REPLACEMENT);
+    }
+
+    function _decision(PolicyStatus status, PolicyReason reason) internal pure returns (PolicyEvaluation memory) {
+        return PolicyEvaluation({status: status, reason: reason});
+    }
+
+    // Backward-compatible status-only evaluator.
     function _evaluateUpgradePolicy(
         Observation memory obs,
         UpgradePolicy policy,
@@ -109,59 +196,10 @@ abstract contract AuthorityProbe is Test {
         address expectedActor,
         address expectedTarget
     ) internal pure returns (PolicyStatus) {
-        // ERC-1967 policies require the actual implementation slot.
-        // An unrelated storage observation cannot justify PASS or FAIL.
-        if (obs.observedSlot != ERC1967_IMPL_SLOT) {
-            return PolicyStatus.UNKNOWN;
-        }
-
-        // Direct EOA observation requires matching sender and origin.
-        // Contract-mediated execution is outside the current scope.
-        if (obs.actor != expectedActor || obs.txOrigin != expectedActor || obs.target != expectedTarget) {
-            return PolicyStatus.UNKNOWN;
-        }
-
-        address candidate = address(uint160(uint256(expectedImplementation)));
-
-        // This PoC covers upgradeToAndCall with empty data.
-        bytes memory expectedCallData = abi.encodeWithSignature("upgradeToAndCall(address,bytes)", candidate, bytes(""));
-
-        if (keccak256(obs.callData) != keccak256(expectedCallData)) {
-            return PolicyStatus.UNKNOWN;
-        }
-
-        // ERC-1967 implementation addresses occupy the lower 160 bits.
-        // Preserve full storage words in Observation for diagnostics.
-        address implementationBefore = address(uint160(uint256(obs.implementationBefore)));
-
-        address implementationAfter = address(uint160(uint256(obs.implementationAfter)));
-
-        bool unchanged = implementationBefore == implementationAfter;
-
-        if (!obs.success) {
-            // A rejected upgrade is meaningful only with a valid candidate.
-            if (!obs.candidateValidAtObservation) {
-                return PolicyStatus.UNKNOWN;
-            }
-
-            if (unchanged && keccak256(obs.returnData) == keccak256(expectedRevert)) {
-                return PolicyStatus.PASS;
-            }
-
-            return PolicyStatus.UNKNOWN;
-        }
-
-        if (policy == UpgradePolicy.NO_SUCCESSFUL_UPGRADE_CALL) {
-            return PolicyStatus.FAIL;
-        }
-
-        // Any successful implementation replacement violates this policy,
-        // even when the installed address differs from the requested candidate.
-        if (!unchanged) {
-            return PolicyStatus.FAIL;
-        }
-
-        return PolicyStatus.UNKNOWN;
+        return _evaluateUpgradePolicyDetailed(
+            obs, policy, expectedImplementation, expectedRevert, expectedActor, expectedTarget
+        )
+        .status;
     }
 
     // Compatibility with existing regression tests.
@@ -197,12 +235,22 @@ abstract contract AuthorityProbe is Test {
         PolicyStatus status;
     }
 
-    function _checkIsolatedUpgrade(UpgradeCheck memory spec) internal returns (UpgradeCheckResult memory result) {
+    // Opt-in diagnostic API without changing the legacy result struct.
+    struct DetailedUpgradeCheckResult {
+        Observation observation;
+        PolicyStatus status;
+        PolicyReason reason;
+    }
+
+    function _checkIsolatedUpgradeDetailed(UpgradeCheck memory spec)
+        internal
+        returns (DetailedUpgradeCheckResult memory result)
+    {
         bytes memory payload = abi.encodeWithSignature("upgradeToAndCall(address,bytes)", spec.candidate, bytes(""));
 
         result.observation = _observeIsolatedCall(spec.actor, spec.target, payload, ERC1967_IMPL_SLOT);
 
-        result.status = _evaluateUpgradePolicy(
+        PolicyEvaluation memory evaluation = _evaluateUpgradePolicyDetailed(
             result.observation,
             spec.policy,
             bytes32(uint256(uint160(spec.candidate))),
@@ -210,5 +258,16 @@ abstract contract AuthorityProbe is Test {
             spec.actor,
             spec.target
         );
+
+        result.status = evaluation.status;
+        result.reason = evaluation.reason;
+    }
+
+    // Original API and return type remain unchanged.
+    function _checkIsolatedUpgrade(UpgradeCheck memory spec) internal returns (UpgradeCheckResult memory result) {
+        DetailedUpgradeCheckResult memory detailed = _checkIsolatedUpgradeDetailed(spec);
+
+        result.observation = detailed.observation;
+        result.status = detailed.status;
     }
 }
