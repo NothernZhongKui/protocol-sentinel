@@ -30,5 +30,6 @@ forge test \
 echo "=== Verifying witness ==="
 
 python3 scripts/verify_witness.py
+python3 scripts/replay_policy.py artifacts/demo/authority-regression.json
 
 echo "=== Evidence pipeline PASSED ==="

@@ -41,7 +41,7 @@ def main():
     ) as temp:
         counter = 0
 
-        def replay(data):
+        def replay(data, allow_legacy=False):
             nonlocal counter
             counter += 1
 
@@ -51,15 +51,20 @@ def main():
                 encoding="utf-8"
             )
 
+            command = [sys.executable, str(REPLAY)]
+            if allow_legacy:
+                command.append("--allow-legacy")
+            command.append(str(path))
+
             return subprocess.run(
-                [sys.executable, str(REPLAY), str(path)],
+                command,
                 cwd=ROOT,
                 capture_output=True,
                 text=True
             )
 
-        def must_accept(name, data):
-            result = replay(data)
+        def must_accept(name, data, allow_legacy=False):
+            result = replay(data, allow_legacy=allow_legacy)
 
             if result.returncode != 0:
                 raise AssertionError(
@@ -93,13 +98,13 @@ def main():
         legacy.pop("reason")
         legacy.pop("target_valid_at_observation")
 
-        must_accept("Legacy JSON without reason", legacy)
+        must_accept("Legacy JSON without reason", legacy, allow_legacy=True)
 
         legacy_03 = copy.deepcopy(risky)
         legacy_03["schema_version"] = "0.3"
         legacy_03.pop("target_valid_at_observation")
 
-        must_accept("Legacy schema 0.3 with reason", legacy_03)
+        must_accept("Legacy schema 0.3 with reason", legacy_03, allow_legacy=True)
 
         missing_reason = copy.deepcopy(risky)
         missing_reason.pop("reason")

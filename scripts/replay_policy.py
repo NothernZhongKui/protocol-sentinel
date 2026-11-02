@@ -51,7 +51,42 @@ def flag(data, key):
     return value
 
 
-def evaluate_detailed(data):
+class SchemaError(ValueError):
+    """Invalid or unsupported evidence schema."""
+
+
+def validate_schema(data, *, allow_legacy=False):
+    if not isinstance(data, dict):
+        raise SchemaError("Witness must be a JSON object")
+
+    version = data.get("schema_version")
+
+    if type(version) is not str or version not in ("0.2", "0.3", "0.4"):
+        raise SchemaError("Unsupported schema version")
+
+    if version != "0.4" and not allow_legacy:
+        raise SchemaError("Legacy schema requires --allow-legacy")
+
+    if version in ("0.2", "0.3"):
+        if "target_valid_at_observation" in data:
+            raise SchemaError(
+                "Target validity field incompatible with legacy schema"
+            )
+
+    if version == "0.2" and "reason" in data:
+        raise SchemaError("Reason field incompatible with schema 0.2")
+
+    if version in ("0.3", "0.4") and "reason" not in data:
+        raise SchemaError("Policy reason missing")
+
+    if version == "0.4" and "target_valid_at_observation" not in data:
+        raise SchemaError("Target validity missing")
+
+    return version
+
+
+def evaluate_detailed(data, *, allow_legacy=False):
+    version = validate_schema(data, allow_legacy=allow_legacy)
     policy = data["policy_rule"]
 
     if policy not in POLICIES:
@@ -78,7 +113,7 @@ def evaluate_detailed(data):
 
     # Older schemas did not capture this precondition.
     # Preserve historical classification, not proof of target validity.
-    if data.get("schema_version") == "0.4":
+    if version == "0.4":
         target_valid = flag(data, "target_valid_at_observation")
     else:
         target_valid = True
@@ -126,9 +161,9 @@ def evaluate_detailed(data):
     return "UNKNOWN", "SUCCESS_WITHOUT_REPLACEMENT"
 
 
-def evaluate(data):
-    # Backward-compatible status-only API.
-    return evaluate_detailed(data)[0]
+def evaluate(data, *, allow_legacy=False):
+    # Backward-compatible status-only return type.
+    return evaluate_detailed(data, allow_legacy=allow_legacy)[0]
 
 
 def self_test(baseline):
@@ -276,15 +311,21 @@ def unique_keys(pairs):
 
 
 def main():
+    self_test_mode = False
+    allow_legacy = False
+
     if len(sys.argv) == 3 and sys.argv[1] == "--self-test":
         self_test_mode = True
         path = Path(sys.argv[2])
-    elif len(sys.argv) == 2 and sys.argv[1] != "--self-test":
-        self_test_mode = False
+    elif len(sys.argv) == 3 and sys.argv[1] == "--allow-legacy":
+        allow_legacy = True
+        path = Path(sys.argv[2])
+    elif len(sys.argv) == 2 and not sys.argv[1].startswith("--"):
         path = Path(sys.argv[1])
     else:
         raise ValueError(
-            "Usage: replay_policy.py witness.json | --self-test witness.json"
+            "Usage: replay_policy.py witness.json | "
+            "--allow-legacy witness.json | --self-test witness.json"
         )
 
     with path.open(encoding="utf-8") as f:
@@ -293,22 +334,20 @@ def main():
     if not isinstance(data, dict):
         raise ValueError("Witness must be a JSON object")
 
+    version = validate_schema(data, allow_legacy=allow_legacy)
+
     if self_test_mode:
         self_test(data)
         return
 
-    version = data.get("schema_version")
+    if version != "0.4":
+        print(
+            f"LEGACY | Schema {version}: target validation unavailable"
+        )
 
-    if version not in ("0.2", "0.3", "0.4"):
-        raise SystemExit("ERROR | Unsupported schema version")
-
-    if version in ("0.3", "0.4") and "reason" not in data:
-        raise SystemExit("FAIL | Policy reason missing")
-
-    if version == "0.4" and "target_valid_at_observation" not in data:
-        raise SystemExit("FAIL | Target validity missing")
-
-    recomputed, recomputed_reason = evaluate_detailed(data)
+    recomputed, recomputed_reason = evaluate_detailed(
+        data, allow_legacy=allow_legacy
+    )
     claimed = data.get("result")
 
     print(f"Stored verdict: {claimed}")
@@ -338,5 +377,7 @@ def main():
 if __name__ == "__main__":
     try:
         main()
+    except SchemaError as exc:
+        raise SystemExit(f"FAIL | {exc}")
     except (ValueError, KeyError, OSError) as exc:
         raise SystemExit(f"ERROR | {exc}")
