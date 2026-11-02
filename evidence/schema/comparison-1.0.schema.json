@@ -754,6 +754,26 @@
         "reproduceCommand": {
           "type": "string",
           "minLength": 1
+        },
+        "buildProvenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "format",
+            "manifestPath",
+            "manifestSha256"
+          ],
+          "properties": {
+            "format": {
+              "const": "protocol-sentinel-build-provenance-v1"
+            },
+            "manifestPath": {
+              "const": "build/build-provenance.json"
+            },
+            "manifestSha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
         }
       }
     }

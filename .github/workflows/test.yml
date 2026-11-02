@@ -268,6 +268,7 @@ jobs:
               validate_document,
           )
           from replay_direct_comparison import replay
+          from build_provenance import verify_evidence_build
           from run_direct_comparison import verify_run_identity
 
           root = Path("artifacts/demo/comparison-runs/completed")
@@ -286,6 +287,7 @@ jobs:
               "evidence.json",
               "forge-results.json",
               "verification.json",
+              "build",
           }
 
           document = load_document(directory / "evidence.json")
@@ -298,6 +300,15 @@ jobs:
 
           verify_run_identity(document, directory.name)
 
+          verify_evidence_build(
+              document,
+              directory / "build",
+              Path.cwd(),
+              directory.name,
+              "test/DirectComparisonEvidenceCapture.t.sol",
+              "python3.12 scripts/run_direct_comparison.py",
+          )
+
           assert report["run_id"] == directory.name
           assert report["producer_test"] == "Success"
           assert report["publication"] == "COMPLETED"
@@ -305,6 +316,7 @@ jobs:
           assert report["before"]["status"] == "PASS"
           assert report["after"]["status"] == "FAIL"
           assert report["source_context"] == "MATCHED_LOCAL_CHECKOUT"
+          assert report["build_provenance"] == "LOCAL_INPUTS_VERIFIED"
           assert report["execution_provenance"] == "UNAUTHENTICATED"
 
           subprocess.run(
@@ -402,6 +414,7 @@ jobs:
               validate_document,
           )
           from replay_timelock_comparison import replay
+          from build_provenance import verify_evidence_build
           from run_timelock_comparison import (
               TESTS,
               check_lossless,
@@ -426,6 +439,7 @@ jobs:
               "waiting-evidence.json",
               "forge-results.json",
               "verification.json",
+              "build",
           }
 
           report = json.loads(
@@ -436,6 +450,7 @@ jobs:
           assert report["publication"] == "COMPLETED"
           assert report["mutation_tests"] == "PASS"
           assert report["source_context"] == "MATCHED_LOCAL_CHECKOUT"
+          assert report["build_provenance"] == "LOCAL_INPUTS_VERIFIED"
           assert report["execution_provenance"] == "UNAUTHENTICATED"
 
           for label, fixture in TESTS.items():
@@ -448,6 +463,15 @@ jobs:
 
               check_lossless(raw, doc)
               check_source_context(doc, directory.name)
+
+              verify_evidence_build(
+                  doc,
+                  directory / "build",
+                  Path.cwd(),
+                  directory.name,
+                  "test/TimelockComparisonEvidenceCapture.t.sol",
+                  "python3.12 scripts/run_timelock_comparison.py",
+              )
 
               result = replay(doc)
 

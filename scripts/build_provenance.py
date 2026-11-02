@@ -394,3 +394,190 @@ def capture_bundle(
     return verify_bundle(
         directory, root, run_id, producer_source
     )
+
+
+BUILD_MANIFEST_PATH = "build/build-provenance.json"
+
+
+def reproduction_command(manifest, base_command):
+    """Render essential effective compiler settings for a new run."""
+
+    units = manifest["units"]
+
+    settings = [
+        {
+            "optimizer": unit["settings"]["optimizer"],
+            "viaIR": unit["settings"].get("viaIR"),
+            "evmVersion": unit["settings"].get("evmVersion"),
+        }
+        for unit in units
+    ]
+
+    require(
+        len({canonical(item) for item in settings}) == 1,
+        "Mixed compiler settings cannot use one reproduction command",
+    )
+
+    config = settings[0]
+    optimizer = config["optimizer"]
+
+    require(
+        isinstance(optimizer, dict)
+        and type(optimizer.get("enabled")) is bool
+        and type(optimizer.get("runs")) is int
+        and optimizer["runs"] >= 0,
+        "Invalid optimizer configuration",
+    )
+
+    flags = [
+        "FOUNDRY_OPTIMIZER=" +
+        ("true" if optimizer["enabled"] else "false"),
+        f"FOUNDRY_OPTIMIZER_RUNS={optimizer['runs']}",
+    ]
+
+    via_ir = config["viaIR"]
+
+    if via_ir is not None:
+        require(type(via_ir) is bool, "Invalid viaIR")
+        flags.append(
+            "FOUNDRY_VIA_IR=" +
+            ("true" if via_ir else "false")
+        )
+
+    evm = config["evmVersion"]
+
+    if evm is not None:
+        require(
+            isinstance(evm, str)
+            and re.fullmatch(r"[a-zA-Z0-9_-]+", evm),
+            "Invalid EVM version",
+        )
+        flags.append(f"FOUNDRY_EVM_VERSION={evm}")
+
+    return " ".join([*flags, base_command])
+
+
+def verify_evidence_build(
+    document,
+    bundle,
+    root,
+    run_id,
+    producer_source,
+    base_command,
+):
+    """Verify local build bundle and its Evidence hash binding."""
+
+    provenance = document["provenance"]
+    record = provenance.get("buildProvenance")
+
+    require(
+        isinstance(record, dict),
+        "Evidence missing build provenance",
+    )
+
+    require(
+        record.get("format") == FORMAT
+        and record.get("manifestPath") == BUILD_MANIFEST_PATH,
+        "Invalid Evidence build reference",
+    )
+
+    digest = verify_bundle(
+        bundle, root, run_id, producer_source
+    )
+
+    require(
+        record.get("manifestSha256") == digest,
+        "Evidence build manifest hash mismatch",
+    )
+
+    manifest = read_json(bundle / "build-provenance.json")
+
+    versions = {
+        unit["solcVersion"] for unit in manifest["units"]
+    }
+
+    declared_version = document["environment"]["solcVersion"]
+
+    require(
+        len(versions) == 1 and all(
+            version == declared_version
+            or version.startswith(declared_version + "+")
+            for version in versions
+        ),
+        "Declared compiler version differs from build-info",
+    )
+
+    dependency_map = {
+        item["path"]: item["revision"]
+        for item in manifest["dependencies"]
+    }
+
+    declared_deps = document["environment"]["dependencyRevisions"]
+
+    for name, path in (
+        ("openzeppelinContracts", "lib/openzeppelin-contracts"),
+        (
+            "openzeppelinContractsUpgradeable",
+            "lib/openzeppelin-contracts-upgradeable",
+        ),
+    ):
+        require(
+            declared_deps[name] == dependency_map[path],
+            f"Evidence dependency mismatch: {name}",
+        )
+
+    require(
+        provenance["runId"] == run_id,
+        "Evidence/build run ID mismatch",
+    )
+
+    require(
+        provenance["reproduceCommand"]
+        == reproduction_command(manifest, base_command),
+        "Reproduce command differs from compiler settings",
+    )
+
+    return digest
+
+
+def attach_evidence_build(
+    document,
+    bundle,
+    root,
+    run_id,
+    producer_source,
+    base_command,
+):
+    provenance = document["provenance"]
+
+    require(
+        "buildProvenance" not in provenance,
+        "Evidence already has build provenance",
+    )
+
+    digest = verify_bundle(
+        bundle, root, run_id, producer_source
+    )
+
+    manifest = read_json(bundle / "build-provenance.json")
+
+    provenance["buildProvenance"] = {
+        "format": FORMAT,
+        "manifestPath": BUILD_MANIFEST_PATH,
+        "manifestSha256": digest,
+    }
+
+    provenance["reproduceCommand"] = reproduction_command(
+        manifest, base_command
+    )
+
+    verify_evidence_build(
+        document,
+        bundle,
+        root,
+        run_id,
+        producer_source,
+        base_command,
+    )
+
+    return digest

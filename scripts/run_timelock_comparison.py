@@ -14,6 +14,12 @@ import sys
 import uuid
 from pathlib import Path
 
+from build_provenance import (
+    capture_bundle,
+    attach_evidence_build,
+    verify_evidence_build,
+)
+
 from assemble_timelock_comparison import (
     OBS_FIELDS,
     SPEC_FIELDS,
@@ -58,6 +64,7 @@ SOURCE_INPUTS = {
     "scripts/replay_timelock_comparison.py",
     "scripts/test_timelock_comparison_mutations.py",
     "scripts/run_timelock_comparison.py",
+    "scripts/build_provenance.py",
     "scripts/validate_comparison_schema.py",
     "evidence/semantics/registry.json",
     "evidence/schema/comparison-1.0.schema.json",
@@ -303,6 +310,15 @@ def verify_fixture(label, raw_path, evidence_path, run_id):
     check_lossless(raw_capture, document)
     check_source_context(document, run_id)
 
+    verify_evidence_build(
+        document,
+        evidence_path.parent / "build",
+        ROOT,
+        run_id,
+        "test/TimelockComparisonEvidenceCapture.t.sol",
+        "python3.12 scripts/run_timelock_comparison.py",
+    )
+
     require(
         document["route"] == "OZ_TIMELOCK_SINGLE",
         "Wrong evidence route",
@@ -418,6 +434,10 @@ def main():
 
     forge_file = staging / "forge-results.json"
     report_file = staging / "verification.json"
+    fresh_info = staging / ".fresh-build-info"
+    forge_out = staging / ".forge-out"
+    forge_cache = staging / ".forge-cache"
+    build_bundle = staging / "build"
 
     env = os.environ.copy()
 
@@ -438,6 +458,14 @@ def main():
         "--json",
         "--threads",
         "1",
+        "--force",
+        "--build-info",
+        "--build-info-path",
+        str(fresh_info),
+        "--out",
+        str(forge_out),
+        "--cache-path",
+        str(forge_cache),
         "--match-contract",
         SUITE,
         "--match-test",
@@ -505,6 +533,20 @@ def main():
 
         verify_producer(producer)
 
+        capture_bundle(
+            fresh_info,
+            build_bundle,
+            ROOT,
+            run_id,
+            "test/TimelockComparisonEvidenceCapture.t.sol",
+        )
+
+        for path in (fresh_info, forge_out, forge_cache):
+            if path.exists():
+                shutil.rmtree(path)
+
+        print("PASS | Fresh Timelock compiler inputs", flush=True)
+
         print(
             "PASS | Both producing tests succeeded",
             flush=True,
@@ -533,6 +575,24 @@ def main():
                     run_id,
                 ],
                 f"{label} assembly",
+            )
+
+            document = load_document(evidence_paths[label])
+
+            attach_evidence_build(
+                document,
+                build_bundle,
+                ROOT,
+                run_id,
+                "test/TimelockComparisonEvidenceCapture.t.sol",
+                "python3.12 scripts/run_timelock_comparison.py",
+            )
+
+            evidence_paths[label].write_text(
+                json.dumps(
+                    document, indent=2, sort_keys=True
+                ) + chr(10),
+                encoding="utf-8",
             )
 
             reports[label] = verify_fixture(
@@ -568,6 +628,7 @@ def main():
             },
             "fixtures": reports,
             "source_context": "MATCHED_LOCAL_CHECKOUT",
+            "build_provenance": "LOCAL_INPUTS_VERIFIED",
             "execution_provenance": "UNAUTHENTICATED",
             "mutation_tests": "PASS",
             "publication": "COMPLETED",
@@ -589,6 +650,7 @@ def main():
             "waiting-evidence.json",
             "forge-results.json",
             "verification.json",
+            "build",
         }
 
         require(

@@ -58,6 +58,7 @@ SOURCE_INPUTS = (
     "scripts/replay_timelock_comparison.py",
     "scripts/test_timelock_comparison_mutations.py",
     "scripts/run_timelock_comparison.py",
+    "scripts/build_provenance.py",
     "scripts/validate_comparison_schema.py",
     "evidence/semantics/registry.json",
     "evidence/schema/comparison-1.0.schema.json",
