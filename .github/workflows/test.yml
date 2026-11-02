@@ -122,6 +122,7 @@ jobs:
           )
 
           echo "=== Current checkout consumer ==="
+          cp examples/consumer/SentinelDetailedConsumer.t.sol "$consumer/test/"
           rm -rf "$consumer/lib/protocol-sentinel"
           mkdir -p "$consumer/lib/protocol-sentinel"
           cp -R "$GITHUB_WORKSPACE/src"             "$consumer/lib/protocol-sentinel/src"
@@ -129,6 +130,11 @@ jobs:
           (
             cd "$consumer"
             forge test --match-path test/SentinelConsumer.t.sol -vv
+          )
+
+          (
+            cd "$consumer"
+            forge test --match-contract SentinelDetailedConsumerTest -vv
           )
 
   x402:
