@@ -379,10 +379,19 @@ contract AuthorityRegressionTest is AuthorityProbe {
         bytes32 expectedImplementation = bytes32(uint256(uint160(address(candidate))));
         bytes memory expectedRevert = abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", operator);
 
-        PolicyStatus status = _classifyUpgrade(obs, expectedImplementation, expectedRevert, operator, address(proxy));
+        PolicyEvaluation memory evaluation = _evaluateUpgradePolicyDetailed(
+            obs,
+            UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT,
+            expectedImplementation,
+            expectedRevert,
+            operator,
+            address(proxy)
+        );
+        PolicyStatus status = evaluation.status;
 
         // Confirm the regression and unchanged admin settings.
         assertEq(uint256(status), uint256(PolicyStatus.FAIL));
+        assertEq(uint256(evaluation.reason), uint256(PolicyReason.NONE));
         assertTrue(obs.success);
         assertEq(vault.version(), 3);
         assertEq(vault.owner(), ownerBefore);
@@ -393,10 +402,11 @@ contract AuthorityRegressionTest is AuthorityProbe {
         // Build evidence from actual execution observations.
         string memory key = "sentinel_witness";
 
-        vm.serializeString(key, "schema_version", "0.2");
+        vm.serializeString(key, "schema_version", "0.4");
         vm.serializeString(key, "run_kind", "local_fixture");
         vm.serializeString(key, "policy_id", "AR-001");
         vm.serializeString(key, "result", "FAIL");
+        vm.serializeString(key, "reason", "NONE");
 
         vm.serializeAddress(key, "actor", obs.actor);
         vm.serializeAddress(key, "tx_origin", obs.txOrigin);
@@ -409,6 +419,7 @@ contract AuthorityRegressionTest is AuthorityProbe {
         vm.serializeBool(key, "call_success", obs.success);
         vm.serializeBytes(key, "return_data", obs.returnData);
         vm.serializeBool(key, "candidate_valid_at_observation", obs.candidateValidAtObservation);
+        vm.serializeBool(key, "target_valid_at_observation", obs.targetValidAtObservation);
         vm.serializeBytes(key, "expected_revert", expectedRevert);
 
         vm.serializeBytes32(key, "observed_slot", obs.observedSlot);

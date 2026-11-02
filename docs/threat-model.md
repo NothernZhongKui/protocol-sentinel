@@ -184,9 +184,10 @@ Python policy replay checks verdict semantics from recorded
 observations. Five Solidity/Python scenarios and thirteen Python
 self-tests are included.
 
-Current diagnostic policy evidence uses schema 0.4 and
-requires reason and target_valid_at_observation.
-The main witness retains schema 0.2.
+New execution witnesses and diagnostic policy evidence
+use schema 0.4, requiring reason and
+target_valid_at_observation.
+Legacy evidence requires explicit replay opt-in.
 
 Seven diagnostic scenarios are compared across Solidity
 and Python. Mutation tests reject inconsistent target flags,

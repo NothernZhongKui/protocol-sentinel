@@ -56,6 +56,17 @@ cases = [
     ),
 ]
 
+cases.extend([
+    (
+        "Invalid target observation",
+        mutant(target_valid_at_observation=False)
+    ),
+    (
+        "Falsified diagnostic reason",
+        mutant(reason="INVALID_TARGET")
+    ),
+])
+
 cases.append((
     "Wrong implementation slot identity",
     mutant(observed_slot="0x" + "00" * 32)

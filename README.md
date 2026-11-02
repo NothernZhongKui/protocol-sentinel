@@ -163,15 +163,16 @@ A passing Foundry test may correctly confirm a FAIL security verdict.
 
 ## Evidence
 
-The main execution witness retains schema version `0.2`.
+New execution witnesses and diagnostic policy matrices
+use schema `0.4`, including `reason` and
+`target_valid_at_observation`.
 
-Current diagnostic policy matrices use schema `0.4`,
-requiring both `reason` and `target_valid_at_observation`.
 Python independently recomputes status and reason from
-the recorded observation.
+recorded observations. Current schema validation is
+strict by default.
 
-Historical schemas `0.2` and `0.3` remain readable,
-but they lack the new target-validity observation.
+Historical schemas `0.2` and `0.3` require
+`--allow-legacy`. They do not establish target validity.
 Replay does not authenticate the recorded EVM state.
 
 It records the declared actor, transaction origin, target,

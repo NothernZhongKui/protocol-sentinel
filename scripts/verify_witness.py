@@ -74,6 +74,8 @@ required = [
     "call_success",
     "return_data",
     "candidate_valid_at_observation",
+    "target_valid_at_observation",
+    "reason",
     "expected_revert",
     "expected_implementation",
     "observed_slot",
@@ -100,7 +102,7 @@ require(
     "All required fields present"
 )
 
-require(data["schema_version"] == "0.2", "Supported schema")
+require(data["schema_version"] == "0.4", "Current schema 0.4")
 require(data["run_kind"] == "local_fixture", "Local fixture")
 require(
     data["fixture_id"] == "transparent_uups_authority_regression_v0.1",
@@ -113,6 +115,7 @@ require(
     "Expected policy rule"
 )
 require(data["result"] == "FAIL", "Regression detected")
+require(data["reason"] == "NONE", "Correct diagnostic reason")
 require(data["call_success"] is True, "Successful observed call")
 
 # Validate address fields.
@@ -138,6 +141,10 @@ require(
 require(
     type(data["candidate_valid_at_observation"]) is bool,
     "Valid candidate precondition flag"
+)
+require(
+    data["target_valid_at_observation"] is True,
+    "Valid target preconditions at observation"
 )
 require(
     is_hex(data["expected_implementation"], 32),
