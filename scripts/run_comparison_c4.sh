@@ -47,6 +47,52 @@ test -f "$READY"
 test -f "$WAITING"
 echo "PASS | Fresh C2 and C3 evidence"
 
+echo "=== C4: Published build provenance ==="
+
+"$PYTHON" - "$DIRECT" "$READY" "$WAITING" <<'PYBUILD'
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path("scripts").resolve()))
+
+from build_provenance import verify_evidence_build
+from validate_comparison_schema import load_document
+
+root = Path.cwd()
+
+for label, filename, source, command in (
+    (
+        "DIRECT", sys.argv[1],
+        "test/DirectComparisonEvidenceCapture.t.sol",
+        "python3.12 scripts/run_direct_comparison.py",
+    ),
+    (
+        "READY", sys.argv[2],
+        "test/TimelockComparisonEvidenceCapture.t.sol",
+        "python3.12 scripts/run_timelock_comparison.py",
+    ),
+    (
+        "WAITING", sys.argv[3],
+        "test/TimelockComparisonEvidenceCapture.t.sol",
+        "python3.12 scripts/run_timelock_comparison.py",
+    ),
+):
+    evidence = Path(filename)
+    document = load_document(evidence)
+
+    verify_evidence_build(
+        document,
+        evidence.parent / "build",
+        root,
+        document["provenance"]["runId"],
+        source,
+        command,
+    )
+
+    print(f"PASS | {label} published build binding")
+PYBUILD
+
+
 echo "=== C4: Solidity differential oracles ==="
 
 DIRECT_ORACLE="$PWD/artifacts/demo/direct-differential-oracle.json"

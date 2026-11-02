@@ -52,6 +52,7 @@ SOURCE_INPUTS = (
     "scripts/replay_direct_comparison.py",
     "scripts/validate_comparison_schema.py",
     "scripts/run_direct_comparison.py",
+    "scripts/build_provenance.py",
 )
 
 

@@ -14,6 +14,12 @@ import sys
 import uuid
 from pathlib import Path
 
+from build_provenance import (
+    capture_bundle,
+    attach_evidence_build,
+    verify_evidence_build,
+)
+
 from validate_comparison_schema import (
     load_document,
     unique_keys,
@@ -39,6 +45,7 @@ EXPECTED_INPUTS = {
     "scripts/replay_direct_comparison.py",
     "scripts/validate_comparison_schema.py",
     "scripts/run_direct_comparison.py",
+    "scripts/build_provenance.py",
 }
 
 
@@ -229,6 +236,10 @@ def main():
     evidence_path = staging / "evidence.json"
     forge_path = staging / "forge-results.json"
     report_path = staging / "verification.json"
+    fresh_info = staging / ".fresh-build-info"
+    forge_out = staging / ".forge-out"
+    forge_cache = staging / ".forge-cache"
+    build_bundle = staging / "build"
 
     env = os.environ.copy()
 
@@ -250,6 +261,14 @@ def main():
         "--json",
         "--threads",
         "1",
+        "--force",
+        "--build-info",
+        "--build-info-path",
+        str(fresh_info),
+        "--out",
+        str(forge_out),
+        "--cache-path",
+        str(forge_cache),
         "--match-contract",
         "DirectComparisonEvidenceCaptureTest",
         "--match-test",
@@ -332,6 +351,20 @@ def main():
 
         print("PASS | Required Foundry test", flush=True)
 
+        capture_bundle(
+            fresh_info,
+            build_bundle,
+            ROOT,
+            run_id,
+            "test/DirectComparisonEvidenceCapture.t.sol",
+        )
+
+        for path in (fresh_info, forge_out, forge_cache):
+            if path.exists():
+                shutil.rmtree(path)
+
+        print("PASS | Fresh Direct compiler inputs", flush=True)
+
         print("=== Assemble Evidence 1.0 ===", flush=True)
 
         run_command(
@@ -352,6 +385,22 @@ def main():
             "Assembler did not produce evidence",
         )
 
+        document = load_document(evidence_path)
+
+        attach_evidence_build(
+            document,
+            build_bundle,
+            ROOT,
+            run_id,
+            "test/DirectComparisonEvidenceCapture.t.sol",
+            "python3.12 scripts/run_direct_comparison.py",
+        )
+
+        evidence_path.write_text(
+            json.dumps(document, indent=2, sort_keys=True)
+            + chr(10),
+            encoding="utf-8",
+        )
         document = load_document(evidence_path)
 
         if args.inject_assembly_mutation:
@@ -401,11 +450,21 @@ def main():
 
         verify_local_source_context(document)
 
-        print("PASS | Source hashes match local checkout", flush=True)
+        verify_evidence_build(
+            document,
+            build_bundle,
+            ROOT,
+            run_id,
+            "test/DirectComparisonEvidenceCapture.t.sol",
+            "python3.12 scripts/run_direct_comparison.py",
+        )
+
+        print("PASS | Source hashes and build provenance", flush=True)
 
         # A replay match is not a claim that execution
         # provenance has been authenticated.
         report["source_context"] = "MATCHED_LOCAL_CHECKOUT"
+        report["build_provenance"] = "LOCAL_INPUTS_VERIFIED"
         report["execution_provenance"] = "UNAUTHENTICATED"
         report["producer_test"] = "Success"
         report["run_id"] = run_id
@@ -424,6 +483,7 @@ def main():
                 "evidence.json",
                 "forge-results.json",
                 "verification.json",
+                "build",
             },
             "Unexpected published artifact set",
         )
