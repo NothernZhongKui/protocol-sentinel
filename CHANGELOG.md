@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.3.0 - 2026-11-03
+
+### Added
+- Seven Evaluator property fuzz tests.
+- Two UUPS isolation fuzz tests.
+- Historical Ethereum mainnet fork integration.
+- PASS -> FAIL -> PASS authority regression for one actor.
+- Offline fork JSON-validator and 15 regression tests.
+- Sanitized fork evidence reports.
+- Manual GitHub Actions evidence artifact upload.
+
+### Verified
+- Historical block hash, implementation and owner.
+- Authorized and unauthorized upgrade execution.
+- Snapshot isolation and state restoration.
+- Independent adversarial and mutation testing.
+- Successful manual GitHub fork workflow.
+
+### Compatibility
+- Solidity AuthorityProbe API unchanged.
+- Evidence schema 0.4 retained.
+
+### Limitations
+- Deliberately vulnerable implementation is test-only.
+- No vulnerability in Adapter8004 is asserted.
+- Direct EOA and canonical UUPS scope unchanged.
+
 ## v0.2.1 - 2026-11-02
 
 ### Fixed

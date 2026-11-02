@@ -177,12 +177,14 @@ No live-chain upgrade transaction is broadcast.
 
 ## Reproducible Integrations
 
-The repository includes two independently exercised integration paths.
+The repository includes three independently exercised integration paths.
 
 - Standalone Foundry consumer: imports the published v0.1.0
   helper and checks the current API for compatibility.
 - Fortytwo x402Escrow: reproduces a deliberately introduced
   upgrade-authority regression using pinned external source.
+- Adapter8004 historical Ethereum mainnet fork: demonstrates a test-only
+  PASS -> FAIL -> PASS authority regression on real proxy state.
 
 Run the Fortytwo regression experiment:
 
