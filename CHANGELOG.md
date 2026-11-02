@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2.1 - Unreleased
+## v0.2.1 - 2026-11-02
 
 ### Fixed
 - Centralized evidence schema validation across CLI and Python API.
