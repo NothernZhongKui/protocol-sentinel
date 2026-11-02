@@ -1,6 +1,6 @@
 # ADR-004C: Comparison Evidence and Independent Replay
 
-Status: PROPOSED
+Status: ACCEPTED
 Target: Protocol Sentinel v0.4-C
 Parent: RFC-004C
 Dependencies: ADR-004A, ADR-004B
@@ -582,7 +582,7 @@ The ADR is implementable when:
 
 ## 20. Decision Status
 
-PROPOSED.
+ACCEPTED after independent architectural review.
 
 The reference behavior is fixed to the reviewed
 v0.4-B implementation for architectural planning.

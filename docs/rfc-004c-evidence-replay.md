@@ -1,6 +1,6 @@
 # RFC-004C: Comparison Evidence & Independent Replay
 
-Status: DRAFT — architectural review required
+Status: REVIEWED — decisions accepted in ADR-004C
 Target: Protocol Sentinel v0.4-C
 Baseline: merged v0.4-A and v0.4-B
 Parent: RFC-004
@@ -770,4 +770,4 @@ An independent architecture review should examine:
 9. Minimum practical implementation scope.
 10. Whether the architecture is unnecessarily complex.
 
-Status remains DRAFT until ADR-004C is accepted.
+Architecture reviewed; decisions accepted in ADR-004C.
