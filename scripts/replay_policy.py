@@ -51,23 +51,20 @@ def flag(data, key):
     return value
 
 
-def evaluate(data):
+def evaluate_detailed(data):
     policy = data["policy_rule"]
 
     if policy not in POLICIES:
         raise ValueError(f"Unsupported policy: {policy}")
 
     slot = word(data, "observed_slot")
-
     actor = address(data, "actor")
     origin = address(data, "tx_origin")
     target = address(data, "target")
-
     expected_actor = address(data, "expected_actor")
     expected_target = address(data, "expected_target")
 
     candidate = word(data, "expected_implementation") & ADDRESS_MASK
-
     calldata = read_bytes(data, "calldata")
 
     before = word(data, "implementation_before") & ADDRESS_MASK
@@ -79,18 +76,16 @@ def evaluate(data):
     return_data = read_bytes(data, "return_data")
     expected_revert = read_bytes(data, "expected_revert")
 
-    # Observation identity and direct EOA context.
     if slot != ERC1967_SLOT:
-        return "UNKNOWN"
+        return "UNKNOWN", "INVALID_SLOT"
 
     if (
         actor != expected_actor
         or origin != expected_actor
         or target != expected_target
     ):
-        return "UNKNOWN"
+        return "UNKNOWN", "CONTEXT_MISMATCH"
 
-    # Canonical upgradeToAndCall(address,bytes) with empty data.
     canonical = (
         UPGRADE_SELECTOR
         + candidate.to_bytes(32, "big")
@@ -99,28 +94,31 @@ def evaluate(data):
     )
 
     if calldata != canonical:
-        return "UNKNOWN"
+        return "UNKNOWN", "NON_CANONICAL_CALLDATA"
 
-    # Compare effective implementation addresses, not storage words.
     unchanged = before == after
 
     if not success:
         if not candidate_valid:
-            return "UNKNOWN"
+            return "UNKNOWN", "INVALID_CANDIDATE"
 
         if unchanged and return_data == expected_revert:
-            return "PASS"
+            return "PASS", "NONE"
 
-        return "UNKNOWN"
+        return "UNKNOWN", "UNEXPECTED_REVERT"
 
-    # A confirmed successful call takes precedence over candidate checks.
     if policy == "NO_SUCCESSFUL_UPGRADE_CALL":
-        return "FAIL"
+        return "FAIL", "NONE"
 
     if not unchanged:
-        return "FAIL"
+        return "FAIL", "NONE"
 
-    return "UNKNOWN"
+    return "UNKNOWN", "SUCCESS_WITHOUT_REPLACEMENT"
+
+
+def evaluate(data):
+    # Backward-compatible status-only API.
+    return evaluate_detailed(data)[0]
 
 
 def self_test(baseline):
@@ -206,15 +204,35 @@ def self_test(baseline):
         return_data="0x",
     )
 
+    expected_reasons = {
+        "Original exported FAIL": "NONE",
+        "P1: candidate precedence": "NONE",
+        "Origin mismatch": "CONTEXT_MISMATCH",
+        "Target mismatch": "CONTEXT_MISMATCH",
+        "Incorrect implementation slot": "INVALID_SLOT",
+        "Unrelated calldata": "NON_CANONICAL_CALLDATA",
+        "P2: high bits, replacement policy": "SUCCESS_WITHOUT_REPLACEMENT",
+        "P2: high bits, successful-call policy": "NONE",
+        "Expected authorization rejection": "NONE",
+        "Invalid candidate on rejection": "INVALID_CANDIDATE",
+        "Unexpected rejection": "UNEXPECTED_REVERT",
+    }
+
     for name, expected, data in cases:
-        actual = evaluate(data)
+        actual, reason = evaluate_detailed(data)
+
+        if reason != expected_reasons[name]:
+            raise AssertionError(
+                f"{name}: expected reason {expected_reasons[name]}, "
+                f"got {reason}"
+            )
 
         if actual != expected:
             raise AssertionError(
                 f"{name}: expected {expected}, got {actual}"
             )
 
-        print(f"PASS | {name}: {actual}")
+        print(f"PASS | {name}: {actual} / {reason}")
 
     print(f"Policy replay self-tests PASSED: {len(cases)}/{len(cases)}")
 
@@ -252,7 +270,7 @@ def main():
         self_test(data)
         return
 
-    recomputed = evaluate(data)
+    recomputed, recomputed_reason = evaluate_detailed(data)
     claimed = data.get("result")
 
     print(f"Stored verdict: {claimed}")
@@ -260,6 +278,20 @@ def main():
 
     if recomputed != claimed:
         raise SystemExit("FAIL | Policy replay mismatch")
+
+    # Legacy witnesses without reason remain valid.
+    # New witnesses must match independently computed diagnostics.
+    if "reason" in data:
+        claimed_reason = data["reason"]
+
+        print(f"Stored reason: {claimed_reason}")
+        print(f"Replay reason: {recomputed_reason}")
+
+        if (
+            not isinstance(claimed_reason, str)
+            or claimed_reason != recomputed_reason
+        ):
+            raise SystemExit("FAIL | Policy reason mismatch")
 
     print("PASS | Policy verdict reproduced from JSON")
     print("Scope: classification only; no EVM execution attestation")
