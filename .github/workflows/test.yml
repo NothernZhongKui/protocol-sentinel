@@ -63,6 +63,9 @@ jobs:
       - name: Test policy reason mutations
         run: python3 scripts/test_policy_reason_mutations.py
 
+      - name: Compare Solidity and Python diagnostic reasons
+        run: python3 scripts/check_policy_reason_matrix.py
+
       - name: Export and verify witness
         run: bash scripts/export_witness.sh
 

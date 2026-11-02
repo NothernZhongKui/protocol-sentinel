@@ -49,7 +49,7 @@ contract PolicyReplayMatrixTest is RoleAuthorityRegressionTest {
 
         string memory key = string.concat("matrix_", label);
 
-        vm.serializeString(key, "schema_version", "0.2");
+        vm.serializeString(key, "schema_version", "0.3");
         vm.serializeString(key, "fixture_id", "role_uups_replay");
         vm.serializeString(
             key,

@@ -89,9 +89,19 @@ def main():
 
         # Previous evidence format remains supported.
         legacy = copy.deepcopy(risky)
+        legacy["schema_version"] = "0.2"
         legacy.pop("reason")
 
         must_accept("Legacy JSON without reason", legacy)
+
+        missing_reason = copy.deepcopy(risky)
+        missing_reason.pop("reason")
+
+        must_reject(
+            "Missing reason in schema 0.3",
+            missing_reason,
+            "FAIL | Policy reason missing"
+        )
 
         # Negative controls: correct verdict, falsified reason.
         cases = [
@@ -156,7 +166,7 @@ def main():
 
     print()
     print("PASS | Positive controls: 3/3")
-    print("PASS | Negative controls: 9/9")
+    print("PASS | Negative controls: 10/10")
     print("Policy reason mutation tests PASSED")
 
 

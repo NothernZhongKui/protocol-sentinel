@@ -270,6 +270,14 @@ def main():
         self_test(data)
         return
 
+    version = data.get("schema_version")
+
+    if version not in ("0.2", "0.3"):
+        raise SystemExit("ERROR | Unsupported schema version")
+
+    if version == "0.3" and "reason" not in data:
+        raise SystemExit("FAIL | Policy reason missing")
+
     recomputed, recomputed_reason = evaluate_detailed(data)
     claimed = data.get("result")
 

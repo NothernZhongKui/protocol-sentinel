@@ -62,6 +62,9 @@ def main():
 
         data = json.loads(path.read_text(encoding="utf-8"))
 
+        if data.get("schema_version") != "0.3":
+            raise SystemExit(f"FAIL | Unexpected schema: {name}")
+
         if data.get("result") != expected:
             raise SystemExit(f"FAIL | Unexpected Solidity verdict: {name}")
 
