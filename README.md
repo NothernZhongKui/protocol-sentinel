@@ -33,6 +33,7 @@ without scheduling a new operation or advancing EVM time.
 
 - `src/AuthorityProbe.sol` — public Foundry test helper and policy evaluator
 - `src/ComparativeAuthorityProbe.sol` — experimental before/after comparison core
+- `src/TimelockAuthorityProbe.sol` — experimental OpenZeppelin Timelock route adapter
 - `test/AuthorityRegression.t.sol` — Transparent proxy / Timelock regression
 - `test/RoleAuthorityRegression.t.sol` — ERC-1967 / UUPS / AccessControl regression
 - `test/fixtures/` — synthetic upgrade implementations
@@ -67,6 +68,31 @@ The original status-only API remains available.
 
 See [Library Quick Start](docs/library-quickstart.md)
 for usage examples, supported scenarios, and limitations.
+
+## Timelock Route Adapter — experimental v0.4-B
+
+The unreleased TimelockAuthorityProbe supports one
+contract-mediated administrative upgrade route:
+
+EOA executor -> TimelockController -> ProxyAdmin ->
+TransparentUpgradeableProxy.
+
+It evaluates two independently declared properties:
+READY_UPGRADE_SUCCEEDS and
+NOT_READY_EXECUTION_REJECTED.
+
+It also compares observations across distinct active
+implementations while checking recorded governance
+preconditions for comparability.
+
+The adapter requires explicit scheduling and local
+Foundry execution. It does not discover permissions,
+execute live-chain transactions or authenticate
+observation provenance.
+
+See [Timelock Route Quick Start](docs/timelock-route-quickstart.md)
+and the independent consumer example in
+examples/consumer/SentinelTimelockConsumer.t.sol.
 
 ## Quick Start
 

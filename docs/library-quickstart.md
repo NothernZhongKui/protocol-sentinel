@@ -124,6 +124,23 @@ The existing AuthorityProbe API remains unchanged.
 
 See [Comparative Authority Quick Start](comparative-authority-quickstart.md).
 
+## Experimental Timelock route API — v0.4-B
+
+The unreleased v0.4-B development branch adds
+TimelockAuthorityProbe for contract-mediated
+OpenZeppelin administrative upgrades.
+
+This separate API does not change AuthorityProbe
+or ComparativeAuthorityProbe.
+
+It supports declared ready and waiting Timelock
+operations, real isolated execution, pure evaluation,
+and comparison between active implementations.
+
+It is not included in the published v0.3.0 tag.
+
+See [Timelock Route Quick Start](timelock-route-quickstart.md).
+
 ## Migration from v0.1.x to v0.2.x
 
 The v0.2.0 release introduced the additional
