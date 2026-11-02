@@ -109,6 +109,30 @@ The clean fixture must not pretend otherwise.
 
 Use a clean Transparent Proxy + ProxyAdmin fixture.
 
+In the pinned OpenZeppelin 5.x implementation,
+TransparentUpgradeableProxy creates its own ProxyAdmin.
+
+Its constructor's second argument is initialOwner,
+not an existing ProxyAdmin address.
+
+The clean deployment recipe is:
+
+1. Deploy the TimelockController.
+2. Deploy the initial implementation.
+3. Deploy TransparentUpgradeableProxy with the
+   Timelock address as initialOwner.
+4. Obtain the ProxyAdmin created by the proxy.
+5. Verify that the deployed ProxyAdmin has code
+   and is owned by the Timelock.
+6. Prepare the operation targeting that ProxyAdmin.
+
+Passing a predeployed ProxyAdmin as initialOwner
+would not make it the effective proxy administrator.
+
+Reading the ERC-1967 admin slot is useful for the
+trusted initial fixture, but is not sufficient
+authentication of effective administration.
+
 Do not use the mixed Transparent/UUPS authority
 regression fixture as the generic adapter baseline.
 
@@ -139,7 +163,7 @@ only, with sender and origin equal to that executor.
 Proposed TimelockScenario fields:
 
 - timelock
-- proposer
+- proposer as declared preparation context
 - executor
 - proxyAdmin
 - proxy
@@ -147,7 +171,12 @@ Proposed TimelockScenario fields:
 - predecessor
 - salt
 - property
-- expectedRevert for the not-ready rejection
+
+The initial public scenario does not contain an
+arbitrary expectedRevert field.
+
+The not-ready rejection is derived from the exact
+pinned TimelockController implementation.
 
 The route derives its canonical ProxyAdmin calldata.
 
@@ -161,6 +190,17 @@ the OpenZeppelin Timelock hashOperation semantics.
 Do not accept an arbitrary operation ID without
 recomputing and checking it.
 
+The proposer is a declared participant in preparation,
+not an authenticated historical schedule() sender.
+
+The existence of an operation and the proposer's
+current role do not prove who originally scheduled it.
+
+The consumer explicitly performs and verifies
+scheduling in the controlled Foundry fixture.
+The phase B observer does not attest historical
+scheduling provenance.
+
 ## 6. Route Properties
 
 Define two explicit properties:
@@ -169,6 +209,22 @@ READY_UPGRADE_SUCCEEDS
 
 The declared, ready and executable operation must
 replace the proxy's implementation with the candidate.
+
+Timelock Ready describes timestamp readiness only.
+
+For positive-property executability also require:
+
+    predecessor == bytes32(0)
+        || predecessorDoneBefore
+
+A known unfinished predecessor invalidates positive
+scenario preparation, even if the operation is Ready.
+
+An unknown predecessor state yields UNKNOWN when
+evaluation cannot establish the required precondition.
+
+A legitimate TimelockUnexecutedPredecessor revert
+must not become a false positive-policy FAIL.
 
 NOT_READY_EXECUTION_REJECTED
 
@@ -196,17 +252,51 @@ The consumer is responsible for:
 
 The adapter must not silently perform these actions.
 
-For an authorized ready operation, verify that the
-declared executor holds EXECUTOR_ROLE or that execution
-is open through the zero-address executor role.
+For BOTH route properties, verify executor eligibility:
 
-For a not-ready scenario, verify the operation is
-scheduled and pending, rather than absent or done.
+    hasRole(EXECUTOR_ROLE, executor)
+        || hasRole(EXECUTOR_ROLE, address(0))
+
+The second case represents OpenZeppelin's open
+executor role. The executor need not personally
+hold the role when it is open.
+
+For READY_UPGRADE_SUCCEEDS, require:
+
+- Operation state exactly Ready.
+- Executor eligible.
+- Predecessor absent or already Done.
+- Verified ProxyAdmin ownership and candidate validity.
+
+For NOT_READY_EXECUTION_REJECTED, require:
+
+- Operation state exactly Waiting.
+- Executor eligible.
+- Predecessor absent or already Done, to isolate
+  the delay restriction from dependency failures.
+- Verified scheduled operation identity.
+
+An unauthorized executor cannot establish PASS
+for the Timelock delay property.
+
+A not-ready operation is not merely any pending
+operation: pending includes both Waiting and Ready.
+
+At block.timestamp == getTimestamp(operationId),
+a scheduled operation is Ready, not Waiting.
 
 Unscheduled-operation checks require an explicitly
 declared negative test, not a fabricated PASS.
 
-Missing required setup is a caller/runner error.
+Known invalid required setup is a caller/runner
+error before ordinary positive-policy evaluation.
+
+An observation with unknown or incomplete required
+preconditions yields UNKNOWN when the evaluator
+cannot establish the property.
+
+Do not treat invalid preparation as a policy FAIL,
+or turn missing preparation evidence into PASS.
 
 ## 8. Observation
 
@@ -217,8 +307,12 @@ A distinct RoutedObservation must record:
 - Outer execution success and return data.
 - Declared Timelock and ProxyAdmin addresses.
 - Operation ID.
-- Operation scheduling/readiness state before execution.
+- Operation state before execution: Unset, Waiting,
+  Ready or Done.
 - Operation done state before and after.
+- Declared predecessor ID.
+- Predecessor Done state before execution, including
+  whether that fact was actually observed.
 - Observed timestamp and readiness timestamp.
 - ERC-1967 implementation slot before and after.
 - Candidate and proxy precondition results.
@@ -251,6 +345,7 @@ For READY_UPGRADE_SUCCEEDS require independently:
 
 - The exact declared operation was ready.
 - The declared executor was eligible.
+- The predecessor was zero or already Done.
 - The outer Timelock execute call succeeded.
 - The operation became done.
 - The proxy implementation became the candidate.
@@ -271,9 +366,14 @@ READY_UPGRADE_SUCCEEDS:
 PASS when all declared preconditions are established
 and the required state effect is observed.
 
-FAIL when valid, ready, executable preparation is
-established but the required execution or upgrade
+FAIL only when valid, ready, executable preparation,
+including predecessor completion and executor eligibility,
+is established but the required execution or upgrade
 effect does not occur.
+
+An operation that is Ready but blocked by an unfinished
+predecessor has invalid positive-property preparation,
+not a demonstrated failure of the upgrade route.
 
 UNKNOWN when the recorded observations are insufficient,
 inconsistent or cannot establish preconditions.
@@ -291,19 +391,38 @@ NOT_READY_EXECUTION_REJECTED:
 PASS requires:
 
 - The exact operation was scheduled.
-- The operation was not ready and not done.
-- Execution was rejected with the expected evidence.
+- The initial operation state was exactly Waiting.
+- The declared executor was eligible.
+- The predecessor was zero or already Done.
+- Execution reverted with the pinned time-state error.
 - The proxy implementation remained unchanged.
 - The operation remained not done.
 
-FAIL when a valid not-ready operation unexpectedly
-executes successfully.
+For the pinned OpenZeppelin 5.x controller, require
+the complete revert payload:
 
-UNKNOWN for unexpected revert data, incomplete
-preconditions or contradictory recorded effects.
+    TimelockUnexpectedOperationState(
+        operationId,
+        bytes32(uint256(4))
+    )
 
+The value 4 encodes the Ready-state bitmap.
+
+Verify both the error selector and its arguments.
+Do not accept arbitrary expectedRevert bytes.
+
+An AccessControl rejection from an ineligible executor
+does not establish the delay property.
+
+FAIL when an otherwise valid Waiting operation
+unexpectedly executes successfully.
+
+UNKNOWN for unexpected revert data, missing evidence
+or contradictory recorded effects.
+
+Known invalid preparation is rejected by the runner.
 An absent operation is not interchangeable with
-a specifically scheduled not-ready operation.
+a specifically scheduled Waiting operation.
 
 ## 12. Snapshot Isolation
 
@@ -352,6 +471,15 @@ All statuses must be initialized explicitly.
 The evaluator must never turn missing evidence
 into PASS through default enum values.
 
+The pure evaluator checks consistency and declared
+properties, not authenticity of EVM execution.
+
+A fabricated but internally consistent RoutedObservation
+may be indistinguishable from genuine recorded evidence.
+
+Provenance therefore depends on the trusted observer
+and controlled execution environment.
+
 ## 14. Comparative Semantics
 
 Compare the same declared operation and property
@@ -388,7 +516,11 @@ Bind the route scenario to a domain-separated key.
 
 The key includes route type, semantic version,
 actors, Timelock, ProxyAdmin, proxy, candidate,
-policy, operation tuple and expected rejection.
+policy and the complete operation tuple.
+
+The expected not-ready error is determined by
+the pinned route semantics version, not by
+caller-supplied arbitrary revert bytes.
 
 The active implementation belongs to each stage,
 not to the common scenario key.
@@ -457,8 +589,12 @@ A comparison key cannot authenticate the environment.
 16. Time restoration behavior is explicitly tested.
 17. Mismatched routed scenarios are INCOMPARABLE.
 18. Both evaluations survive INCOMPARABLE.
-19. Synthetic malicious or inconsistent observations
-    cannot produce a definitive false PASS.
+19. Malformed, incomplete or internally inconsistent
+    observations cannot produce a definitive false PASS.
+
+    A fully fabricated but internally consistent record
+    cannot be authenticated by a pure evaluator.
+    Its provenance depends on the trusted observer.
 20. Existing v0.3 and v0.4-A tests remain green.
 21. Changing only the active implementation preserves
     a correctly configured administrative route.
@@ -470,6 +606,22 @@ A comparison key cannot authenticate the environment.
     reported as a definitive policy violation.
 25. Candidate equal to a stage implementation cannot
     masquerade as an implementation replacement.
+26. Ready operation with an unfinished predecessor
+    does not produce a false positive-policy FAIL.
+27. Waiting operation with an ineligible executor
+    does not produce a delay-property PASS.
+28. At the exact readiness timestamp the operation
+    is Ready, not Waiting.
+29. Open executor role through address(0) permits an
+    EOA without its own EXECUTOR_ROLE assignment.
+30. Two sequential isolated probes preserve the same
+    prepared operation without consuming it.
+31. Not-ready PASS requires the exact selector,
+    operationId and Ready-state bitmap.
+32. A fully consistent fabricated observation is
+    documented as unauthenticated, not proven genuine.
+33. The declared proposer is not mistaken for
+    authenticated scheduling provenance.
 
 Include adversarial mutation testing and a standalone
 consumer of the new adapter.
@@ -541,5 +693,10 @@ Before accepting this ADR:
     admin storage slot being confused?
 12. Are invalid setup and a violated positive property
     distinguished clearly enough?
+13. Does Ready incorrectly imply predecessor completion?
+14. Can an unauthorized executor fabricate a delay PASS?
+15. Are exact pinned revert bytes checked?
+16. Is proposer identity treated as preparation context
+    rather than authenticated historical provenance?
 
 Status remains PROPOSED until independently reviewed.
