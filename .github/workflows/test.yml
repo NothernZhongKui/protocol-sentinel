@@ -336,6 +336,227 @@ jobs:
 
           echo "PASS | Post-write failure did not publish evidence"
 
+  comparison_c3:
+    name: Comparison Evidence C3
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version-file: evidence/python-version.txt
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.7
+
+      - name: Install replay dependencies
+        run: |
+          python -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
+          python -m pip check
+
+      - name: Run both real Timelock producers
+        run: python scripts/run_timelock_comparison.py
+
+      - name: Independently verify completed artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PYTEST'
+          import json
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, str(Path("scripts").resolve()))
+
+          from validate_comparison_schema import (
+              load_document,
+              validate_document,
+          )
+          from replay_timelock_comparison import replay
+          from run_timelock_comparison import (
+              TESTS,
+              check_lossless,
+              check_source_context,
+          )
+
+          root = Path("artifacts/demo/comparison-runs/c3/completed")
+
+          runs = sorted(
+              path for path in root.iterdir()
+              if path.is_dir()
+          )
+
+          assert len(runs) == 1, runs
+
+          directory = runs[0]
+
+          assert {p.name for p in directory.iterdir()} == {
+              "ready-raw.json",
+              "waiting-raw.json",
+              "ready-evidence.json",
+              "waiting-evidence.json",
+              "forge-results.json",
+              "verification.json",
+          }
+
+          report = json.loads(
+              (directory / "verification.json").read_text()
+          )
+
+          assert report["run_id"] == directory.name
+          assert report["publication"] == "COMPLETED"
+          assert report["mutation_tests"] == "PASS"
+          assert report["source_context"] == "MATCHED_LOCAL_CHECKOUT"
+          assert report["execution_provenance"] == "UNAUTHENTICATED"
+
+          for label, fixture in TESTS.items():
+              assert report["producer_tests"][label] == "Success"
+
+              raw = load_document(directory / f"{label}-raw.json")
+              doc = load_document(directory / f"{label}-evidence.json")
+
+              assert validate_document(doc)
+
+              check_lossless(raw, doc)
+              check_source_context(doc, directory.name)
+
+              result = replay(doc)
+
+              assert result["classification_replay"] == "MATCH"
+              assert result["before"] == {
+                  "status": "PASS", "reason": "NONE",
+              }
+              assert result["after"] == {
+                  "status": "PASS", "reason": "NONE",
+              }
+              assert result["comparison"] == "STILL_SATISFIED"
+
+              assert doc["scenario"]["spec"]["property"] == fixture["property"]
+
+              before = doc["stages"]["before"]["observation"]
+              after = doc["stages"]["after"]["observation"]
+
+              assert before["operationStateBefore"] == fixture["state"]
+              assert after["operationStateBefore"] == fixture["state"]
+
+              assert before["outerSuccess"] is fixture["outer_success"]
+              assert after["outerSuccess"] is fixture["outer_success"]
+
+              assert before["operationId"] == after["operationId"]
+              assert before["readyAt"] == after["readyAt"]
+
+              print(f"PASS | C3 {label.upper()} verified independently")
+
+          print("PASS | Complete C3 publication verified")
+          PYTEST
+
+      - name: Verify producer status fails closed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PYTEST'
+          import json
+          from types import SimpleNamespace
+
+          from pathlib import Path
+          import sys
+
+          sys.path.insert(0, str(Path("scripts").resolve()))
+
+          from run_timelock_comparison import (
+              SUITE, TESTS, verify_producer,
+          )
+
+          def result(entries, returncode=0, suite=SUITE):
+              return SimpleNamespace(
+                  returncode=returncode,
+                  stdout=json.dumps({
+                      "test/TimelockComparisonEvidenceCapture.t.sol:"
+                      + suite: {
+                          "test_results": {
+                              name: {"status": status}
+                              for name, status in entries
+                          }
+                      }
+                  }),
+              )
+
+          ready = TESTS["ready"]["name"]
+          waiting = TESTS["waiting"]["name"]
+
+          valid = result([
+              (ready, "Success"),
+              (waiting, "Success"),
+          ])
+
+          verify_producer(valid)
+
+          invalid = [
+              result([(ready, "Success")]),
+              result([
+                  (ready, "Success"),
+                  (waiting, "Skipped"),
+              ]),
+              result([
+                  (ready, "Success"),
+                  (waiting, "Failure"),
+              ], returncode=1),
+              result([
+                  (ready, "Success"),
+                  (waiting, "Success"),
+              ], returncode=1),
+              result([
+                  (ready, "Success"),
+                  (waiting, "Success"),
+              ], suite="WrongContract"),
+              result([
+                  (ready, "Success"),
+                  (waiting, "Success"),
+                  ("test_Extra()", "Success"),
+              ]),
+          ]
+
+          for index, case in enumerate(invalid):
+              try:
+                  verify_producer(case)
+              except (RuntimeError, ValueError):
+                  print(f"PASS | Rejected producer mutation {index + 1}")
+              else:
+                  raise AssertionError(
+                      f"Producer mutation {index + 1} accepted"
+                  )
+
+          print("PASS | Producer status verification fails closed")
+          PYTEST
+
+      - name: Verify post-write failure cannot publish
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          completed="artifacts/demo/comparison-runs/c3/completed"
+
+          before="$(find "$completed" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+
+          python scripts/run_timelock_comparison.py --inject-postwrite-failure
+
+          after="$(find "$completed" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+
+          test "$before" = "$after"
+
+          echo "PASS | Failed C3 producer cannot publish"
+
   x402:
     name: Fortytwo external regression
     runs-on: ubuntu-latest
