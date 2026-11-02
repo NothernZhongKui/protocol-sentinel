@@ -1,0 +1,28 @@
+name: Mainnet Fork Verification
+
+permissions: {}
+
+on:
+  workflow_dispatch:
+
+jobs:
+  mainnet-fork:
+    name: Adapter8004 historical fork
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.7
+
+      - name: Verify pinned historical deployment
+        env:
+          ETH_RPC_URL: ${{ secrets.ETHEREUM_ARCHIVE_RPC_URL }}
+        run: bash scripts/reproduce_adapter8004_fork.sh

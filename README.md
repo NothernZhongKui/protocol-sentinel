@@ -107,6 +107,44 @@ see [Library Quick Start](docs/library-quickstart.md).
 For the third-party integration experiment,
 see [Fortytwo x402Escrow](examples/x402/README.md).
 
+## Pinned Ethereum Mainnet Fork
+
+An optional integration test runs against the historical
+Ethereum mainnet state of Adapter8004.
+
+- Chain ID: 1
+- Block: 24995819
+- Block hash: 0x7ed82b73024b26c48660f875e9e6816e16102b33731b504b8b86746ee10abc68
+- Proxy: 0xde152AfB7db5373F34876E1499fbD893A82dD336
+
+The experiment verifies three scenarios:
+
+1. An unrelated EOA cannot perform an upgrade.
+2. The historical owner can perform an upgrade.
+3. Isolated Sentinel probes restore the original state.
+
+The owner's successful upgrade is a positive control
+for the NO_IMPLEMENTATION_REPLACEMENT policy.
+It is not evidence of a vulnerability.
+
+Run with an archive-capable Ethereum RPC:
+
+~~~bash
+ETH_RPC_URL=https://eth.drpc.org bash scripts/reproduce_adapter8004_fork.sh
+~~~
+
+The script verifies the pinned block hash, implementation
+and owner before executing the fork tests.
+
+The regular CI does not depend on a public archive RPC.
+A separate workflow_dispatch job permits manual execution.
+Set the optional ETHEREUM_ARCHIVE_RPC_URL repository secret
+to use a dedicated archive provider. Without it, the
+manual workflow uses the public dRPC endpoint.
+
+This experiment executes locally on a Foundry fork.
+No live-chain upgrade transaction is broadcast.
+
 ## Reproducible Integrations
 
 The repository includes two independently exercised integration paths.
