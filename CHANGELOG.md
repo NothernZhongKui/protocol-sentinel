@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.2.1 - Unreleased
+
+### Fixed
+- Centralized evidence schema validation across CLI and Python API.
+- Rejected incompatible fields in historical evidence.
+- Required explicit opt-in for legacy policy replay.
+- Upgraded the main execution witness to schema 0.4.
+
+### Added
+- Schema boundary regression tests.
+- Current-schema witness verification and independent replay.
+- API migration and pinned Foundry installation guidance.
+- Published v0.2.0 consumer compatibility checks in CI.
+
+### Scope
+- No changes to the Solidity AuthorityProbe public API.
+- JSON replay remains classification-only, not EVM attestation.
+
+
 ## v0.2.0 - 2026-11-02
 
 ### Added

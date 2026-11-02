@@ -16,11 +16,29 @@ It does not discover every permission or prove protocol security.
 
 ## Import
 
-Make Protocol Sentinel available as a Foundry dependency.
+Install the published experimental v0.2.0 release
+in your own Foundry project:
 
-Example remapping:
+~~~bash
+forge install --no-commit foundry-rs/forge-std@v1.17.0
+forge install --no-commit NothernZhongKui/protocol-sentinel@v0.2.0
+~~~
 
-    protocol-sentinel/=lib/protocol-sentinel/src/
+If forge-std is already installed, keep your existing
+compatible installation.
+
+Use these remappings in foundry.toml:
+
+~~~toml
+remappings = [
+    "forge-std/=lib/forge-std/src/",
+    "protocol-sentinel/=lib/protocol-sentinel/src/"
+]
+~~~
+
+The tag identifies the installed library version.
+Do not install an unpinned development branch when
+reproducibility is important.
 
 Import its public helper:
 
@@ -95,18 +113,51 @@ Use the actual expected authorization error payload.
 The evaluator does not independently prove which contract
 branch caused a matching revert.
 
+## Migration from v0.1.x and v0.2.0
+
+The status-only UpgradeCheckResult and the
+_checkIsolatedUpgrade(spec) convenience API remain available.
+
+Observation is not source-compatible with older manual
+struct literals: it now includes targetValidAtObservation.
+
+When manually constructing an Observation, callers must
+populate this field from genuine pre-execution evidence.
+Leaving it false produces UNKNOWN / INVALID_TARGET.
+
+Do not simply set it to true to obtain PASS. Prefer the
+provided _observeCall or _observeIsolatedCall helpers.
+
+The opt-in _checkIsolatedUpgradeDetailed(spec) returns
+the observation, verdict and diagnostic reason.
+
 ## Evidence compatibility
 
-The main execution witness currently uses schema 0.2.
+New execution witnesses and diagnostic matrices use
+schema 0.4. They include reason and
+target_valid_at_observation.
 
-Current diagnostic policy matrices use schema 0.4 and require
-reason and target_valid_at_observation.
+Python replay defaults to current-schema validation:
 
-Python replay checks the recorded classification independently.
-It does not independently inspect EVM state.
+~~~bash
+python3 scripts/replay_policy.py witness.json
+~~~
 
-Legacy schemas 0.2 and 0.3 remain supported. Their replay
-results do not establish target validity.
+Historical schemas 0.2 and 0.3 require explicit opt-in:
+
+~~~bash
+python3 scripts/replay_policy.py --allow-legacy old-witness.json
+~~~
+
+Legacy schemas cannot establish target validity.
+Fields from a newer schema are rejected in older formats.
+
+Changing a schema_version or deleting fields can remove
+information. Legacy replay must not be treated as proof
+of equivalence with current evidence.
+
+Replay checks classification consistency. It does not
+authenticate EVM execution or the origin of a JSON file.
 
 ## Policy semantics
 

@@ -63,6 +63,9 @@ jobs:
       - name: Test policy reason mutations
         run: python3 scripts/test_policy_reason_mutations.py
 
+      - name: Test evidence schema boundaries
+        run: python3 scripts/test_schema_boundaries.py
+
       - name: Compare Solidity and Python diagnostic reasons
         run: python3 scripts/check_policy_reason_matrix.py
 
@@ -87,7 +90,7 @@ jobs:
         with:
           version: v1.8.7
 
-      - name: Test published release and current API
+      - name: Test published releases and current API
         shell: bash
         run: |
           set -euo pipefail
@@ -121,8 +124,20 @@ jobs:
             forge test --match-path test/SentinelConsumer.t.sol -vv
           )
 
-          echo "=== Current checkout consumer ==="
+          echo "=== Published v0.2.0 consumer ==="
           cp examples/consumer/SentinelDetailedConsumer.t.sol "$consumer/test/"
+
+          rm -rf "$consumer/lib/protocol-sentinel"
+
+          git clone --quiet --depth 1 --single-branch --branch v0.2.0 https://github.com/NothernZhongKui/protocol-sentinel.git "$consumer/lib/protocol-sentinel"
+
+          (
+            cd "$consumer"
+            forge test --match-path test/SentinelConsumer.t.sol -vv
+            forge test --match-contract SentinelDetailedConsumerTest -vv
+          )
+
+          echo "=== Current checkout consumer ==="
           rm -rf "$consumer/lib/protocol-sentinel"
           mkdir -p "$consumer/lib/protocol-sentinel"
           cp -R "$GITHUB_WORKSPACE/src"             "$consumer/lib/protocol-sentinel/src"
