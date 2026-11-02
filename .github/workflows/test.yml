@@ -557,6 +557,36 @@ jobs:
 
           echo "PASS | Failed C3 producer cannot publish"
 
+  comparison_c4:
+    name: Comparison Evidence C4
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version-file: evidence/python-version.txt
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.7
+
+      - name: Install evidence dependencies
+        run: |
+          python -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
+          python -m pip check
+
+      - name: Run complete C4 acceptance
+        run: bash scripts/run_comparison_c4.sh
+
   x402:
     name: Fortytwo external regression
     runs-on: ubuntu-latest

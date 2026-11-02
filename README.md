@@ -94,6 +94,32 @@ See [Timelock Route Quick Start](docs/timelock-route-quickstart.md)
 and the independent consumer example in
 examples/consumer/SentinelTimelockConsumer.t.sol.
 
+## Comparison Evidence and Independent Replay — v0.4-C
+
+Experimental comparison Evidence 1.0 supports two routes:
+`DIRECT_EOA_UUPS` and `OZ_TIMELOCK_SINGLE`.
+
+Real Foundry observations are exported into strict JSON.
+Python independently recomputes canonical calldata,
+scenario identity, policy evaluations and comparison results.
+
+Run the complete evidence acceptance suite:
+
+~~~bash
+python3 -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
+bash scripts/run_comparison_c4.sh
+~~~
+
+This includes isolated external replay, Solidity/Python
+differential parity, forged-evidence controls and legacy
+schema compatibility.
+
+**Replay consistency is not execution authentication.**
+Evidence provenance remains `UNAUTHENTICATED`.
+
+See [C4 Hardening](docs/c4-hardening.md) and
+[ADR-004C](docs/adr-004c-evidence-replay.md).
+
 ## Quick Start
 
 Requirements: Foundry, Git, Python 3.
@@ -220,8 +246,8 @@ Run the Fortytwo regression experiment:
 The scenario demonstrates PASS -> FAIL -> PASS as upgrade
 authority is preserved, accidentally expanded, and restored.
 
-CI runs four jobs: Foundry tests, evidence validation,
-independent consumer testing, and external regression testing.
+CI covers Foundry tests, legacy evidence, independent
+consumers, comparison evidence C1–C4 and external regressions.
 
 See examples/consumer/ and examples/x402/ for details.
 
