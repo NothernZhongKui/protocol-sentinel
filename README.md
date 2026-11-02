@@ -152,6 +152,20 @@ ETH_RPC_URL=https://eth.drpc.org bash scripts/reproduce_adapter8004_fork.sh
 The script verifies the pinned block hash, implementation
 and owner before executing the fork tests.
 
+Successful runs also save a sanitized JSON report at
+`artifacts/fork/adapter8004-mainnet-24995819.json`.
+
+The report includes the commit SHA, source file hashes,
+tool versions, verified deployment metadata, and test statuses.
+It does not include the RPC URL or credentials. An uncommitted
+working tree is explicitly identified in the report.
+
+The manual GitHub Actions workflow uploads the report as
+a downloadable artifact retained for 14 days.
+
+The report summarizes test results, not individual EVM
+observations or cryptographic proof of execution.
+
 The regular CI does not depend on a public archive RPC.
 A separate workflow_dispatch job permits manual execution.
 Set the optional ETHEREUM_ARCHIVE_RPC_URL repository secret

@@ -66,6 +66,9 @@ jobs:
       - name: Test evidence schema boundaries
         run: python3 scripts/test_schema_boundaries.py
 
+      - name: Test fork JSON validator without RPC
+        run: python3 scripts/test_fork_result_validator.py
+
       - name: Compare Solidity and Python diagnostic reasons
         run: python3 scripts/check_policy_reason_matrix.py
 
