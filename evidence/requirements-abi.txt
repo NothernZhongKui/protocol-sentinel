@@ -1,0 +1,6 @@
+# C1 direct dependency versions.
+# Transitive hash lock is a separate C1 hardening task.
+eth-abi==5.2.0
+eth-hash[pycryptodome]==0.7.1
+
+eth-utils==4.1.1

@@ -1,0 +1,138 @@
+{
+  "format": "protocol-sentinel-comparison",
+  "schemaVersion": "1.0",
+  "referenceCommit": "3d9c31dcf9a10a2bea0eb497edffecaafdffdfbe",
+  "routes": {
+    "DIRECT_EOA_UUPS": {
+      "semanticsVersion": "direct-eoa-v1",
+      "sourceFiles": [
+        "src/AuthorityProbe.sol",
+        "src/ComparativeAuthorityProbe.sol"
+      ],
+      "evaluator": "_evaluateUpgradePolicyDetailed",
+      "comparator": "_compareDirectUpgrade",
+      "scenarioKeyFunction": "_directScenarioKey",
+      "comparisonDomain": "protocol-sentinel/direct-eoa/comparison/v1",
+      "callSignature": "upgradeToAndCall(address,bytes)",
+      "scenarioKeyAbiTypes": [
+        "bytes32",
+        "bytes32",
+        "address",
+        "address",
+        "address",
+        "bytes",
+        "bytes",
+        "uint8",
+        "bytes32"
+      ],
+      "enums": {
+        "PolicyStatus": [
+          "PASS",
+          "FAIL",
+          "UNKNOWN",
+          "ERROR"
+        ],
+        "UpgradePolicy": [
+          "NO_IMPLEMENTATION_REPLACEMENT",
+          "NO_SUCCESSFUL_UPGRADE_CALL"
+        ],
+        "PolicyReason": [
+          "NONE",
+          "INVALID_SLOT",
+          "CONTEXT_MISMATCH",
+          "NON_CANONICAL_CALLDATA",
+          "INVALID_CANDIDATE",
+          "UNEXPECTED_REVERT",
+          "SUCCESS_WITHOUT_REPLACEMENT",
+          "INVALID_TARGET"
+        ],
+        "ComparisonVerdict": [
+          "STILL_SATISFIED",
+          "CHANGED_TO_VIOLATION",
+          "CHANGED_TO_SATISFIED",
+          "STILL_VIOLATED",
+          "INDETERMINATE",
+          "INCOMPARABLE"
+        ],
+        "ComparisonReason": [
+          "NONE",
+          "SCENARIO_MISMATCH",
+          "STAGE_BINDING_MISMATCH",
+          "SAME_IMPLEMENTATION_STAGE",
+          "INDETERMINATE_POLICY"
+        ]
+      }
+    },
+    "OZ_TIMELOCK_SINGLE": {
+      "semanticsVersion": "oz-timelock-single-v1",
+      "sourceFiles": [
+        "src/AuthorityProbe.sol",
+        "src/ComparativeAuthorityProbe.sol",
+        "src/TimelockAuthorityProbe.sol"
+      ],
+      "evaluator": "_evaluateTimelockRoute",
+      "comparator": "_compareTimelockRoute",
+      "scenarioKeyFunction": "_routedScenarioKey",
+      "operationIdFunction": "_timelockOperationId",
+      "comparisonDomain": "protocol-sentinel/oz-timelock/comparison/v1",
+      "innerCallSignature": "upgradeAndCall(address,address,bytes)",
+      "outerCallSignature": "execute(address,uint256,bytes,bytes32,bytes32)",
+      "operationIdAbiTypes": [
+        "address",
+        "uint256",
+        "bytes",
+        "bytes32",
+        "bytes32"
+      ],
+      "scenarioTupleAbiType": "(address,address,address,address,address,address,bytes32,bytes32,uint8)",
+      "scenarioKeyAbiTypes": [
+        "bytes32",
+        "bytes32",
+        "(address,address,address,address,address,address,bytes32,bytes32,uint8)",
+        "bytes32",
+        "bytes",
+        "bytes32"
+      ],
+      "enums": {
+        "TimelockProperty": [
+          "READY_UPGRADE_SUCCEEDS",
+          "NOT_READY_EXECUTION_REJECTED"
+        ],
+        "RoutedReason": [
+          "NONE",
+          "CONTEXT_MISMATCH",
+          "INCOMPLETE_EVIDENCE",
+          "INCONSISTENT_TIMING",
+          "INCONSISTENT_EXECUTION",
+          "UNEXPECTED_REVERT",
+          "EXECUTION_REJECTED",
+          "MISSING_UPGRADE_EFFECT"
+        ],
+        "PreparationFailure": [
+          "WRONG_OPERATION_STATE",
+          "INELIGIBLE_EXECUTOR",
+          "UNFINISHED_PREDECESSOR",
+          "INVALID_PROXY_ADMIN",
+          "INVALID_PROXY",
+          "INVALID_CANDIDATE",
+          "NO_IMPLEMENTATION_CHANGE",
+          "INVALID_EOA_EXECUTOR"
+        ],
+        "RoutedComparisonReason": [
+          "NONE",
+          "SCENARIO_MISMATCH",
+          "STAGE_BINDING_MISMATCH",
+          "SAME_IMPLEMENTATION_STAGE",
+          "PREPARATION_MISMATCH",
+          "INDETERMINATE_POLICY"
+        ],
+        "OperationState": [
+          "Unset",
+          "Waiting",
+          "Ready",
+          "Done"
+        ]
+      }
+    }
+  }
+}
