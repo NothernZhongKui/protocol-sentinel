@@ -50,9 +50,10 @@ echo "=== Executing isolated mainnet fork tests ==="
 RESULT_FILE="$(mktemp)"
 trap 'rm -f "$RESULT_FILE"' EXIT
 
-if ! ETH_RPC_URL="$RPC" RUN_MAINNET_FORK=true \
+if ! ETH_RPC_TIMEOUT=120 ETH_RPC_URL="$RPC" RUN_MAINNET_FORK=true \
   forge test \
   --json \
+  --threads 1 \
   --match-path test/Adapter8004MainnetFork.t.sol \
   > "$RESULT_FILE"; then
   cat "$RESULT_FILE" >&2
@@ -68,6 +69,7 @@ expected = {
     "testFork_NonOwnerCannotUpgrade()",
     "testFork_OwnerUpgradeDetectedAndRestored()",
     "testFork_HistoricalOwnerCanActuallyUpgrade()",
+    "testFork_OutsiderAuthorityRegressionPassFailPass()",
 }
 
 try:
