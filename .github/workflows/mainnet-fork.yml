@@ -26,3 +26,11 @@ jobs:
         env:
           ETH_RPC_URL: ${{ secrets.ETHEREUM_ARCHIVE_RPC_URL }}
         run: bash scripts/reproduce_adapter8004_fork.sh
+
+      - name: Upload fork evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: adapter8004-mainnet-fork-evidence
+          path: artifacts/fork/
+          if-no-files-found: error
+          retention-days: 14

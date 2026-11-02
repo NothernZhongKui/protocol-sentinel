@@ -24,3 +24,6 @@ out/
 # Python cache
 __pycache__/
 *.pyc
+
+# Generated fork evidence
+/artifacts/fork/

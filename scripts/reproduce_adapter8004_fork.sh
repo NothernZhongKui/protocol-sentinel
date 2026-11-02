@@ -61,75 +61,16 @@ if ! ETH_RPC_TIMEOUT=120 ETH_RPC_URL="$RPC" RUN_MAINNET_FORK=true \
   exit 1
 fi
 
-python3 - "$RESULT_FILE" <<'CHECK'
-import json
-import sys
+python3 scripts/verify_fork_results.py "$RESULT_FILE"
 
-expected = {
-    "testFork_NonOwnerCannotUpgrade()",
-    "testFork_OwnerUpgradeDetectedAndRestored()",
-    "testFork_HistoricalOwnerCanActuallyUpgrade()",
-    "testFork_OutsiderAuthorityRegressionPassFailPass()",
-}
+REPORT_DIR="${FORK_REPORT_DIR:-artifacts/fork}"
+REPORT_FILE="$REPORT_DIR/adapter8004-mainnet-24995819.json"
 
-try:
-    with open(sys.argv[1], encoding="utf-8") as handle:
-        data = json.load(handle)
-except (ValueError, OSError) as exc:
-    sys.exit(f"ERROR | Invalid Forge JSON: {exc}")
-
-if not isinstance(data, dict):
-    sys.exit("ERROR | Unexpected Forge JSON structure")
-
-matching = [
-    value
-    for name, value in data.items()
-    if name.endswith(":Adapter8004MainnetForkTest")
-]
-
-if len(matching) != 1:
-    sys.exit("ERROR | Fork suite was not executed exactly once")
-
-suite = matching[0]
-results = suite.get("test_results", {})
-
-if not isinstance(results, dict):
-    sys.exit("ERROR | Invalid test_results structure")
-
-failed = False
-
-for name in sorted(expected):
-    result = results.get(name)
-    status = (
-        result.get("status")
-        if isinstance(result, dict)
-        else None
-    )
-
-    if status == "Success":
-        print(f"PASS | {name}")
-    else:
-        print(f"ERROR | Required fork test {name}: {status}")
-        failed = True
-
-for name, result in results.items():
-    if name in expected:
-        continue
-
-    status = (
-        result.get("status")
-        if isinstance(result, dict)
-        else None
-    )
-
-    if status != "Success":
-        print(f"ERROR | Additional fork test {name}: {status}")
-        failed = True
-
-if failed:
-    sys.exit(1)
-
-print(f"PASS | {len(expected)} required fork tests executed")
-CHECK
+python3 scripts/write_fork_report.py \
+  --results "$RESULT_FILE" \
+  --output "$REPORT_FILE" \
+  --block-hash "$ACTUAL_HASH" \
+  --implementation "$ACTUAL_IMPL" \
+  --owner "$ACTUAL_OWNER"
 
 echo "MAINNET FORK REPRODUCTION PASSED"
