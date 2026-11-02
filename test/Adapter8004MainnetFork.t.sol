@@ -3,6 +3,8 @@ pragma solidity ^0.8.24;
 
 import {AuthorityProbe} from "../src/AuthorityProbe.sol";
 
+import {TestOnlyOverPermissiveAdapter, TestOnlyOwnerRestrictedAdapter} from "./fixtures/AdapterForkUpgradeVariants.sol";
+
 interface IForkOwnable {
     function owner() external view returns (address);
 }
@@ -91,6 +93,84 @@ contract Adapter8004MainnetForkTest is AuthorityProbe {
         assertEq(_implementation(), ACTIVE_IMPL);
 
         assertEq(IForkOwnable(PROXY).owner(), HISTORICAL_OWNER);
+    }
+
+    function _ownerUpgradeTo(address candidate) internal {
+        bytes memory payload = abi.encodeWithSignature("upgradeToAndCall(address,bytes)", candidate, bytes(""));
+
+        vm.prank(HISTORICAL_OWNER, HISTORICAL_OWNER);
+
+        (bool success,) = PROXY.call(payload);
+
+        assertTrue(success, "Owner upgrade failed on local fork");
+        assertEq(_implementation(), candidate);
+        assertEq(IForkOwnable(PROXY).owner(), HISTORICAL_OWNER);
+    }
+
+    function _assertOutsiderVerdict(PolicyStatus expectedStatus, bool expectedSuccess) internal {
+        bytes32 originalSlot = vm.load(PROXY, ERC1967_IMPL_SLOT);
+
+        DetailedUpgradeCheckResult memory result = _checkIsolatedUpgradeDetailed(_spec(OUTSIDER));
+
+        assertTrue(result.observation.targetValidAtObservation);
+        assertTrue(result.observation.candidateValidAtObservation);
+
+        assertEq(result.observation.actor, OUTSIDER);
+        assertEq(result.observation.txOrigin, OUTSIDER);
+
+        assertEq(result.observation.implementationBefore, originalSlot);
+
+        assertEq(result.observation.success, expectedSuccess);
+
+        assertEq(uint256(result.status), uint256(expectedStatus));
+
+        assertEq(uint256(result.reason), uint256(PolicyReason.NONE));
+
+        if (expectedSuccess) {
+            assertEq(address(uint160(uint256(result.observation.implementationAfter))), PREVIOUS_IMPL);
+        } else {
+            assertEq(result.observation.implementationAfter, originalSlot);
+        }
+
+        // Every isolated probe must restore the active implementation.
+        assertEq(vm.load(PROXY, ERC1967_IMPL_SLOT), originalSlot);
+
+        assertEq(IForkOwnable(PROXY).owner(), HISTORICAL_OWNER);
+    }
+
+    function testFork_OutsiderAuthorityRegressionPassFailPass() public {
+        vm.skip(!vm.envOr("RUN_MAINNET_FORK", false));
+        _selectHistoricalFork();
+
+        // Stage 1: genuine historical implementation.
+        // Outsider cannot upgrade.
+        _assertOutsiderVerdict(PolicyStatus.PASS, false);
+
+        TestOnlyOverPermissiveAdapter risky = new TestOnlyOverPermissiveAdapter(OUTSIDER);
+
+        TestOnlyOwnerRestrictedAdapter fixedImplementation = new TestOnlyOwnerRestrictedAdapter();
+
+        // Stage 2: owner installs a deliberately risky test version.
+        _ownerUpgradeTo(address(risky));
+
+        // The same outsider can now replace the implementation.
+        // Sentinel must detect the authority regression.
+        _assertOutsiderVerdict(PolicyStatus.FAIL, true);
+
+        // Stage 3: owner installs the corrected test version.
+        _ownerUpgradeTo(address(fixedImplementation));
+
+        // The same outsider loses the unauthorized upgrade ability.
+        _assertOutsiderVerdict(PolicyStatus.PASS, false);
+
+        // The legitimate owner can still restore the real implementation.
+        _ownerUpgradeTo(ACTIVE_IMPL);
+
+        assertEq(_implementation(), ACTIVE_IMPL);
+        assertEq(IForkOwnable(PROXY).owner(), HISTORICAL_OWNER);
+
+        // Original authorization behavior remains intact.
+        _assertOutsiderVerdict(PolicyStatus.PASS, false);
     }
 
     function testFork_HistoricalOwnerCanActuallyUpgrade() public {

@@ -117,11 +117,27 @@ Ethereum mainnet state of Adapter8004.
 - Block hash: 0x7ed82b73024b26c48660f875e9e6816e16102b33731b504b8b86746ee10abc68
 - Proxy: 0xde152AfB7db5373F34876E1499fbD893A82dD336
 
-The experiment verifies three scenarios:
+The experiment includes four fork tests covering:
 
 1. An unrelated EOA cannot perform an upgrade.
-2. The historical owner can perform an upgrade.
-3. Isolated Sentinel probes restore the original state.
+2. The historical owner's upgrade succeeds.
+3. Isolated Sentinel probes detect replacement and restore state.
+4. The same outsider transitions PASS -> FAIL -> PASS across
+   historical, deliberately over-permissive, and corrected implementations.
+
+The regression scenario installs test-only UUPS implementations
+through the authorized historical owner on the local fork.
+The deliberately over-permissive implementation grants upgrade
+authority to the outsider; the corrected implementation restores
+owner-only authorization.
+
+These test implementations are not deployed Adapter8004 versions.
+The scenario demonstrates detection of an intentionally introduced
+authority regression against real historical proxy state.
+It does not establish a vulnerability in Adapter8004.
+
+The reproduction script requires all four fork tests to succeed
+and rejects empty or skipped executions.
 
 The owner's successful upgrade is a positive control
 for the NO_IMPLEMENTATION_REPLACEMENT policy.
