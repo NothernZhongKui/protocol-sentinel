@@ -16,12 +16,12 @@ It does not discover every permission or prove protocol security.
 
 ## Import
 
-Install the published experimental v0.2.0 release
-in your own Foundry project:
+Install the experimental v0.3.0 release
+after its tag is published:
 
 ~~~bash
 forge install --no-commit foundry-rs/forge-std@v1.17.0
-forge install --no-commit NothernZhongKui/protocol-sentinel@v0.2.0
+forge install --no-commit NothernZhongKui/protocol-sentinel@v0.3.0
 ~~~
 
 If forge-std is already installed, keep your existing
@@ -146,6 +146,18 @@ provided _observeCall or _observeIsolatedCall helpers.
 
 The opt-in _checkIsolatedUpgradeDetailed(spec) returns
 the observation, verdict and diagnostic reason.
+
+## Migration from v0.2.1 to v0.3.0
+
+No Solidity AuthorityProbe API migration is required.
+
+v0.3.0 adds property-based fuzzing, historical Ethereum
+fork integration and evidence reporting.
+
+The supported actor model, upgrade selectors, policy
+semantics and evidence schema remain unchanged.
+
+See docs/releases/v0.3.0.md.
 
 ## Evidence compatibility
 
