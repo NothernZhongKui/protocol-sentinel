@@ -113,6 +113,17 @@ Use the actual expected authorization error payload.
 The evaluator does not independently prove which contract
 branch caused a matching revert.
 
+## Experimental comparison API — v0.4-A
+
+The unreleased v0.4-A development branch adds
+`ComparativeAuthorityProbe`, a separate helper for
+comparing declared direct EOA upgrade scenarios.
+
+It is not part of the published v0.3.0 tag.
+The existing AuthorityProbe API remains unchanged.
+
+See [Comparative Authority Quick Start](comparative-authority-quickstart.md).
+
 ## Migration from v0.1.x to v0.2.x
 
 The v0.2.0 release introduced the additional
