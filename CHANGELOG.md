@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2.0 - Unreleased
+## v0.2.0 - 2026-11-02
 
 ### Added
 - Diagnostic reasons for UNKNOWN policy results.
