@@ -99,6 +99,7 @@ Top-level sections:
     format
     schema_version
     route
+    semantics_version
     scenario
     stages
     comparison
@@ -287,7 +288,7 @@ These two cases must remain distinguishable.
 
 ## 11. Stage Representation
 
-The artifact contains exactly two ordered stages:
+The artifact contains exactly two named stages (JSON object key order is irrelevant):
 
     before
     after
@@ -413,7 +414,10 @@ Proposed conceptual steps:
 6. Validate stage and governance comparability.
 7. Recompute comparison verdict and reason.
 8. Compare every recomputed output with the recorded one.
-9. Reject any mismatch or invalid preparation.
+9. Reject incorrect derived declarations, recorded
+   result mismatches, and invalid completed preparation.
+   Do not reject or repair an otherwise well-formed
+   observation merely because it differs from scenario.
 10. Emit a narrowly scoped verification report.
 
 Python logic must be implemented independently
@@ -448,8 +452,18 @@ actual Solidity implementation, including:
 - Governance-preparation comparability.
 - Final comparison reason precedence.
 
-The Solidity implementation is the behavioral
-reference for the first schema version.
+A fixed reference Solidity commit is the behavioral
+reference for each route-specific semantics version.
+
+Replay dispatch uses:
+
+    (format, schema_version, route, semantics_version)
+
+Changing the reference evaluator's semantics requires
+a new semantics version, even if JSON shape is unchanged.
+
+The manifest pins domain separators, ABI signatures,
+enum ordinals, control-flow precedence and test vectors.
 
 A mismatch is a verification failure.
 
@@ -527,7 +541,9 @@ The producer should:
 - Evaluate and compare them.
 - Serialize those results without recomputing
   or inventing execution outcomes in the exporter.
-- Write an artifact only after successful completion.
+- Write a provisional artifact into a run-local directory.
+- Let the external runner verify complete test execution.
+- Publish only after all required tests and replay succeed.
 
 The Python side validates and independently replays
 the recorded results.
@@ -559,7 +575,11 @@ Timelock comparison:
 - Real Waiting rejection preserving PASS.
 - Incomplete evidence -> UNKNOWN.
 - Invalid preparation -> export abort.
-- Changed executor roles -> INCOMPARABLE.
+- Changed roles, executor still eligible in both stages
+  -> INCOMPARABLE.
+- Executor becomes ineligible -> preparation abort.
+- Missing role observation -> evaluator may return UNKNOWN;
+  comparator precedence remains authoritative.
 - Different readyAt -> INCOMPARABLE.
 - Same implementation -> INCOMPARABLE.
 - Wrong operationId -> INCOMPARABLE.
@@ -579,14 +599,27 @@ Negative controls:
 - Falsify the comparison verdict.
 - Falsify comparison reason.
 - Replace a stage implementation.
-- Corrupt a source hash.
+- Malformed source hash -> schema rejection.
+- Well-formed incorrect source hash -> context mismatch
+  only when checked against trusted/local source.
 - Invert a policy mapping.
 - Skip the producing test.
 - Truncate the artifact.
 - Supply an unsupported schema version.
 
-Mutation testing must show that deliberate classifier
-errors are detected by the independent replay suite.
+Mutation tests must distinguish three categories:
+
+1. Invalid artifacts that must be rejected.
+2. Well-formed observations that legitimately change
+   the independently computed classification.
+3. Semantics-preserving transformations that must
+   retain their original classification.
+
+A fully consistent forged observation may still pass
+classification replay without execution authentication.
+
+Multi-condition adversarial cases must verify the
+exact order of Solidity evaluator and comparator checks.
 
 ## 21. CI Acceptance
 
