@@ -47,9 +47,87 @@ echo "PASS | Historical owner verified"
 
 echo "=== Executing isolated mainnet fork tests ==="
 
-ETH_RPC_URL="$RPC" RUN_MAINNET_FORK=true \
+RESULT_FILE="$(mktemp)"
+trap 'rm -f "$RESULT_FILE"' EXIT
+
+if ! ETH_RPC_URL="$RPC" RUN_MAINNET_FORK=true \
   forge test \
+  --json \
   --match-path test/Adapter8004MainnetFork.t.sol \
-  -vv
+  > "$RESULT_FILE"; then
+  cat "$RESULT_FILE" >&2
+  echo "ERROR | Forge execution failed" >&2
+  exit 1
+fi
+
+python3 - "$RESULT_FILE" <<'CHECK'
+import json
+import sys
+
+expected = {
+    "testFork_NonOwnerCannotUpgrade()",
+    "testFork_OwnerUpgradeDetectedAndRestored()",
+    "testFork_HistoricalOwnerCanActuallyUpgrade()",
+}
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        data = json.load(handle)
+except (ValueError, OSError) as exc:
+    sys.exit(f"ERROR | Invalid Forge JSON: {exc}")
+
+if not isinstance(data, dict):
+    sys.exit("ERROR | Unexpected Forge JSON structure")
+
+matching = [
+    value
+    for name, value in data.items()
+    if name.endswith(":Adapter8004MainnetForkTest")
+]
+
+if len(matching) != 1:
+    sys.exit("ERROR | Fork suite was not executed exactly once")
+
+suite = matching[0]
+results = suite.get("test_results", {})
+
+if not isinstance(results, dict):
+    sys.exit("ERROR | Invalid test_results structure")
+
+failed = False
+
+for name in sorted(expected):
+    result = results.get(name)
+    status = (
+        result.get("status")
+        if isinstance(result, dict)
+        else None
+    )
+
+    if status == "Success":
+        print(f"PASS | {name}")
+    else:
+        print(f"ERROR | Required fork test {name}: {status}")
+        failed = True
+
+for name, result in results.items():
+    if name in expected:
+        continue
+
+    status = (
+        result.get("status")
+        if isinstance(result, dict)
+        else None
+    )
+
+    if status != "Success":
+        print(f"ERROR | Additional fork test {name}: {status}")
+        failed = True
+
+if failed:
+    sys.exit(1)
+
+print(f"PASS | {len(expected)} required fork tests executed")
+CHECK
 
 echo "MAINNET FORK REPRODUCTION PASSED"
