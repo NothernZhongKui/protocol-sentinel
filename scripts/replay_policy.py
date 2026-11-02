@@ -102,7 +102,7 @@ def evaluate_detailed(data):
         if not candidate_valid:
             return "UNKNOWN", "INVALID_CANDIDATE"
 
-        if unchanged and return_data == expected_revert:
+        if unchanged and expected_revert and return_data == expected_revert:
             return "PASS", "NONE"
 
         return "UNKNOWN", "UNEXPECTED_REVERT"
@@ -197,6 +197,16 @@ def self_test(baseline):
     )
 
     add(
+        "Empty expected revert cannot prove authorization",
+        "UNKNOWN",
+        call_success=False,
+        implementation_after=baseline["implementation_before"],
+        expected_revert="0x",
+        return_data="0x",
+        candidate_valid_at_observation=True,
+    )
+
+    add(
         "Unexpected rejection",
         "UNKNOWN",
         call_success=False,
@@ -215,6 +225,7 @@ def self_test(baseline):
         "P2: high bits, successful-call policy": "NONE",
         "Expected authorization rejection": "NONE",
         "Invalid candidate on rejection": "INVALID_CANDIDATE",
+        "Empty expected revert cannot prove authorization": "UNEXPECTED_REVERT",
         "Unexpected rejection": "UNEXPECTED_REVERT",
     }
 

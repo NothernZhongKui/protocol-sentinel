@@ -54,6 +54,16 @@ The convenience API `_checkIsolatedUpgrade()` executes a
 declared upgrade attempt, restores EVM state, and evaluates
 the selected authorization policy.
 
+The opt-in `_checkIsolatedUpgradeDetailed()` API returns the
+observation, policy status and a diagnostic reason.
+
+Six reasons explain why an observation produces UNKNOWN:
+INVALID_SLOT, CONTEXT_MISMATCH, NON_CANONICAL_CALLDATA,
+INVALID_CANDIDATE, UNEXPECTED_REVERT and
+SUCCESS_WITHOUT_REPLACEMENT.
+
+The original status-only API remains available.
+
 See [Library Quick Start](docs/library-quickstart.md)
 for usage examples, supported scenarios, and limitations.
 
@@ -142,14 +152,23 @@ than querying current EVM state.
 For the current fixture, the observer models direct EOA execution
 with msg.sender and tx.origin set to the actor.
 
-A matching revert payload is evidence of the observed rejection,
+An empty expected revert cannot justify PASS.
+It produces UNKNOWN when a rejected call has no usable
+authorization evidence.
+
+A matching nonempty revert payload is evidence of the observed rejection,
 not independent proof that a particular authorization branch ran.
 
 A passing Foundry test may correctly confirm a FAIL security verdict.
 
 ## Evidence
 
-The local execution witness uses schema version `0.2`.
+The main execution witness retains schema version `0.2`.
+Diagnostic policy matrices use schema `0.3`, which requires
+a `reason` field. Python replay independently recomputes
+both status and reason.
+
+Schema `0.2` remains supported for legacy policy replay.
 
 It records the declared actor, transaction origin, target,
 calldata, call result, effective implementation observations,
@@ -170,7 +189,8 @@ The Python policy replay independently evaluates saved
 observations using the declared policy rules.
 
 The project includes five Solidity/Python comparison scenarios
-and eleven Python replay self-tests.
+and twelve Python replay self-tests, plus six
+cross-language diagnostic scenarios and reason mutation tests.
 
 Policy replay is not independent execution attestation.
 

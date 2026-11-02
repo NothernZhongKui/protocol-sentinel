@@ -151,7 +151,7 @@ abstract contract AuthorityProbe is Test {
                 return _decision(PolicyStatus.UNKNOWN, PolicyReason.INVALID_CANDIDATE);
             }
 
-            if (unchanged && keccak256(obs.returnData) == keccak256(expectedRevert)) {
+            if (unchanged && expectedRevert.length > 0 && keccak256(obs.returnData) == keccak256(expectedRevert)) {
                 return _decision(PolicyStatus.PASS, PolicyReason.NONE);
             }
 

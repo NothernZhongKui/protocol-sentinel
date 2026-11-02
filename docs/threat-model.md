@@ -173,8 +173,14 @@ The verifier does not independently reconstruct the entire
 EVM execution or authenticate an external deployment.
 
 Python policy replay checks verdict semantics from recorded
-observations. Five Solidity/Python scenarios and eleven Python
+observations. Five Solidity/Python scenarios and twelve Python
 self-tests are included.
+
+Diagnostic policy evidence uses schema 0.3 and requires
+a reason field. The main witness retains schema 0.2.
+
+Six diagnostic scenarios are compared across Solidity
+and Python. Reason mutation tests check inconsistent evidence.
 
 Mutation tests exercise rejection of malformed or
 inconsistent witness data.
@@ -210,7 +216,7 @@ Remaining limitations:
 - No independent confirmation of deployed bytecode identity
 - No general storage-layout compatibility verification
 - No independently maintained third-party integration
-- CI does not yet run every evidence-pipeline check
+- The evidence pipeline does not authenticate external EVM execution
 
 These limitations must remain visible in reports
 and release documentation.

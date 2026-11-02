@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.2.0 - Unreleased
+
+### Added
+- Diagnostic reasons for UNKNOWN policy results.
+- Opt-in DetailedUpgradeCheckResult API.
+- Solidity unit and UUPS integration tests for diagnostics.
+- Diagnostic policy evidence schema 0.3.
+- Six Solidity/Python diagnostic comparison scenarios.
+- Reason mutation tests and external consumer API coverage.
+
+### Fixed
+- Empty expected revert data can no longer establish PASS.
+- Python and Solidity apply the same rejection classification.
+
+### Compatibility
+- Original UpgradeCheckResult and status-only API retained.
+- Legacy schema 0.2 replay remains supported.
+- Main execution witness remains on schema 0.2.
+
+### Limitations
+- Matching revert data does not independently prove its cause.
+- Scope remains direct EOA calls and canonical UUPS upgrades.
+
+
 ## v0.1.1 - 2026-11-02
 
 ### Fixed

@@ -55,6 +55,54 @@ assertEq(
 );
 ~~~
 
+## Diagnostic API
+
+The optional detailed API returns the observation, status
+and diagnostic reason without executing an additional probe.
+
+Example, using the UpgradeCheck specification defined above:
+
+    DetailedUpgradeCheckResult memory detailed =
+        _checkIsolatedUpgradeDetailed(spec);
+
+    assertEq(
+        uint256(detailed.status),
+        uint256(PolicyStatus.PASS)
+    );
+
+    assertEq(
+        uint256(detailed.reason),
+        uint256(PolicyReason.NONE)
+    );
+
+UNKNOWN diagnostic reasons:
+
+- INVALID_SLOT: incorrect implementation slot.
+- CONTEXT_MISMATCH: actor, origin or target differs.
+- NON_CANONICAL_CALLDATA: unsupported upgrade calldata.
+- INVALID_CANDIDATE: invalid candidate on rejected execution.
+- UNEXPECTED_REVERT: unexpected rejection or state observation.
+- SUCCESS_WITHOUT_REPLACEMENT: successful call without replacement.
+
+PASS and FAIL use PolicyReason.NONE.
+
+The legacy UpgradeCheckResult remains unchanged.
+
+An empty expectedRevert cannot establish PASS.
+Use the actual expected authorization error payload.
+
+The evaluator does not independently prove which contract
+branch caused a matching revert.
+
+## Evidence compatibility
+
+The main execution witness currently uses schema 0.2.
+
+New diagnostic policy matrices use schema 0.3 and require
+the reason field. Python replay recomputes status and reason.
+
+Legacy 0.2 replay remains supported.
+
 ## Policy semantics
 
 NO_IMPLEMENTATION_REPLACEMENT:

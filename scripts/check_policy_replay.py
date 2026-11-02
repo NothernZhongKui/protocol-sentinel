@@ -94,7 +94,7 @@ def main():
     )
 
     print("\nPASS | Solidity/Python matrix: 5/5")
-    print("PASS | Replay controls: 11/11")
+    print("PASS | Replay controls: 12/12")
     print("Policy replay integration PASSED")
 
 

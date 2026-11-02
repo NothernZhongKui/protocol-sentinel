@@ -54,6 +54,26 @@ contract PolicyDiagnosticsTest is AuthorityProbe {
         _verify(_baseline(), UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT, PolicyStatus.PASS, PolicyReason.NONE);
     }
 
+    function test_EmptyExpectedRevertCannotPass() public {
+        Observation memory obs = _baseline();
+        obs.returnData = bytes("");
+
+        bytes32 candidateWord = bytes32(uint256(uint160(CANDIDATE)));
+
+        PolicyEvaluation memory evaluation = _evaluateUpgradePolicyDetailed(
+            obs, UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT, candidateWord, bytes(""), ACTOR, TARGET
+        );
+
+        assertEq(uint256(evaluation.status), uint256(PolicyStatus.UNKNOWN));
+        assertEq(uint256(evaluation.reason), uint256(PolicyReason.UNEXPECTED_REVERT));
+
+        PolicyStatus legacy = _evaluateUpgradePolicy(
+            obs, UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT, candidateWord, bytes(""), ACTOR, TARGET
+        );
+
+        assertEq(uint256(legacy), uint256(PolicyStatus.UNKNOWN));
+    }
+
     function test_InvalidSlot() public {
         Observation memory obs = _baseline();
         obs.observedSlot = bytes32(0);
