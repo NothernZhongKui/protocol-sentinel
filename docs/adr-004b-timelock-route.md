@@ -1,6 +1,6 @@
 # ADR-004B: Timelock Execution Route
 
-Status: PROPOSED
+Status: ACCEPTED
 Target: Protocol Sentinel v0.4-B
 Parent: RFC-004
 Dependency: ADR-004A
@@ -699,4 +699,4 @@ Before accepting this ADR:
 16. Is proposer identity treated as preparation context
     rather than authenticated historical provenance?
 
-Status remains PROPOSED until independently reviewed.
+Decision: ACCEPTED after independent adversarial review. Implementation remains subject to tests and code review.
