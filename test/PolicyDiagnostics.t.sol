@@ -26,6 +26,7 @@ contract PolicyDiagnosticsTest is AuthorityProbe {
         obs.callData = abi.encodeWithSignature("upgradeToAndCall(address,bytes)", CANDIDATE, bytes(""));
 
         obs.candidateValidAtObservation = true;
+        obs.targetValidAtObservation = true;
     }
 
     function _verify(
@@ -72,6 +73,14 @@ contract PolicyDiagnosticsTest is AuthorityProbe {
         );
 
         assertEq(uint256(legacy), uint256(PolicyStatus.UNKNOWN));
+    }
+
+    function test_InvalidTarget() public {
+        Observation memory obs = _baseline();
+
+        obs.targetValidAtObservation = false;
+
+        _verify(obs, UpgradePolicy.NO_IMPLEMENTATION_REPLACEMENT, PolicyStatus.UNKNOWN, PolicyReason.INVALID_TARGET);
     }
 
     function test_InvalidSlot() public {
@@ -192,7 +201,7 @@ contract PolicyDiagnosticsTest is AuthorityProbe {
 
         string memory key = string.concat("reason_", label);
 
-        vm.serializeString(key, "schema_version", "0.3");
+        vm.serializeString(key, "schema_version", "0.4");
         vm.serializeString(key, "policy_rule", "NO_IMPLEMENTATION_REPLACEMENT");
 
         vm.serializeAddress(key, "actor", obs.actor);
@@ -208,6 +217,7 @@ contract PolicyDiagnosticsTest is AuthorityProbe {
 
         vm.serializeBool(key, "call_success", obs.success);
         vm.serializeBool(key, "candidate_valid_at_observation", obs.candidateValidAtObservation);
+        vm.serializeBool(key, "target_valid_at_observation", obs.targetValidAtObservation);
 
         vm.serializeBytes(key, "calldata", obs.callData);
         vm.serializeBytes(key, "return_data", obs.returnData);
@@ -228,6 +238,8 @@ contract PolicyDiagnosticsTest is AuthorityProbe {
             reasonName = "UNEXPECTED_REVERT";
         } else if (expectedReason == PolicyReason.SUCCESS_WITHOUT_REPLACEMENT) {
             reasonName = "SUCCESS_WITHOUT_REPLACEMENT";
+        } else if (expectedReason == PolicyReason.INVALID_TARGET) {
+            reasonName = "INVALID_TARGET";
         } else {
             revert("Unexpected diagnostic reason");
         }
@@ -242,6 +254,10 @@ contract PolicyDiagnosticsTest is AuthorityProbe {
 
         obs.observedSlot = bytes32(0);
         _exportReason("invalid-slot", obs, PolicyReason.INVALID_SLOT);
+
+        obs = _baseline();
+        obs.targetValidAtObservation = false;
+        _exportReason("invalid-target", obs, PolicyReason.INVALID_TARGET);
 
         obs = _baseline();
         obs.txOrigin = address(0x1234);

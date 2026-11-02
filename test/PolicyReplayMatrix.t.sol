@@ -23,6 +23,8 @@ contract PolicyReplayMatrixTest is RoleAuthorityRegressionTest {
             return "SUCCESS_WITHOUT_REPLACEMENT";
         }
 
+        if (reason == PolicyReason.INVALID_TARGET) return "INVALID_TARGET";
+
         revert("Sentinel: unknown policy reason");
     }
 
@@ -49,7 +51,7 @@ contract PolicyReplayMatrixTest is RoleAuthorityRegressionTest {
 
         string memory key = string.concat("matrix_", label);
 
-        vm.serializeString(key, "schema_version", "0.3");
+        vm.serializeString(key, "schema_version", "0.4");
         vm.serializeString(key, "fixture_id", "role_uups_replay");
         vm.serializeString(
             key,
@@ -73,6 +75,7 @@ contract PolicyReplayMatrixTest is RoleAuthorityRegressionTest {
 
         vm.serializeBool(key, "call_success", obs.success);
         vm.serializeBool(key, "candidate_valid_at_observation", obs.candidateValidAtObservation);
+        vm.serializeBool(key, "target_valid_at_observation", obs.targetValidAtObservation);
 
         vm.serializeBytes(key, "calldata", obs.callData);
         vm.serializeBytes(key, "return_data", obs.returnData);

@@ -89,6 +89,8 @@ The observer executes a declared local EVM call and records:
 - Execution success and return/revert data
 - Implementation slot values before and after execution
 - Candidate validation result captured at observation time
+- Target code and ERC-1967 implementation-code preconditions
+  captured before execution
 
 The current helper supports a canonical
 upgradeToAndCall(address,bytes) call with empty initialization data.
@@ -121,6 +123,12 @@ Unexpected reverts and insufficient evidence produce UNKNOWN.
 Candidate preconditions and the expected rejection are defined
 for a known fixture. A matching revert payload does not prove
 the exact source-level authorization path.
+
+INVALID_TARGET prevents classification as PASS or FAIL when
+the recorded target preconditions are not satisfied.
+
+These preconditions are necessary plausibility checks, not
+proof of proxy identity or delegatecall behavior.
 
 ERROR is reserved and is not yet emitted independently.
 
@@ -173,14 +181,19 @@ The verifier does not independently reconstruct the entire
 EVM execution or authenticate an external deployment.
 
 Python policy replay checks verdict semantics from recorded
-observations. Five Solidity/Python scenarios and twelve Python
+observations. Five Solidity/Python scenarios and thirteen Python
 self-tests are included.
 
-Diagnostic policy evidence uses schema 0.3 and requires
-a reason field. The main witness retains schema 0.2.
+Current diagnostic policy evidence uses schema 0.4 and
+requires reason and target_valid_at_observation.
+The main witness retains schema 0.2.
 
-Six diagnostic scenarios are compared across Solidity
-and Python. Reason mutation tests check inconsistent evidence.
+Seven diagnostic scenarios are compared across Solidity
+and Python. Mutation tests reject inconsistent target flags,
+status values and diagnostic reasons.
+
+Historical 0.2 and 0.3 witnesses lack target-validity evidence.
+Neither historical nor current JSON authenticates EVM execution.
 
 Mutation tests exercise rejection of malformed or
 inconsistent witness data.
@@ -215,6 +228,7 @@ Remaining limitations:
 - No independent EVM execution attestation
 - No independent confirmation of deployed bytecode identity
 - No general storage-layout compatibility verification
+- No proof that target bytecode implements genuine proxy behavior
 - No independently maintained third-party integration
 - The evidence pipeline does not authenticate external EVM execution
 

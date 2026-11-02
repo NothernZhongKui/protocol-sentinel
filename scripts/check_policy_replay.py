@@ -62,7 +62,7 @@ def main():
 
         data = json.loads(path.read_text(encoding="utf-8"))
 
-        if data.get("schema_version") != "0.3":
+        if data.get("schema_version") != "0.4":
             raise SystemExit(f"FAIL | Unexpected schema: {name}")
 
         if data.get("result") != expected:
@@ -94,7 +94,7 @@ def main():
     )
 
     print("\nPASS | Solidity/Python matrix: 5/5")
-    print("PASS | Replay controls: 12/12")
+    print("PASS | Replay controls: 13/13")
     print("Policy replay integration PASSED")
 
 

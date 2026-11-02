@@ -91,16 +91,38 @@ def main():
         legacy = copy.deepcopy(risky)
         legacy["schema_version"] = "0.2"
         legacy.pop("reason")
+        legacy.pop("target_valid_at_observation")
 
         must_accept("Legacy JSON without reason", legacy)
+
+        legacy_03 = copy.deepcopy(risky)
+        legacy_03["schema_version"] = "0.3"
+        legacy_03.pop("target_valid_at_observation")
+
+        must_accept("Legacy schema 0.3 with reason", legacy_03)
 
         missing_reason = copy.deepcopy(risky)
         missing_reason.pop("reason")
 
         must_reject(
-            "Missing reason in schema 0.3",
+            "Missing reason in schema 0.4",
             missing_reason,
             "FAIL | Policy reason missing"
+        )
+
+        missing_target = copy.deepcopy(risky)
+        missing_target.pop("target_valid_at_observation")
+
+        must_reject(
+            "Missing target validity in schema 0.4",
+            missing_target,
+            "FAIL | Target validity missing"
+        )
+
+        must_reject(
+            "Invalid target validity type",
+            changed(risky, target_valid_at_observation="true"),
+            "ERROR | Invalid boolean field: target_valid_at_observation"
         )
 
         # Negative controls: correct verdict, falsified reason.
@@ -157,6 +179,29 @@ def main():
             "FAIL | Policy reason mismatch"
         )
 
+        # Target validity changes must invalidate recorded decisions.
+        must_reject(
+            "False target flag on recorded FAIL",
+            changed(risky, target_valid_at_observation=False),
+            "FAIL | Policy replay mismatch"
+        )
+
+        must_reject(
+            "False target flag on recorded UNKNOWN",
+            changed(unknown, target_valid_at_observation=False),
+            "FAIL | Policy reason mismatch"
+        )
+
+        must_reject(
+            "Adjusted status but inconsistent target reason",
+            changed(
+                risky,
+                target_valid_at_observation=False,
+                result="UNKNOWN"
+            ),
+            "FAIL | Policy reason mismatch"
+        )
+
         # Existing status integrity must also remain enforced.
         must_reject(
             "Tampered status",
@@ -165,8 +210,8 @@ def main():
         )
 
     print()
-    print("PASS | Positive controls: 3/3")
-    print("PASS | Negative controls: 10/10")
+    print("PASS | Positive controls: 4/4")
+    print("PASS | Negative controls: 15/15")
     print("Policy reason mutation tests PASSED")
 
 

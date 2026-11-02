@@ -57,10 +57,10 @@ the selected authorization policy.
 The opt-in `_checkIsolatedUpgradeDetailed()` API returns the
 observation, policy status and a diagnostic reason.
 
-Six reasons explain why an observation produces UNKNOWN:
-INVALID_SLOT, CONTEXT_MISMATCH, NON_CANONICAL_CALLDATA,
-INVALID_CANDIDATE, UNEXPECTED_REVERT and
-SUCCESS_WITHOUT_REPLACEMENT.
+Seven reasons explain why an observation produces UNKNOWN:
+INVALID_SLOT, CONTEXT_MISMATCH, INVALID_TARGET,
+NON_CANONICAL_CALLDATA, INVALID_CANDIDATE,
+UNEXPECTED_REVERT and SUCCESS_WITHOUT_REPLACEMENT.
 
 The original status-only API remains available.
 
@@ -164,11 +164,15 @@ A passing Foundry test may correctly confirm a FAIL security verdict.
 ## Evidence
 
 The main execution witness retains schema version `0.2`.
-Diagnostic policy matrices use schema `0.3`, which requires
-a `reason` field. Python replay independently recomputes
-both status and reason.
 
-Schema `0.2` remains supported for legacy policy replay.
+Current diagnostic policy matrices use schema `0.4`,
+requiring both `reason` and `target_valid_at_observation`.
+Python independently recomputes status and reason from
+the recorded observation.
+
+Historical schemas `0.2` and `0.3` remain readable,
+but they lack the new target-validity observation.
+Replay does not authenticate the recorded EVM state.
 
 It records the declared actor, transaction origin, target,
 calldata, call result, effective implementation observations,
@@ -189,7 +193,7 @@ The Python policy replay independently evaluates saved
 observations using the declared policy rules.
 
 The project includes five Solidity/Python comparison scenarios
-and twelve Python replay self-tests, plus six
+and thirteen Python replay self-tests, plus seven
 cross-language diagnostic scenarios and reason mutation tests.
 
 Policy replay is not independent execution attestation.
@@ -216,6 +220,11 @@ It does not establish that a contract is generally secure.
 
 Candidate validation checks UUPS compatibility through
 `proxiableUUID()`. It does not validate storage layout safety.
+
+Target preconditions require code at the target, a nonzero
+ERC-1967 implementation address, and code at that address.
+These checks do not prove that the target is an authentic
+proxy or actually delegates to the recorded implementation.
 
 The initial Transparent/UUPS fixture intentionally demonstrates
 a composition risk and is not a recommended production design.

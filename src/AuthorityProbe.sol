@@ -23,7 +23,8 @@ abstract contract AuthorityProbe is Test {
         NON_CANONICAL_CALLDATA,
         INVALID_CANDIDATE,
         UNEXPECTED_REVERT,
-        SUCCESS_WITHOUT_REPLACEMENT
+        SUCCESS_WITHOUT_REPLACEMENT,
+        INVALID_TARGET
     }
 
     struct PolicyEvaluation {
@@ -44,6 +45,7 @@ abstract contract AuthorityProbe is Test {
         bytes32 implementationAfter;
         bytes callData;
         bool candidateValidAtObservation;
+        bool targetValidAtObservation;
     }
 
     // Observation layer: record what actually happened.
@@ -76,6 +78,14 @@ abstract contract AuthorityProbe is Test {
 
         result.observedSlot = implementationSlot;
         result.implementationBefore = vm.load(target, implementationSlot);
+
+        // Capture target preconditions before executing the call.
+        // This checks plausible ERC-1967 backing state, not
+        // whether arbitrary bytecode is an authentic proxy.
+        address currentImplementation = address(uint160(uint256(result.implementationBefore)));
+
+        result.targetValidAtObservation =
+            target.code.length > 0 && currentImplementation != address(0) && currentImplementation.code.length > 0;
 
         // Direct EOA execution: sender and origin are the same.
         // Contract-mediated calls require a separate execution adapter.
@@ -130,6 +140,10 @@ abstract contract AuthorityProbe is Test {
 
         if (obs.actor != expectedActor || obs.txOrigin != expectedActor || obs.target != expectedTarget) {
             return _decision(PolicyStatus.UNKNOWN, PolicyReason.CONTEXT_MISMATCH);
+        }
+
+        if (!obs.targetValidAtObservation) {
+            return _decision(PolicyStatus.UNKNOWN, PolicyReason.INVALID_TARGET);
         }
 
         address candidate = address(uint160(uint256(expectedImplementation)));

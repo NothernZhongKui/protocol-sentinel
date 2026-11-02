@@ -6,22 +6,26 @@
 - Diagnostic reasons for UNKNOWN policy results.
 - Opt-in DetailedUpgradeCheckResult API.
 - Solidity unit and UUPS integration tests for diagnostics.
-- Diagnostic policy evidence schema 0.3.
-- Six Solidity/Python diagnostic comparison scenarios.
+- Diagnostic policy evidence schema 0.4.
+- Seven Solidity/Python diagnostic comparison scenarios.
 - Reason mutation tests and external consumer API coverage.
 
 ### Fixed
 - Empty expected revert data can no longer establish PASS.
+- Invalid target preconditions now produce UNKNOWN / INVALID_TARGET.
+- Adversarial tests cover no-code and non-proxy targets.
 - Python and Solidity apply the same rejection classification.
 
 ### Compatibility
 - Original UpgradeCheckResult and status-only API retained.
-- Legacy schema 0.2 replay remains supported.
+- Historical schemas 0.2 and 0.3 remain readable.
 - Main execution witness remains on schema 0.2.
 
 ### Limitations
 - Matching revert data does not independently prove its cause.
 - Scope remains direct EOA calls and canonical UUPS upgrades.
+- Target preconditions do not prove genuine proxy behavior.
+- JSON replay does not authenticate observed EVM state.
 
 
 ## v0.1.1 - 2026-11-02

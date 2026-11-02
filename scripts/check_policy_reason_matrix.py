@@ -12,6 +12,7 @@ OUTPUT = ROOT / "artifacts/demo"
 
 CASES = {
     "invalid-slot": "INVALID_SLOT",
+    "invalid-target": "INVALID_TARGET",
     "context-mismatch": "CONTEXT_MISMATCH",
     "noncanonical-calldata": "NON_CANONICAL_CALLDATA",
     "invalid-candidate": "INVALID_CANDIDATE",
@@ -57,7 +58,7 @@ def main():
         data = json.loads(path.read_text(encoding="utf-8"))
 
         expected = {
-            "schema_version": "0.3",
+            "schema_version": "0.4",
             "policy_rule": "NO_IMPLEMENTATION_REPLACEMENT",
             "result": "UNKNOWN",
             "reason": expected_reason,
@@ -86,7 +87,7 @@ def main():
         )
 
     print()
-    print(f"PASS | Solidity/Python diagnostics: {len(CASES)}/6")
+    print(f"PASS | Solidity/Python diagnostics: {len(CASES)}/7")
     print("Independent diagnostic matrix PASSED")
 
 

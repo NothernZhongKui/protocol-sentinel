@@ -76,6 +76,13 @@ def evaluate_detailed(data):
     return_data = read_bytes(data, "return_data")
     expected_revert = read_bytes(data, "expected_revert")
 
+    # Older schemas did not capture this precondition.
+    # Preserve historical classification, not proof of target validity.
+    if data.get("schema_version") == "0.4":
+        target_valid = flag(data, "target_valid_at_observation")
+    else:
+        target_valid = True
+
     if slot != ERC1967_SLOT:
         return "UNKNOWN", "INVALID_SLOT"
 
@@ -85,6 +92,9 @@ def evaluate_detailed(data):
         or target != expected_target
     ):
         return "UNKNOWN", "CONTEXT_MISMATCH"
+
+    if not target_valid:
+        return "UNKNOWN", "INVALID_TARGET"
 
     canonical = (
         UPGRADE_SELECTOR
@@ -130,6 +140,11 @@ def self_test(baseline):
         cases.append((name, expected, data))
 
     add("Original exported FAIL", "FAIL")
+    add(
+        "Invalid target precondition",
+        "UNKNOWN",
+        target_valid_at_observation=False,
+    )
 
     add(
         "P1: candidate precedence",
@@ -216,6 +231,7 @@ def self_test(baseline):
 
     expected_reasons = {
         "Original exported FAIL": "NONE",
+        "Invalid target precondition": "INVALID_TARGET",
         "P1: candidate precedence": "NONE",
         "Origin mismatch": "CONTEXT_MISMATCH",
         "Target mismatch": "CONTEXT_MISMATCH",
@@ -283,11 +299,14 @@ def main():
 
     version = data.get("schema_version")
 
-    if version not in ("0.2", "0.3"):
+    if version not in ("0.2", "0.3", "0.4"):
         raise SystemExit("ERROR | Unsupported schema version")
 
-    if version == "0.3" and "reason" not in data:
+    if version in ("0.3", "0.4") and "reason" not in data:
         raise SystemExit("FAIL | Policy reason missing")
+
+    if version == "0.4" and "target_valid_at_observation" not in data:
+        raise SystemExit("FAIL | Target validity missing")
 
     recomputed, recomputed_reason = evaluate_detailed(data)
     claimed = data.get("result")
