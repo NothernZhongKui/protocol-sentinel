@@ -36,6 +36,8 @@ contract TimelockAuthorityEvaluationTest is TimelockAuthorityProbe {
 
         obs.executor = EXECUTOR;
         obs.txOrigin = EXECUTOR;
+        obs.executorEOAObserved = true;
+        obs.executorEOAValid = true;
         obs.outerTarget = TIMELOCK;
         obs.outerCallData = _timelockExecutePayload(spec);
 
@@ -281,5 +283,48 @@ contract TimelockAuthorityEvaluationTest is TimelockAuthorityProbe {
         obs.returnData = hex"deadbeef";
 
         _assertStatus(_evaluateTimelockRoute(spec, obs), PolicyStatus.UNKNOWN, RoutedReason.INCONSISTENT_EXECUTION);
+    }
+
+    function test_MissingEOAEvidenceIsUnknown() public pure {
+        TimelockScenario memory spec = _scenario(TimelockProperty.READY_UPGRADE_SUCCEEDS);
+
+        RoutedObservation memory obs = _observation(spec);
+        obs.executorEOAObserved = false;
+
+        _assertStatus(_evaluateTimelockRoute(spec, obs), PolicyStatus.UNKNOWN, RoutedReason.INCOMPLETE_EVIDENCE);
+    }
+
+    function test_InvalidEOAEvidenceIsPreparationError() public {
+        TimelockScenario memory spec = _scenario(TimelockProperty.READY_UPGRADE_SUCCEEDS);
+
+        RoutedObservation memory obs = _observation(spec);
+        obs.executorEOAValid = false;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidTimelockPreparation.selector, PreparationFailure.INVALID_EOA_EXECUTOR)
+        );
+
+        this.evaluateExternal(spec, obs);
+    }
+
+    function test_ZeroExecutorCannotUseForgedEOAEvidence() public {
+        TimelockScenario memory spec = _scenario(TimelockProperty.READY_UPGRADE_SUCCEEDS);
+
+        spec.executor = address(0);
+
+        RoutedObservation memory obs = _observation(spec);
+
+        obs.executor = address(0);
+        obs.txOrigin = address(0);
+
+        // Even a claimed valid EOA cannot justify address(0).
+        obs.executorEOAObserved = true;
+        obs.executorEOAValid = true;
+
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidTimelockPreparation.selector, PreparationFailure.INVALID_EOA_EXECUTOR)
+        );
+
+        this.evaluateExternal(spec, obs);
     }
 }

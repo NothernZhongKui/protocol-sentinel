@@ -61,9 +61,18 @@ echo "=== Compile and run external consumer ==="
 
   forge build
 
-  forge test \
+  if ! forge test \
+    --json \
+    --threads 1 \
     --match-contract SentinelTimelockConsumerTest \
-    -vv
+    > "$WORK/consumer-results.json"; then
+    cat "$WORK/consumer-results.json" >&2
+    echo "ERROR | Consumer Forge execution failed" >&2
+    exit 1
+  fi
+
+  python3 "$ROOT/scripts/verify_timelock_consumer_results.py" \
+    "$WORK/consumer-results.json"
 
   forge fmt --check
 )

@@ -22,6 +22,9 @@ contract PlainImplementationV2 {
     }
 }
 
+// A deployed contract with no entry point for Timelock execution.
+contract EmptyRouteExecutor {}
+
 contract TimelockAuthorityObserverTest is TimelockAuthorityProbe {
     uint256 internal constant DELAY = 48 hours;
 
@@ -317,5 +320,77 @@ contract TimelockAuthorityObserverTest is TimelockAuthorityProbe {
         RoutedObservation memory obs = _observeIsolatedTimelockRoute(spec);
 
         _assertEvaluation(spec, obs, PolicyStatus.PASS, RoutedReason.NONE);
+    }
+
+    function observeExternal(TimelockScenario memory spec) external returns (RoutedObservation memory) {
+        return _observeIsolatedTimelockRoute(spec);
+    }
+
+    function test_ContractExecutorRejectedBeforeProbe() public {
+        executor = address(new EmptyRouteExecutor());
+
+        // Rebuild the fixture with this contract as the sole executor.
+        _deploy(false);
+
+        TimelockScenario memory spec = _spec(TimelockProperty.READY_UPGRADE_SUCCEEDS);
+
+        _schedule(spec);
+        _advanceToReady(spec);
+
+        bytes32 implementationBefore = vm.load(address(proxy), ERC1967_IMPL_SLOT);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidTimelockPreparation.selector, PreparationFailure.INVALID_EOA_EXECUTOR)
+        );
+
+        this.observeExternal(spec);
+
+        assertEq(vm.load(address(proxy), ERC1967_IMPL_SLOT), implementationBefore);
+
+        assertTrue(controller.isOperationReady(_timelockOperationId(spec)));
+
+        assertFalse(controller.isOperationDone(_timelockOperationId(spec)));
+    }
+
+    function test_ZeroExecutorRejectedEvenWithOpenRole() public {
+        _deploy(true);
+
+        TimelockScenario memory spec = _spec(TimelockProperty.READY_UPGRADE_SUCCEEDS);
+
+        spec.executor = address(0);
+
+        _schedule(spec);
+        _advanceToReady(spec);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidTimelockPreparation.selector, PreparationFailure.INVALID_EOA_EXECUTOR)
+        );
+
+        this.observeExternal(spec);
+
+        assertFalse(controller.isOperationDone(_timelockOperationId(spec)));
+    }
+
+    function test_TimelockContractCannotBeEOAExecutor() public {
+        // Explicitly give the Timelock its own executor role.
+        bytes32 role = controller.EXECUTOR_ROLE();
+
+        vm.prank(address(controller));
+        controller.grantRole(role, address(controller));
+
+        TimelockScenario memory spec = _spec(TimelockProperty.READY_UPGRADE_SUCCEEDS);
+
+        spec.executor = address(controller);
+
+        _schedule(spec);
+        _advanceToReady(spec);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(InvalidTimelockPreparation.selector, PreparationFailure.INVALID_EOA_EXECUTOR)
+        );
+
+        this.observeExternal(spec);
+
+        assertFalse(controller.isOperationDone(_timelockOperationId(spec)));
     }
 }

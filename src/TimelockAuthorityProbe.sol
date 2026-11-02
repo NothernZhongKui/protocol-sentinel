@@ -37,6 +37,8 @@ abstract contract TimelockAuthorityProbe is ComparativeAuthorityProbe {
         // Declared execution context observed by the runner.
         address executor;
         address txOrigin;
+        bool executorEOAObserved;
+        bool executorEOAValid;
         address outerTarget;
         bytes outerCallData;
 
@@ -124,7 +126,8 @@ abstract contract TimelockAuthorityProbe is ComparativeAuthorityProbe {
         INVALID_PROXY_ADMIN,
         INVALID_PROXY,
         INVALID_CANDIDATE,
-        NO_IMPLEMENTATION_CHANGE
+        NO_IMPLEMENTATION_CHANGE,
+        INVALID_EOA_EXECUTOR
     }
 
     struct RoutedEvaluation {
@@ -158,8 +161,8 @@ abstract contract TimelockAuthorityProbe is ComparativeAuthorityProbe {
 
         // Missing evidence must never default to PASS.
         if (
-            !obs.operationStateBeforeObserved || !obs.proxyCodeObserved || !obs.candidateCodeObserved
-                || !obs.proxyAdminOwnershipObserved || !obs.executorRolesObserved
+            !obs.operationStateBeforeObserved || !obs.executorEOAObserved || !obs.proxyCodeObserved
+                || !obs.candidateCodeObserved || !obs.proxyAdminOwnershipObserved || !obs.executorRolesObserved
                 || (spec.predecessor != bytes32(0) && !obs.predecessorStateObserved)
         ) {
             return _routeDecision(PolicyStatus.UNKNOWN, RoutedReason.INCOMPLETE_EVIDENCE);
@@ -189,6 +192,12 @@ abstract contract TimelockAuthorityProbe is ComparativeAuthorityProbe {
 
         if (state != requiredState) {
             revert InvalidTimelockPreparation(PreparationFailure.WRONG_OPERATION_STATE);
+        }
+
+        // Address shape is part of the declared EOA model.
+        // A pure evaluator trusts the observer's code check.
+        if (spec.executor == address(0) || !obs.executorEOAValid) {
+            revert InvalidTimelockPreparation(PreparationFailure.INVALID_EOA_EXECUTOR);
         }
 
         // These are preparation failures, not violations of the policy.
@@ -277,6 +286,15 @@ abstract contract TimelockAuthorityProbe is ComparativeAuthorityProbe {
         internal
         returns (RoutedObservation memory obs)
     {
+        // Foundry prank cannot establish control of a contract account.
+        // Reject zero and deployed-code executors before any execution.
+        // No-code does not independently prove private-key ownership.
+        bool executorEOAValid = spec.executor != address(0) && spec.executor.code.length == 0;
+
+        if (!executorEOAValid) {
+            revert InvalidTimelockPreparation(PreparationFailure.INVALID_EOA_EXECUTOR);
+        }
+
         require(spec.timelock.code.length > 0, "Sentinel: missing Timelock");
         require(spec.proxyAdmin.code.length > 0, "Sentinel: missing ProxyAdmin");
 
@@ -296,6 +314,8 @@ abstract contract TimelockAuthorityProbe is ComparativeAuthorityProbe {
 
         obs.executor = spec.executor;
         obs.txOrigin = spec.executor;
+        obs.executorEOAObserved = true;
+        obs.executorEOAValid = executorEOAValid;
         obs.outerTarget = spec.timelock;
         obs.outerCallData = _timelockExecutePayload(spec);
 

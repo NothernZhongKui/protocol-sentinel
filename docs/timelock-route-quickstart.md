@@ -213,3 +213,27 @@ The adapter is a testing helper, not a security audit,
 a governance discovery engine, or a transaction sender.
 
 See docs/adr-004b-timelock-route.md.
+
+## EOA executor boundary
+
+The current adapter accepts nonzero executor addresses
+without deployed runtime bytecode. Contract executors
+and the zero address are rejected before the probe.
+
+The observation records whether the EOA-shaped
+executor precondition was established.
+
+Missing evidence produces UNKNOWN. Known invalid
+executor preparation is rejected rather than producing
+a policy PASS or FAIL.
+
+Absence of bytecode does not prove possession of a
+private key, exclude every precompile or counterfactual
+account, or authenticate a real transaction signer.
+
+Contract-mediated executors require a separate
+execution adapter exercising their actual entry point.
+
+The independent consumer runner validates Forge JSON.
+Skipped, missing or unsuccessful tests never satisfy
+its required acceptance checks.

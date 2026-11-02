@@ -39,6 +39,8 @@ contract TimelockAuthorityComparisonTest is TimelockAuthorityProbe {
 
         obs.executor = spec.executor;
         obs.txOrigin = spec.executor;
+        obs.executorEOAObserved = true;
+        obs.executorEOAValid = true;
         obs.outerTarget = spec.timelock;
         obs.outerCallData = _timelockExecutePayload(spec);
 

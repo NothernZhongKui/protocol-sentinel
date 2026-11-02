@@ -118,6 +118,14 @@ MUTATIONS = [
         ),
         "bool restored = true;",
     ),
+    Mutation(
+        "M11_allow_contract_executor",
+        OBS,
+        "test_ContractExecutorRejectedBeforeProbe",
+        r"if \(!executorEOAValid\)\s*\{",
+        "if (false && !executorEOAValid) {",
+    ),
+
 ]
 
 
