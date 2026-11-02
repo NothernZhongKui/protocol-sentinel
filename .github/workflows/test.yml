@@ -63,6 +63,9 @@ jobs:
       - name: Test policy reason mutations
         run: python3 scripts/test_policy_reason_mutations.py
 
+      - name: Test comparative core mutations
+        run: python3 scripts/check_comparison_mutations.py
+
       - name: Test evidence schema boundaries
         run: python3 scripts/test_schema_boundaries.py
 
@@ -153,6 +156,14 @@ jobs:
           (
             cd "$consumer"
             forge test --match-contract SentinelDetailedConsumerTest -vv
+          )
+
+          cp examples/consumer/SentinelComparativeConsumer.t.sol "$consumer/test/"
+
+          echo "=== Current comparative API consumer ==="
+          (
+            cd "$consumer"
+            forge test --match-contract SentinelComparativeConsumerTest -vv
           )
 
   x402:
