@@ -340,4 +340,122 @@ contract TimelockAuthorityComparisonTest is TimelockAuthorityProbe {
 
         assertEq(uint256(result.verdict), uint256(ComparisonVerdict.STILL_SATISFIED));
     }
+
+    function _corruptRoutedContext(RoutedObservation memory obs, uint8 selector)
+        internal
+        pure
+        returns (RoutedObservation memory)
+    {
+        uint8 field = selector % 7;
+
+        if (field == 0) {
+            obs.executor = address(uint160(obs.executor) ^ uint160(1));
+        } else if (field == 1) {
+            obs.outerTarget = address(uint160(obs.outerTarget) ^ uint160(1));
+        } else if (field == 2) {
+            obs.outerCallData = abi.encodePacked(obs.outerCallData, uint8(1));
+        } else if (field == 3) {
+            obs.operationId = bytes32(uint256(obs.operationId) ^ uint256(1));
+        } else if (field == 4) {
+            obs.observedSlot = bytes32(uint256(obs.observedSlot) ^ uint256(1));
+        } else if (field == 5) {
+            obs.timelock = address(uint160(obs.timelock) ^ uint160(1));
+        } else {
+            obs.proxyAdmin = address(uint160(obs.proxyAdmin) ^ uint160(1));
+        }
+
+        return obs;
+    }
+
+    function testFuzz_TimelockScenarioMismatch(uint8 selector, bool mutateBefore, bool ready, bytes32 scenarioId)
+        public
+        pure
+    {
+        TimelockScenario memory spec = _spec(
+            ready ? TimelockProperty.READY_UPGRADE_SUCCEEDS : TimelockProperty.NOT_READY_EXECUTION_REJECTED
+        );
+
+        RoutedStage memory beforeStage = _stage(spec, OLD_IMPL, ready);
+
+        RoutedStage memory afterStage = _stage(spec, NEW_IMPL, ready);
+
+        if (mutateBefore) {
+            beforeStage.observation = _corruptRoutedContext(beforeStage.observation, selector);
+        } else {
+            afterStage.observation = _corruptRoutedContext(afterStage.observation, selector);
+        }
+
+        RoutedComparisonResult memory result = _compareTimelockRoute(scenarioId, spec, beforeStage, afterStage);
+
+        assertEq(uint256(result.verdict), uint256(ComparisonVerdict.INCOMPARABLE));
+
+        assertEq(uint256(result.reason), uint256(RoutedComparisonReason.SCENARIO_MISMATCH));
+
+        assertEq(
+            uint256(mutateBefore ? result.beforeEvaluation.status : result.afterEvaluation.status),
+            uint256(PolicyStatus.UNKNOWN)
+        );
+
+        assertEq(
+            uint256(mutateBefore ? result.afterEvaluation.status : result.beforeEvaluation.status),
+            uint256(PolicyStatus.PASS)
+        );
+    }
+
+    function testFuzz_TimelockExecutorRoleDrift(bool ready, uint16 elapsed) public pure {
+        TimelockScenario memory spec =
+            _spec(ready ? TimelockProperty.READY_UPGRADE_SUCCEEDS : TimelockProperty.NOT_READY_EXECUTION_REJECTED);
+
+        RoutedStage memory beforeStage = _stage(spec, OLD_IMPL, ready);
+
+        RoutedStage memory afterStage = _stage(spec, NEW_IMPL, ready);
+
+        // Both configurations permit execution,
+        // but role configuration has changed.
+        afterStage.observation.executorHasRole = false;
+        afterStage.observation.openExecutorRole = true;
+
+        uint256 delta = ready ? uint256(elapsed) : uint256(elapsed) % 100;
+
+        afterStage.observation.observedTimestamp += delta;
+
+        RoutedComparisonResult memory result =
+            _compareTimelockRoute(keccak256("fuzz-role-drift"), spec, beforeStage, afterStage);
+
+        assertEq(uint256(result.beforeEvaluation.status), uint256(PolicyStatus.PASS));
+
+        assertEq(uint256(result.afterEvaluation.status), uint256(PolicyStatus.PASS));
+
+        assertEq(uint256(result.verdict), uint256(ComparisonVerdict.INCOMPARABLE));
+
+        assertEq(uint256(result.reason), uint256(RoutedComparisonReason.PREPARATION_MISMATCH));
+    }
+
+    function testFuzz_TimelockRescheduling(uint64 shift, bool ready) public pure {
+        TimelockScenario memory spec =
+            _spec(ready ? TimelockProperty.READY_UPGRADE_SUCCEEDS : TimelockProperty.NOT_READY_EXECUTION_REJECTED);
+
+        RoutedStage memory beforeStage = _stage(spec, OLD_IMPL, ready);
+
+        RoutedStage memory afterStage = _stage(spec, NEW_IMPL, ready);
+
+        uint256 delta = uint256(shift) % 100000 + 1;
+
+        afterStage.observation.readyAt += delta;
+
+        if (ready) {
+            afterStage.observation.observedTimestamp = afterStage.observation.readyAt;
+        }
+
+        RoutedComparisonResult memory result =
+            _compareTimelockRoute(keccak256("fuzz-rescheduled"), spec, beforeStage, afterStage);
+
+        assertEq(uint256(result.beforeEvaluation.status), uint256(PolicyStatus.PASS));
+
+        assertEq(uint256(result.afterEvaluation.status), uint256(PolicyStatus.PASS));
+
+        assertEq(uint256(result.verdict), uint256(ComparisonVerdict.INCOMPARABLE));
+
+        assertEq(uint256(result.reason), uint256(RoutedComparisonReason.PREPARATION_MISMATCH));
+    }
 }

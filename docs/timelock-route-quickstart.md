@@ -237,3 +237,23 @@ execution adapter exercising their actual entry point.
 The independent consumer runner validates Forge JSON.
 Skipped, missing or unsuccessful tests never satisfy
 its required acceptance checks.
+
+## Additional adversarial coverage
+
+The v0.4-B regression suite also exercises:
+
+- Real execution with a completed nonzero predecessor.
+- A deliberately altered ERC-1967 admin storage word.
+- Rejection of contract and zero-address EOA executors.
+- Fuzzing of missing or incomplete evaluator evidence.
+- Fuzzing of scenario identity mismatches.
+- Fuzzing of changes to executor role configuration.
+- Fuzzing of rescheduled operation timestamps.
+
+The altered-admin-slot scenario documents a deliberate
+fail-closed limitation of the current observer: the
+storage word can differ from the immutable effective
+administrator without breaking the actual OZ route.
+
+These tests do not authenticate off-chain evidence
+or establish universal security of a governance system.

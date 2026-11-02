@@ -36,6 +36,9 @@ jobs:
       - name: Run Forge tests
         run: forge test -vvv
 
+      - name: Run Timelock fuzz invariants
+        run: forge test --match-test testFuzz_Timelock --fuzz-runs 256 -vv
+
   evidence:
     name: Evidence and policy replay
     runs-on: ubuntu-latest
@@ -169,6 +172,9 @@ jobs:
             cd "$consumer"
             forge test --match-contract SentinelComparativeConsumerTest -vv
           )
+
+      - name: Test consumer JSON validator negative controls
+        run: python3 scripts/test_timelock_consumer_validator.py
 
       - name: Test independent Timelock consumer
         run: bash scripts/check_timelock_consumer.sh

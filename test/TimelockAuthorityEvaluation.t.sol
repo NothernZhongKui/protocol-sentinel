@@ -327,4 +327,43 @@ contract TimelockAuthorityEvaluationTest is TimelockAuthorityProbe {
 
         this.evaluateExternal(spec, obs);
     }
+
+    function testFuzz_TimelockMissingRequiredEvidence(uint8 selector, bool ready) public pure {
+        TimelockScenario memory spec =
+            _scenario(ready ? TimelockProperty.READY_UPGRADE_SUCCEEDS : TimelockProperty.NOT_READY_EXECUTION_REJECTED);
+
+        RoutedObservation memory obs = _observation(spec);
+
+        uint8 field = selector % 6;
+
+        if (field == 0) {
+            obs.operationStateBeforeObserved = false;
+        } else if (field == 1) {
+            obs.executorEOAObserved = false;
+        } else if (field == 2) {
+            obs.proxyCodeObserved = false;
+        } else if (field == 3) {
+            obs.candidateCodeObserved = false;
+        } else if (field == 4) {
+            obs.proxyAdminOwnershipObserved = false;
+        } else {
+            obs.executorRolesObserved = false;
+        }
+
+        _assertStatus(_evaluateTimelockRoute(spec, obs), PolicyStatus.UNKNOWN, RoutedReason.INCOMPLETE_EVIDENCE);
+    }
+
+    function testFuzz_TimelockUnknownPredecessor(bytes32 dependency, bool ready) public pure {
+        TimelockScenario memory spec =
+            _scenario(ready ? TimelockProperty.READY_UPGRADE_SUCCEEDS : TimelockProperty.NOT_READY_EXECUTION_REJECTED);
+
+        // Ensure the predecessor is always nonzero.
+        spec.predecessor = dependency | bytes32(uint256(1));
+
+        RoutedObservation memory obs = _observation(spec);
+
+        obs.predecessorStateObserved = false;
+
+        _assertStatus(_evaluateTimelockRoute(spec, obs), PolicyStatus.UNKNOWN, RoutedReason.INCOMPLETE_EVIDENCE);
+    }
 }

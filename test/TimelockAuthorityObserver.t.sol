@@ -25,6 +25,11 @@ contract PlainImplementationV2 {
 // A deployed contract with no entry point for Timelock execution.
 contract EmptyRouteExecutor {}
 
+// Separate, harmless operation establishing a completed dependency.
+contract RoutePredecessorTarget {
+    function ping() external pure {}
+}
+
 contract TimelockAuthorityObserverTest is TimelockAuthorityProbe {
     uint256 internal constant DELAY = 48 hours;
 
@@ -392,5 +397,96 @@ contract TimelockAuthorityObserverTest is TimelockAuthorityProbe {
         this.observeExternal(spec);
 
         assertFalse(controller.isOperationDone(_timelockOperationId(spec)));
+    }
+
+    function test_CompletedPredecessorRealUpgradePass() public {
+        RoutePredecessorTarget target = new RoutePredecessorTarget();
+
+        bytes memory action = abi.encodeWithSelector(RoutePredecessorTarget.ping.selector);
+
+        bytes32 salt = keccak256("completed-predecessor");
+
+        bytes32 predecessorId = controller.hashOperation(address(target), 0, action, bytes32(0), salt);
+
+        // Prepare the predecessor using the real proposer.
+        vm.prank(proposer, proposer);
+
+        controller.schedule(address(target), 0, action, bytes32(0), salt, DELAY);
+
+        TimelockScenario memory spec = _spec(TimelockProperty.READY_UPGRADE_SUCCEEDS);
+
+        spec.predecessor = predecessorId;
+
+        _schedule(spec);
+        _advanceToReady(spec);
+
+        // Actually complete the predecessor via Timelock.
+        vm.prank(executor, executor);
+
+        controller.execute(address(target), 0, action, bytes32(0), salt);
+
+        assertTrue(controller.isOperationDone(predecessorId));
+
+        bytes32 originalImplementation = vm.load(address(proxy), ERC1967_IMPL_SLOT);
+
+        RoutedObservation memory obs = _observeIsolatedTimelockRoute(spec);
+
+        assertTrue(obs.predecessorStateObserved);
+        assertTrue(obs.predecessorDoneBefore);
+        assertTrue(obs.outerSuccess);
+        assertTrue(obs.operationDoneAfter);
+
+        assertEq(obs.implementationAfter, bytes32(uint256(uint160(address(candidate)))));
+
+        _assertEvaluation(spec, obs, PolicyStatus.PASS, RoutedReason.NONE);
+
+        // The probe is isolated, but completed preparation survives.
+        assertTrue(controller.isOperationDone(predecessorId));
+        assertTrue(controller.isOperationReady(_timelockOperationId(spec)));
+        assertFalse(controller.isOperationDone(_timelockOperationId(spec)));
+
+        assertEq(vm.load(address(proxy), ERC1967_IMPL_SLOT), originalImplementation);
+    }
+
+    function test_AlteredAdminSlotFailsClosedButRealRouteExecutes() public {
+        TimelockScenario memory spec = _spec(TimelockProperty.READY_UPGRADE_SUCCEEDS);
+
+        _schedule(spec);
+        _advanceToReady(spec);
+
+        address forgedSlotAdmin = makeAddr("forged-admin-storage");
+
+        assertTrue(forgedSlotAdmin != address(admin));
+
+        bytes32 forgedAdminWord = bytes32(uint256(uint160(forgedSlotAdmin)));
+
+        // Change only mutable ERC-1967 admin storage.
+        // The immutable Transparent proxy admin is untouched.
+        vm.store(address(proxy), ERC1967_ADMIN_SLOT, forgedAdminWord);
+
+        assertEq(vm.load(address(proxy), ERC1967_ADMIN_SLOT), forgedAdminWord);
+
+        assertEq(admin.owner(), address(controller));
+
+        // Current observer deliberately refuses this topology.
+        vm.expectRevert(abi.encodeWithSignature("Error(string)", "Sentinel: ProxyAdmin slot mismatch"));
+
+        this.observeExternal(spec);
+
+        // Prepare calldata BEFORE setting the one-shot prank.
+        bytes memory action = _timelockUpgradePayload(spec);
+
+        vm.prank(executor, executor);
+
+        // The real OZ route must still work despite the changed slot.
+        controller.execute(spec.proxyAdmin, 0, action, spec.predecessor, spec.salt);
+
+        assertTrue(controller.isOperationDone(_timelockOperationId(spec)));
+
+        assertEq(vm.load(address(proxy), ERC1967_IMPL_SLOT), bytes32(uint256(uint160(address(candidate)))));
+
+        assertEq(vm.load(address(proxy), ERC1967_ADMIN_SLOT), forgedAdminWord);
+
+        assertEq(admin.owner(), address(controller));
     }
 }
