@@ -46,12 +46,20 @@ class SchemaBoundaryTests(unittest.TestCase):
         data["schema_version"] = "0.3"
         data["target_valid_at_observation"] = False
 
-        result = self.replay(data)
+        result = self.replay(data, allow_legacy=True)
+        output = result.stdout + result.stderr
 
-        self.assertNotEqual(
-            result.returncode, 0,
-            result.stdout + result.stderr,
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            "Target validity field incompatible with legacy schema",
+            output,
         )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Target validity field incompatible with legacy schema",
+        ):
+            evaluate_detailed(data, allow_legacy=True)
 
     def test_reject_v02_with_v04_target_field(self):
         data = copy.deepcopy(self.baseline)
@@ -59,12 +67,65 @@ class SchemaBoundaryTests(unittest.TestCase):
         data["target_valid_at_observation"] = False
         data.pop("reason")
 
-        result = self.replay(data)
+        result = self.replay(data, allow_legacy=True)
+        output = result.stdout + result.stderr
 
-        self.assertNotEqual(
-            result.returncode, 0,
-            result.stdout + result.stderr,
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            "Target validity field incompatible with legacy schema",
+            output,
         )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Target validity field incompatible with legacy schema",
+        ):
+            evaluate_detailed(data, allow_legacy=True)
+
+    def test_legacy_requires_explicit_opt_in(self):
+        for version in ("0.2", "0.3"):
+            with self.subTest(version=version):
+                data = copy.deepcopy(self.baseline)
+                data["schema_version"] = version
+                data.pop("target_valid_at_observation")
+
+                if version == "0.2":
+                    data.pop("reason")
+
+                result = self.replay(data)
+                output = result.stdout + result.stderr
+
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(
+                    "Legacy schema requires --allow-legacy",
+                    output,
+                )
+
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "Legacy schema requires --allow-legacy",
+                ):
+                    evaluate_detailed(data)
+
+    def test_reject_v02_with_reason_field(self):
+        data = copy.deepcopy(self.baseline)
+        data["schema_version"] = "0.2"
+        data.pop("target_valid_at_observation")
+
+        result = self.replay(data, allow_legacy=True)
+        output = result.stdout + result.stderr
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            "Reason field incompatible with schema 0.2",
+            output,
+        )
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "Reason field incompatible with schema 0.2",
+        ):
+            evaluate_detailed(data, allow_legacy=True)
 
     def test_direct_api_rejects_unknown_schema(self):
         data = copy.deepcopy(self.baseline)

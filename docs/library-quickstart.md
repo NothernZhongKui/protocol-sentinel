@@ -113,7 +113,23 @@ Use the actual expected authorization error payload.
 The evaluator does not independently prove which contract
 branch caused a matching revert.
 
-## Migration from v0.1.x and v0.2.0
+## Migration from v0.1.x to v0.2.x
+
+The v0.2.0 release introduced the additional
+targetValidAtObservation field in Observation.
+
+Low-level consumers constructing Observation manually
+must update their code.
+
+## Migration from v0.2.0 to v0.2.1
+
+The Solidity AuthorityProbe API is unchanged.
+
+This patch updates the main evidence exporter to schema 0.4
+and makes Python replay strict by default.
+
+Previously generated legacy evidence requires
+explicit --allow-legacy when replayed.
 
 The status-only UpgradeCheckResult and the
 _checkIsolatedUpgrade(spec) convenience API remain available.
