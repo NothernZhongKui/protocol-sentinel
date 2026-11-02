@@ -319,6 +319,25 @@ jobs:
           print("PASS | Complete C2 evidence and mutations")
           PYTEST
 
+      - name: Reject corrupted Direct assembly
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="artifacts/demo/comparison-runs/completed"
+          before="$(find "$root" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+          log="$(mktemp)"
+          trap 'rm -f "$log"' EXIT
+
+          if python scripts/run_direct_comparison.py --inject-assembly-mutation > "$log" 2>&1; then
+            echo "FAIL | Corrupted evidence accepted"
+            exit 1
+          fi
+
+          grep -q 'Lossless mismatch: after_candidateValidAtObservation' "$log"
+          after="$(find "$root" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+          test "$before" = "$after"
+          echo "PASS | Corrupted evidence not published"
+
       - name: Verify failed producer cannot publish
         shell: bash
         run: |

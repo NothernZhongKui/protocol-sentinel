@@ -129,6 +129,53 @@ def verify_local_source_context(evidence):
     )
 
 
+def check_lossless(raw, document):
+    """Verify exact preservation of all raw capture fields."""
+
+    scenario = document["scenario"]
+    spec = scenario["spec"]
+    comparison = document["comparison"]
+
+    expected = {
+        "format": "protocol-sentinel-direct-capture-v1",
+        "chain_id": document["environment"]["chainId"],
+        "scenario_id": scenario["scenarioId"],
+        "actor": spec["actor"],
+        "target": spec["target"],
+        "candidate": spec["candidate"],
+        "expected_revert": spec["expectedRevert"],
+        "policy": spec["policy"],
+        "canonical_calldata": scenario["derived"]["canonicalCalldata"],
+        "comparison_scenario_key": comparison["scenarioKey"],
+        "comparison_verdict": comparison["verdict"],
+        "comparison_reason": comparison["reason"],
+    }
+
+    for name in ("before", "after"):
+        stage = document["stages"][name]
+
+        expected[f"{name}_expectedActiveImplementation"] = (
+            stage["expectedActiveImplementation"]
+        )
+
+        for field, value in stage["observation"].items():
+            expected[f"{name}_{field}"] = value
+
+        expected[f"{name}_status"] = stage["evaluation"]["status"]
+        expected[f"{name}_reason"] = stage["evaluation"]["reason"]
+
+    require(
+        set(raw) == set(expected),
+        "Lossless capture field set mismatch",
+    )
+
+    for field, value in expected.items():
+        require(
+            type(raw[field]) is type(value) and raw[field] == value,
+            f"Lossless mismatch: {field}",
+        )
+
+
 def verify_run_identity(document, run_id):
     require(
         document["provenance"]["runId"] == run_id,
@@ -165,6 +212,10 @@ def main():
         help="Negative control: Foundry writes then fails",
     )
 
+    parser.add_argument(
+        "--inject-assembly-mutation",
+        action="store_true",
+    )
     args = parser.parse_args()
 
     run_id = uuid.uuid4().hex
@@ -303,9 +354,23 @@ def main():
 
         document = load_document(evidence_path)
 
-        validate_document(document)
+        if args.inject_assembly_mutation:
+            observation = document["stages"]["after"]["observation"]
+            require(
+                observation["candidateValidAtObservation"] is True,
+                "Unexpected mutation baseline",
+            )
+            observation["candidateValidAtObservation"] = False
+            evidence_path.write_text(
+                json.dumps(document, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            document = load_document(evidence_path)
 
-        print("PASS | JSON Schema 1.0", flush=True)
+        validate_document(document)
+        check_lossless(load_document(capture), document)
+
+        print("PASS | Schema and lossless capture", flush=True)
 
         print("=== Independent classification replay ===", flush=True)
 

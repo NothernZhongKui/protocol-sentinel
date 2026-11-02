@@ -23,6 +23,7 @@ from replay_direct_comparison import (
 
 from run_direct_comparison import (
     TEST_NAME,
+    check_lossless,
     verify_producer,
     verify_run_identity,
 )
@@ -50,6 +51,52 @@ class DirectMutationTests(unittest.TestCase):
         self.assertEqual(
             result["comparison"], "CHANGED_TO_VIOLATION"
         )
+
+    def test_lossless_detects_invisible_mutation(self):
+        raw = load_document(
+            Path(sys.argv[1]).with_name("raw-capture.json")
+        )
+        document = self.record()
+
+        check_lossless(raw, document)
+
+        observation = document["stages"]["after"]["observation"]
+        self.assertIs(
+            observation["candidateValidAtObservation"], True
+        )
+        observation["candidateValidAtObservation"] = False
+
+        # Classification still matches; capture integrity must not.
+        self.assertEqual(
+            replay(document)["classification_replay"], "MATCH"
+        )
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "Lossless mismatch: after_candidateValidAtObservation",
+        ):
+            check_lossless(raw, document)
+
+    def test_lossless_rejects_every_changed_capture_field(self):
+        raw = load_document(
+            Path(sys.argv[1]).with_name("raw-capture.json")
+        )
+
+        check_lossless(raw, self.baseline)
+
+        for field, value in raw.items():
+            changed = copy.deepcopy(raw)
+
+            if type(value) is bool:
+                changed[field] = not value
+            elif type(value) is str:
+                changed[field] = value + "_changed"
+            else:
+                self.fail(f"Unexpected capture field type: {field}")
+
+            with self.subTest(field=field):
+                with self.assertRaises(RuntimeError):
+                    check_lossless(changed, self.baseline)
 
     def test_forged_results_are_rejected(self):
         mutations = [
