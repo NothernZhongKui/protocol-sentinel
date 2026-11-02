@@ -124,3 +124,25 @@ jobs:
             cd "$consumer"
             forge test --match-path test/SentinelConsumer.t.sol -vv
           )
+
+  x402:
+    name: Fortytwo external regression
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.7
+
+      - name: Verify reproduction script
+        run: bash -n scripts/reproduce_x402.sh
+
+      - name: Run Fortytwo PASS FAIL PASS regression
+        run: bash scripts/reproduce_x402.sh

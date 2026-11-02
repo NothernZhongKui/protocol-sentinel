@@ -7,9 +7,9 @@ from pathlib import Path
 
 EXPECTED_COMMIT = "2ee48d0af7dfdc6f0daa0a3017b70edf137033ec"
 
-if len(sys.argv) != 4 or sys.argv[3] != "--check":
+if len(sys.argv) != 4 or sys.argv[3] not in ("--write", "--check"):
     raise SystemExit(
-        "Usage: generate_risky_fixture.py SOURCE OUTPUT --check"
+        "Usage: generate_risky_fixture.py SOURCE OUTPUT --write|--check"
     )
 
 source = Path(sys.argv[1]).resolve()
@@ -54,10 +54,14 @@ generated = original.replace(
     old_name, "contract LocalX402EscrowRisky is", 1
 ).replace(old_auth, new_auth, 1)
 
-assert output.is_file(), "Existing fixture missing"
-assert output.read_text() == generated, (
-    "Existing risky fixture differs from generated source"
-)
+if sys.argv[3] == "--write":
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(generated)
+else:
+    assert output.is_file(), "Existing fixture missing"
+    assert output.read_text() == generated, (
+        "Existing risky fixture differs from generated source"
+    )
 
 print("PASS | Pinned external source verified")
 print("PASS | Risky fixture generated deterministically")

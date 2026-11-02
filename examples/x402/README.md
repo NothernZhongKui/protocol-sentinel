@@ -1,58 +1,45 @@
-# External Integration: Fortytwo x402Escrow
+# External integration: Fortytwo x402Escrow
 
 ## Source
 
-Repository:
-https://github.com/Fortytwo-Network/fortytwo-x402Escrow
+External repository: https://github.com/Fortytwo-Network/fortytwo-x402Escrow
 
-External source commit: `2ee48d0af7dfdc6f0daa0a3017b70edf137033ec`
+Pinned commit: 2ee48d0af7dfdc6f0daa0a3017b70edf137033ec
 
-Protocol Sentinel commit: `7e8e303e667ddaaa25305ddae11e1e0c8361bd4a`
+The original Fortytwo implementation is not modified.
 
-## Scope
+## One-command reproduction
 
-This experiment tests the existing X402Escrow authorization
-model using the unchanged Protocol Sentinel public core.
+From the Protocol Sentinel repository root, with Git submodules initialized:
 
-The external Solidity implementation is not modified.
+    bash scripts/reproduce_x402.sh
+
+The script verifies dependencies, fetches the pinned external
+source, generates a test-only risky V2, and executes five tests
+in a temporary directory.
 
 ## Scenarios
 
-1. DEFAULT_ADMIN_ROLE cannot upgrade implementation.
-2. FACILITATOR_ROLE cannot upgrade implementation.
-3. Owner can perform an authorized UUPS upgrade.
-4. Following an authorized V1-to-V2 upgrade, admin and
-   facilitator remain unable to upgrade implementation.
+1. Admin cannot upgrade V1.
+2. Facilitator cannot upgrade V1.
+3. Owner can perform an authorized upgrade.
+4. Normal V2 preserves authorization restrictions.
+5. Authority regression: PASS -> FAIL -> PASS.
 
-## Reproduction
+## Regression demonstration
 
-Use a checkout of the external repository at the recorded
-source commit, with its declared Foundry dependencies.
+- PASS: facilitator cannot upgrade original V1.
+- FAIL: intentionally risky V2 grants facilitator upgrade authority.
+- PASS: corrected V2 restores the restriction.
 
-Make Protocol Sentinel available as a local dependency.
-
-Add this Foundry remapping:
-
-    protocol-sentinel/=lib/protocol-sentinel/src/
-
-Copy ExternalSentinelIntegration.t.sol into the external
-repository's test directory.
-
-Then execute:
-
-    forge test --offline --match-path test/ExternalSentinelIntegration.t.sol -vv
+Sentinel's FAIL is expected. The Foundry test itself must pass.
 
 ## Limitations
 
-The V2 contract is defined inside the integration test.
+The regression is deliberately introduced by Sentinel developers.
+It is not a claim of a vulnerability in Fortytwo's original contract.
 
-This verifies declared permissions in a local synthetic
-upgrade workflow, not an actual production upgrade.
+The original external source is preserved.
 
-The integration was written by the Sentinel developers,
-not by the external project's maintainers.
-
-The local dependency was connected using a filesystem
-symlink, not a published versioned package.
-
-The test does not claim to discover a vulnerability.
+The experiment tests upgrade authorization, not payment settlement
+or the complete security of the external project.
