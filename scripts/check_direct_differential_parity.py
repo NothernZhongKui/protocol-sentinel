@@ -31,6 +31,16 @@ CASES = (
     "scenario_precedence",
     "upper_bits",
     "same_impl",
+    "both_pass",
+    "both_fail",
+    "fail_to_pass",
+    "success_no_replacement",
+    "invalid_candidate",
+)
+
+POLICIES = (
+    ("replacement", "NO_IMPLEMENTATION_REPLACEMENT"),
+    ("successful_call", "NO_SUCCESSFUL_UPGRADE_CALL"),
 )
 
 FIELDS = (
@@ -118,6 +128,31 @@ def mutated_stages(document, name):
             b["implementationBefore"]
         )
 
+    elif name == "both_pass":
+        a["success"] = False
+        a["returnData"] = b["returnData"]
+        a["implementationAfter"] = a["implementationBefore"]
+
+    elif name == "both_fail":
+        b["success"] = True
+        b["returnData"] = "0x"
+        b["implementationAfter"] = a["implementationAfter"]
+
+    elif name == "fail_to_pass":
+        a["success"] = False
+        a["returnData"] = b["returnData"]
+        a["implementationAfter"] = a["implementationBefore"]
+
+        b["success"] = True
+        b["returnData"] = "0x"
+        b["implementationAfter"] = document["stages"]["after"]["observation"]["implementationAfter"]
+
+    elif name == "success_no_replacement":
+        a["implementationAfter"] = a["implementationBefore"]
+
+    elif name == "invalid_candidate":
+        b["candidateValidAtObservation"] = False
+
     else:
         raise DifferentialMismatch(
             f"Unknown mutation case: {name}"
@@ -137,8 +172,9 @@ def ordinal(enum_name, value):
     return values.index(value)
 
 
-def python_classification(document, name):
-    spec = document["scenario"]["spec"]
+def python_classification(document, name, policy):
+    spec = copy.deepcopy(document["scenario"]["spec"])
+    spec["policy"] = policy
 
     stages = mutated_stages(document, name)
 
@@ -205,7 +241,7 @@ def check(document, oracle, evidence_path):
 
     require(
         oracle["format"]
-        == "protocol-sentinel-direct-differential-v1",
+        == "protocol-sentinel-direct-differential-v2",
         "Wrong oracle format",
     )
 
@@ -223,10 +259,11 @@ def check(document, oracle, evidence_path):
 
     expected_fields = {"format", "scenario_key", "evidence_keccak"}
 
-    for name in CASES:
-        expected_fields.update(
-            f"{name}_{field}" for field in FIELDS
-        )
+    for prefix, _ in POLICIES:
+        for name in CASES:
+            expected_fields.update(
+                f"{prefix}_{name}_{field}" for field in FIELDS
+            )
 
     require(
         set(oracle) == expected_fields,
@@ -235,42 +272,71 @@ def check(document, oracle, evidence_path):
 
     matches = 0
 
-    for name in CASES:
-        calculated = python_classification(
-            document,
-            name,
-        )
+    expectations = {
+        "baseline": ("PASS", "FAIL", "CHANGED_TO_VIOLATION"),
+        "both_pass": ("PASS", "PASS", "STILL_SATISFIED"),
+        "both_fail": ("FAIL", "FAIL", "STILL_VIOLATED"),
+        "fail_to_pass": ("FAIL", "PASS", "CHANGED_TO_SATISFIED"),
+        "invalid_candidate": ("UNKNOWN", "FAIL", "INDETERMINATE"),
+        "stage_binding": ("PASS", "FAIL", "INCOMPARABLE"),
+    }
 
-        for field in FIELDS:
-            key = f"{name}_{field}"
-            expected = calculated[field]
-            actual = oracle[key]
+    for prefix, policy in POLICIES:
+        for name in CASES:
+            calculated = python_classification(document, name, policy)
 
-            require(
-                type(actual) is int,
-                f"{key}: non-integer oracle result",
-            )
+            expected = expectations.get(name)
 
-            require(
-                actual == expected,
-                f"{key}: Solidity={actual}, "
-                f"Python={expected}",
-            )
+            if name == "success_no_replacement":
+                if prefix == "replacement":
+                    expected = ("PASS", "UNKNOWN", "INDETERMINATE")
+                    expected_reason = "SUCCESS_WITHOUT_REPLACEMENT"
+                else:
+                    expected = ("PASS", "FAIL", "CHANGED_TO_VIOLATION")
+                    expected_reason = "NONE"
 
-            matches += 1
+                require(
+                    calculated["after_reason"] ==
+                    ordinal("PolicyReason", expected_reason),
+                    f"{prefix}_{name}: wrong diagnostic reason",
+                )
 
-        print(
-            f"PASS | {name}: 6/6 fields match",
-            flush=True,
-        )
+            if expected is not None:
+                for field, enum_name, symbolic in zip(
+                    ("before_status", "after_status", "verdict"),
+                    ("PolicyStatus", "PolicyStatus", "ComparisonVerdict"),
+                    expected,
+                ):
+                    require(
+                        calculated[field] == ordinal(enum_name, symbolic),
+                        f"{prefix}_{name}: unexpected {field}",
+                    )
 
-    require(matches == 48, "Incomplete matrix")
+            for field in FIELDS:
+                key = f"{prefix}_{name}_{field}"
+                expected_value = calculated[field]
+                actual = oracle[key]
+
+                require(
+                    type(actual) is int,
+                    f"{key}: non-integer oracle result",
+                )
+
+                require(
+                    actual == expected_value,
+                    f"{key}: Solidity={actual}, Python={expected_value}",
+                )
+
+                matches += 1
+
+        print(f"PASS | {prefix}: {len(CASES)} differential cases")
+
+    require(matches == 156, "Incomplete Direct differential matrix")
 
     print()
-    print("DIFFERENTIAL PARITY: 48/48 MATCH")
-    print("PASS | Solidity and Python diagnostic precedence")
+    print("DIFFERENTIAL PARITY: 156/156 MATCH")
+    print("PASS | Both Direct policies and all definitive transitions")
     print("PASS | Independent Direct comparison replay")
-
 
 def main():
     parser = argparse.ArgumentParser()
