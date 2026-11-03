@@ -1,9 +1,9 @@
 # Timelock Route Adapter — Quick Start
 
-Status: experimental, unreleased Protocol Sentinel v0.4-B.
+Status: experimental API included in v0.4.1.
 
-This API is available on the development branch.
-It is not part of the published v0.3.0 release.
+The Timelock route was introduced during v0.4-B
+and is included in the consolidated v0.4.1 release.
 
 ## Purpose
 

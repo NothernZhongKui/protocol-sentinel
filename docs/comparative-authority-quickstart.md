@@ -1,9 +1,9 @@
 # Comparative Authority Core — Quick Start
 
-Status: experimental, unreleased v0.4-A API.
+Status: experimental API included in v0.4.1.
 
-This helper is available on the v0.4 development branch.
-It is not included in the published v0.3.0 release.
+The comparison helper was introduced during v0.4-A
+and is included in the consolidated v0.4.1 release.
 
 ## Purpose
 

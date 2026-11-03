@@ -133,8 +133,10 @@ proof of proxy identity or delegatecall behavior.
 ERROR is reserved and is not yet emitted independently.
 
 Isolated probes restore EVM state using Foundry snapshots.
-The current default execution model is direct EOA impersonation,
-not arbitrary contract-mediated execution.
+The AuthorityProbe convenience API uses direct EOA
+impersonation. The separate Timelock route adapter
+supports one declared contract-mediated upgrade route,
+not arbitrary governance execution.
 
 ## 7. Assumptions
 
@@ -223,7 +225,8 @@ Remaining limitations:
 
 - Only declared actors and entrypoints are covered
 - No arbitrary privilege-path discovery
-- No contract-mediated execution adapter
+- No arbitrary contract-mediated execution adapter;
+  only the declared OpenZeppelin Timelock route is supported
 - No live blockchain monitoring
 - Matching revert data cannot prove its root cause
 - No independent EVM execution attestation
