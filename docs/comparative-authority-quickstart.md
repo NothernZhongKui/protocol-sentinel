@@ -219,11 +219,7 @@ The experimental phase A API supports only:
 - One common scenario specification.
 - Distinct active implementation addresses.
 
-There is no comparison JSON evidence schema in phase A.
-
-Contract-mediated execution, Timelock routes and
-positive authorized-operation checks belong to
-later v0.4 development phases.
+This section describes the Direct comparison API. Comparison Evidence 1.0 and the separate Timelock route were added in later v0.4 work. For the portable v0.5 Direct evidence workflow, see the [Portable Direct quickstart](portable-direct-v0.5.md).
 
 ## Verification
 

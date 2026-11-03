@@ -1,104 +1,81 @@
-# Portable Direct Authority Regression — v0.5
+# Portable Direct quickstart
 
-## What it does
+Use Protocol Sentinel in a Foundry project to compare a declared upgrade-authority scenario before and after an authorized implementation change. The runner executes your test, captures observations, replays the classification in Python, and reproduces the recorded compiler outputs.
 
-Protocol Sentinel runs a developer-declared upgrade
-authority scenario inside an external Foundry project.
+For a complete working project, see the [Treasury consumer](https://github.com/NothernZhongKui/protocol-sentinel-consumer), including its [producer test](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/main/test/TreasuryAuthority.t.sol).
 
-It compares behavior before and after a legitimate
-implementation change.
+## Supported scenario
 
-The portable runner performs:
+| Component | v0.5 portable runner |
+| --- | --- |
+| Actor | Declared direct EOA |
+| Target | ERC-1967 implementation slot |
+| Action | UUPS `upgradeToAndCall(address,bytes)` with empty initialization data |
+| Inputs | Declared actor, target, candidate, expected revert and policy |
+| Execution | One uniquely selected passing producer test per invocation |
 
-1. Fresh execution of one selected Foundry test.
-2. Capture of actual Solidity observations.
-3. Strict Evidence assembly and validation.
-4. Independent Python classification replay.
-5. Independent solc 0.8.24 compiler replay.
-6. Optional trusted CI policy decision.
-
-No consumer-specific Python scripts are required.
-
-## Supported scope
-
-- Direct EOA actor.
-- ERC-1967 implementation observation.
-- Canonical UUPS upgradeToAndCall(address,bytes).
-- Empty upgrade initialization calldata.
-- Declared actor, target, candidate and expected revert.
-- One configured producer scenario per invocation.
-
-This is not automatic authorization discovery.
-
-The existing Timelock adapter is separate from the
-portable Direct runner.
+You set up the fixture and perform the authorized transition. Sentinel does not discover actors or privileges. The [Timelock adapter](timelock-route-quickstart.md) is a separate API.
 
 ## Requirements
 
-- Foundry with compatible forge test/build-info support.
-- Python 3.12 and the Sentinel verifier dependencies.
-- Exact solc 0.8.24+commit.e11b9ed9.
-- A Git-tracked Foundry project with a clean checkout.
-- Committed foundry.toml and foundry.lock.
-- A pinned, clean Sentinel Git submodule at
-  lib/protocol-sentinel.
-- Git-ignored artifacts/sentinel/ output directory.
+- Git and a Git-tracked Foundry project.
+- Foundry with the required build-info and test flags; the Sentinel CI uses Foundry **1.8.7**.
+- Python **3.12** and the pinned verifier dependencies.
+- `solc 0.8.24+commit.e11b9ed9` available to the replay verifier.
+- A clean consumer checkout, committed `foundry.toml`, `foundry.lock`, configuration, and a clean, pinned Sentinel Git submodule.
 
-Use a Python virtual environment outside the consumer
-checkout to preserve the clean-working-tree requirement.
+The verifier looks for solc in common Foundry/SVM locations or on `PATH`. A matching compiler on `PATH` can be checked with `solc --version`. See [compiler replay](build-reproducibility.md).
 
-## 1. Install the library
+## 1. Install and configure
 
-From your Foundry project:
+From the root of your existing Foundry project, add Sentinel as a submodule and pin a reviewed revision:
 
 ```bash
-forge install --no-commit NothernZhongKui/protocol-sentinel
+git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/protocol-sentinel
+git -C lib/protocol-sentinel checkout v0.5.0
 ```
 
-Pin the installed lib/protocol-sentinel submodule to
-the tested revision or a published release tag.
+This release includes the v0.5 portable runner. Pin a reviewed release or commit when upgrading; older releases do not contain this runner. Keep the submodule initialized when cloning the consumer:
 
-The consumer must commit its submodule gitlink,
-.gitmodules, foundry.lock and Sentinel configuration.
+```bash
+git submodule update --init --recursive
+```
 
-Add the import remapping to foundry.toml:
+Add the following entries to your existing `[profile.default]` in `foundry.toml`. Merge them into any existing `remappings` or `fs_permissions` arrays rather than defining either key twice:
 
 ```toml
-"protocol-sentinel/=lib/protocol-sentinel/src/"
+[profile.default]
+solc_version = "0.8.24"
+fs_permissions = [{ access = "read-write", path = "./artifacts/sentinel" }]
+remappings = [
+  "forge-std/=lib/forge-std/src/",
+  "protocol-sentinel/=lib/protocol-sentinel/src/",
+]
 ```
 
-Keep your existing forge-std and dependency remappings.
+Retain your project's other remappings and filesystem permissions. The write permission allows the producer to export its capture. Ensure `artifacts/sentinel/` is Git-ignored, for example by adding it to `.gitignore`:
 
-## 2. Write one Foundry producer test
-
-Import DirectComparisonCapture:
-
-```solidity
-import {
-    DirectComparisonCapture
-} from "protocol-sentinel/DirectComparisonCapture.sol";
+```gitignore
+artifacts/sentinel/
 ```
 
-Your test should:
+## 2. Write the producer test
 
-1. Construct the initial upgradeable fixture.
-2. Declare UpgradeCheck for the actor and action.
-3. Observe the before stage using _observeDirectStage.
-4. Perform the intended authorized implementation change.
-5. Observe the after stage.
-6. Call _compareDirectUpgrade.
-7. Call _exportDirectComparison with the same scenario ID.
+Inherit `DirectComparisonCapture` in a Foundry test. Set up your proxy and implementations, then:
 
-The producer must be a passing, uniquely selected
-Foundry test and export exactly one Direct capture.
+1. Define an `UpgradeCheck` with the actor, target, candidate, expected revert and policy.
+2. Capture the baseline with `_observeDirectStage(spec)`.
+3. Perform the intended authorized implementation upgrade.
+4. Capture the updated stage with the same specification.
+5. Call `_compareDirectUpgrade` and `_exportDirectComparison` with the same `bytes32` scenario ID.
 
-For a complete working Solidity implementation, see:
+The test must pass, be uniquely selected, and export one Direct capture. An intentionally unsafe example can pass a Foundry assertion that expects `CHANGED_TO_VIOLATION`: a passing test does not itself authorize a merge.
 
-https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/main/test/TreasuryAuthority.t.sol
+Adapt the [complete Treasury producer](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/main/test/TreasuryAuthority.t.sol) to your contracts and roles. The scenario ID in your configuration must match the value passed to both Solidity calls.
 
-## 3. Configure the producer
+## 3. Configure and commit
 
-Create a tracked file named sentinel-safe.toml:
+Create `sentinel-safe.toml`. This example names the Treasury consumer's test; replace the values with your own:
 
 ```toml
 [sentinel]
@@ -114,103 +91,50 @@ fixture_id = "external-treasury-v1-safe-v2"
 scenario_id = "0x86917dbb645eece6a5a6f11fa636fdae5558fa7fd4ab12c07488142cbfbb39bf"
 ```
 
-These values describe the reference consumer, not a
-generic configuration. Replace them with your own
-contract, test, fixture and exact bytes32 scenario ID.
+`source` is a project-relative Solidity file under `test/`; `contract` and `test` identify exactly one test, whose name starts with `test_`. `id` is the producer identifier, `fixture_id` describes the fixture, and `scenario_id` is the exact 32-byte ID exported by the producer.
 
-The scenario ID must match the ID exported by Solidity.
+Commit your test, configuration, `foundry.toml`, `foundry.lock`, `.gitmodules`, submodule gitlink, and any other project changes. The runner requires a clean working tree and verifies that the installed Sentinel revision matches the tracked gitlink.
 
-## 4. Run locally
+## 4. Run
 
-Install dependencies in your Python 3.12 environment:
+Create a Python 3.12 virtual environment outside the checkout so it does not make the working tree dirty:
 
 ```bash
+python3.12 -m venv ~/venvs/protocol-sentinel
+source ~/venvs/protocol-sentinel/bin/activate
 python -m pip install \
   -r lib/protocol-sentinel/evidence/requirements-schema.txt \
   -r lib/protocol-sentinel/evidence/requirements-abi.txt
 ```
 
-Then, from a clean consumer checkout:
+From the clean project root:
 
 ```bash
-python -B \
-  lib/protocol-sentinel/scripts/run_portable_direct.py \
+python -B lib/protocol-sentinel/scripts/run_portable_direct.py \
   --project "$PWD" \
   --config sentinel-safe.toml
 ```
 
-Successful verification prints classification, replay
-status and the completed Evidence location.
+A successful local run reports the scenario, classification, `REPLAY: MATCH`, `CI DECISION: NOT_EVALUATED`, and the completed directory under `artifacts/sentinel/runs/completed/<run-id>/`. The directory includes `evidence.json`, `verification.json`, build provenance and execution records.
 
-Completed runs are published under:
+`MATCH` confirms classification replay agrees with the recorded observations; inspect the classification itself. For example, `MATCH` with `CHANGED_TO_VIOLATION` describes a reproduced violation. Local mode does not apply a merge policy.
 
-artifacts/sentinel/runs/completed/<run-id>/
+If a run fails, no completed evidence is published. The runner prints a diagnostic staging path. Common setup failures include a dirty checkout or submodule, missing Git-ignored output path, mismatched scenario ID, ambiguous test selection, missing filesystem permission, or an unavailable exact solc version.
 
-The directory contains evidence.json, verification.json,
-compiler build provenance and execution records.
+## 5. Apply a trusted CI policy
 
-Local mode prints CI DECISION: NOT_EVALUATED.
+For `PASS`, `BLOCK`, or `REVIEW`, trusted CI supplies `--trusted-policy` with an absolute path to a policy from the trusted base revision. The policy binds the required producer and expected repository and workflow. The [reference consumer](https://github.com/NothernZhongKui/protocol-sentinel-consumer) provides an integration to adapt, including workflow-integrity checks.
 
-A matched replay is not permission to merge.
-
-## 5. Trusted GitHub CI
-
-To receive PASS, BLOCK or REVIEW, a protected workflow
-must supply --trusted-policy using an absolute path to
-a policy checked out from the trusted base revision.
-
-The policy identifies one required producer scenario
-and the expected repository and workflow.
-
-Use the working external consumer as an integration
-reference, adapting repository identity, paths,
-policy, pinned tool revision and test selection:
-
-https://github.com/NothernZhongKui/protocol-sentinel-consumer
-
-A trusted CI boundary must prevent unreviewed PRs
-from replacing the required GitHub Actions check.
-
-The reference consumer demonstrates an independent
-workflow-integrity check and protected required checks.
-
-The runner alone does not establish that trust boundary.
-
-## CI decision meanings
-
-| Comparison | CI decision |
+| Comparison | Decision |
 | --- | --- |
-| STILL_SATISFIED | PASS |
-| CHANGED_TO_VIOLATION | BLOCK |
-| STILL_VIOLATED | BLOCK |
-| CHANGED_TO_SATISFIED | REVIEW |
-| INDETERMINATE | REVIEW |
-| INCOMPARABLE | REVIEW |
+| `STILL_SATISFIED` | `PASS` |
+| `CHANGED_TO_VIOLATION`, `STILL_VIOLATED` | `BLOCK` |
+| `CHANGED_TO_SATISFIED`, `INDETERMINATE`, `INCOMPARABLE` | `REVIEW` |
 
-Missing, duplicated or invalid required scenarios
-are blocking errors.
+Missing, duplicated, or invalid required scenarios block. In trusted-policy mode, the runner exits with code `0` for PASS, `2` for BLOCK or an error, and `3` for REVIEW. Without a trusted policy, a successfully verified local run exits `0` regardless of its classification.
 
-A successfully replayed security violation is BLOCK,
-not PASS.
+Protect the required workflow, policy, tool revision and branch rules against unreviewed changes. The runner alone cannot establish that trust boundary.
 
-## Trust and limitations
+## What verification establishes
 
-Sentinel verifies the selected declared scenario,
-not every authorization path in the protocol.
-
-The test author controls fixture setup, actor selection,
-expected reverts and the before/after transition.
-
-Compiler reproduction establishes consistency of
-compiler outputs against the recorded build inputs.
-
-Independent Python replay establishes consistency of
-classification against recorded observations.
-
-Neither establishes independently authenticated
-EVM execution or guarantees contract security.
-
-Evidence execution provenance remains UNAUTHENTICATED.
-
-For production adoption, review the tested scenario,
-protected CI workflow, trusted policy and branch rules.
+Python replay checks the classification against recorded observations. Compiler replay checks normalized compiler outputs against recorded build inputs. Neither independently authenticates EVM execution. The test author controls fixture setup, actor selection, expected revert and the transition; the result applies only to that declared scenario. See the [threat model](threat-model.md).
