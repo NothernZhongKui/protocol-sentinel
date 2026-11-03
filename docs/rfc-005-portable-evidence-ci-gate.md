@@ -1,6 +1,7 @@
 # RFC-005: Portable Evidence Workflow & CI Policy Gate
 
-Status: PROPOSED — independent architectural review pending
+Status: PROPOSED — architecture reviewed, decisions pending
+Review revision: 2 — external-consumer-first approach
 Target: Protocol Sentinel v0.5
 Baseline: released v0.4.1
 Dependencies: RFC-004C, ADR-004A, ADR-004B, ADR-004C
@@ -252,6 +253,20 @@ in order to complete the producing Foundry test.
 
 This distinction is essential for CI policy gating.
 
+### Direct actor admission
+
+The public Direct producer path must reject a
+contract actor before executing the probe.
+
+The EOA-only contract must be checked at the
+observer or public convenience API boundary.
+
+Existing frozen evidence classification semantics
+must not be silently redefined by admission checks.
+
+The first consumer must demonstrate rejection of
+an unsupported contract actor.
+
 ## 8. Producer Identity and Selection
 
 The consumer configuration identifies an exact
@@ -372,6 +387,33 @@ must remain narrow and explicitly documented.
 Compiler reproducibility and local source consistency
 do not authenticate the original EVM execution.
 
+### Evidence 1.0 compatibility constraint
+
+The existing Comparison Evidence 1.0 schema
+requires Git revisions for both OpenZeppelin
+contracts dependencies.
+
+A vendored dependency content hash is not a
+Git revision and cannot be substituted for one.
+
+The initial consumer must reveal whether the
+existing schema can accurately represent its
+actual dependency layout.
+
+ADR-005A must select either:
+
+1. A documented, narrow supported dependency
+   layout for the first vertical slice; or
+2. A minimal versioned provenance metadata
+   evolution with backward-compatible reading
+   of existing Evidence 1.0.
+
+No fabricated dependency revisions or unnecessary
+dependency installation are permitted.
+
+Frozen Solidity and Python classification
+semantics remain independent of metadata changes.
+
 ## 12. Verification Result
 
 Verification reports must separate:
@@ -401,6 +443,31 @@ The execution provenance field remains
 UNAUTHENTICATED unless a separate future
 authentication mechanism is implemented.
 
+### Required gates versus informational fields
+
+Automatic policy PASS requires explicit success
+of the applicable checks:
+
+- Required producer identity and successful execution.
+- Expected capture count and run identity.
+- Evidence schema validation.
+- Lossless raw capture preservation.
+- Independent route-specific classification replay.
+- Source and dependency verification.
+- Build provenance and compiler replay.
+- Expected consumer revision and CI run binding.
+- Required scenario coverage.
+
+The precise machine-readable check vocabulary
+will be finalized in ADR-005A/B.
+
+Execution provenance is currently
+UNAUTHENTICATED and is informational.
+
+The gate must not require this informational
+field to falsely report authentication in order
+to produce a policy PASS.
+
 ## 13. CI Policy Gate
 
 CI policy evaluation is a distinct downstream
@@ -425,6 +492,27 @@ be rejected.
 
 The gate may not change the recorded observation,
 classification or comparison verdict.
+
+### Trusted verification input
+
+A saved verification.json file is not itself
+proof that independent verification occurred.
+
+An independently invoked gate must either
+reverify the supplied bundle using a trusted
+verifier or receive a verified result through
+the same trusted execution process.
+
+The verifier and gate versions are selected
+through trusted configuration, not solely
+through candidate-branch inputs.
+
+The gate must bind evidence to the expected
+consumer commit and CI execution identity.
+
+A completed green artifact from an earlier
+commit or CI run must not be accepted for a
+different candidate revision.
 
 ## 14. Initial Gate Decision Matrix
 
@@ -476,6 +564,22 @@ The machine-readable result must distinguish:
 - A verified transition from violation to satisfaction.
 - An invalid or failed verification.
 
+### Resolved violations
+
+CHANGED_TO_SATISFIED maps to REVIEW by default
+because remediation is a meaningful authority
+change that may merit human inspection.
+
+This is a conservative initial policy choice,
+not an implication that remediation is unsafe.
+
+The first consumer must test whether this default
+creates unnecessary friction.
+
+A later explicitly versioned policy may permit
+automatic approval for verified remediation
+without modifying comparison semantics.
+
 ## 16. Multiple Scenario Aggregation
 
 A consumer may declare multiple independent
@@ -524,6 +628,30 @@ the workflow definition and required checks.
 
 The exact trust and override model is reserved
 for ADR-005B.
+
+### Trusted required scenario set
+
+The complete list of required scenarios must
+come from the trusted policy source.
+
+A pull request must not make its own gate pass
+by removing an authority scenario or excluding
+a producer from its local configuration.
+
+The trusted execution contract must include:
+
+- Expected consumer revision.
+- Expected CI run identity.
+- Required scenario identities.
+- Trusted verifier and gate versions.
+- Accepted policy configuration.
+
+The scenario ID does not attest that the
+underlying Solidity producer still checks
+the intended property.
+
+Producer test modifications remain subject
+to code review and trusted CI execution.
 
 ## 18. Proposed CLI Boundary
 
@@ -670,42 +798,89 @@ F. Missing required scenario:
 The external integration must be reproducible
 from a clean clone with documented dependencies.
 
+### Early acceptance requirement
+
+The external consumer is created and used in
+the first implementation slice, not after
+the portable runner and gate are finished.
+
+The initial vertical slice must demonstrate
+one full Direct EOA/UUPS workflow, including
+a deliberately introduced authority regression
+that blocks CI.
+
+The implementation must be measured from the
+consumer's perspective:
+
+- Consumer-owned Solidity code and fixture.
+- Minimal required configuration.
+- No copied JSON serializer.
+- No copied Python runner.
+- No manual source manifest.
+- Clear scenario, decision, reason and
+  evidence path in terminal output.
+
+A second real scenario validates whether
+additional abstraction is justified.
+
+For release readiness, a developer other than
+the implementation author should repeat the
+integration using only published instructions.
+
 ## 23. Proposed Implementation Slices
 
-### v0.5-A: External Producer Contract
+### v0.5-A: External Vertical Slice
 
-- Document and implement the initial public export API.
-- Support consumer-owned Direct EOA/UUPS fixtures.
-- Preserve exact raw observations.
-- Provide positive and negative producer tests.
-- Keep internal v0.4.1 producers operational.
+- Create an independent consumer repository first.
+- Use consumer-owned UUPS contracts and fixtures.
+- Support one Direct EOA producer.
+- Provide the smallest practical export helper.
+- Generate genuine comparison Evidence.
+- Run independent verification.
+- Apply a minimal PASS/BLOCK/REVIEW gate.
+- Demonstrate a verified regression blocking CI.
+- Reject an unsupported Direct contract actor.
+- Record integration friction and missing interfaces.
 
-### v0.5-B: Portable Runner and Provenance
+The first slice is an end-to-end proof of
+integration, not a finished general-purpose API.
 
-- Shared producer execution and status validation.
-- Consumer-specific source and dependency resolution.
-- Shared staging, assembly and publication mechanisms.
-- Independent route-specific classification replay.
-- Required build reproducibility checks.
-- Strict external configuration and path validation.
+### v0.5-B: Portable Integration
 
-### v0.5-C: CI Policy Gate
+- Remove confirmed consumer-specific assumptions.
+- Support a versioned configuration contract.
+- Share producer verification and publication.
+- Generalize source and dependency provenance
+  only as required by real consumer layouts.
+- Preserve route-specific independent evaluators.
+- Keep historical Evidence readable.
+- Keep v0.4.1 demo runners operational.
+- Test a second consumer-owned scenario.
 
-- Separate policy schema and decision engine.
-- PASS/BLOCK/REVIEW mapping.
-- Scenario aggregation.
-- Machine-readable results and exit behavior.
-- Negative controls for missing and forged inputs.
-- Trusted policy configuration contract.
+### v0.5-C: Trusted CI Gate
 
-### v0.5-D: External Acceptance
+- Define the versioned policy input.
+- Trust required scenario identities and policy.
+- Bind artifacts to commit and CI run identity.
+- Reverify evidence through a trusted verifier.
+- Distinguish PASS, BLOCK and REVIEW.
+- Reject old, incomplete or forged artifacts.
+- Test scenario omission and policy tampering.
+- Preserve separate machine-readable reasons.
 
-- Independent consumer repository.
-- Real consumer-owned Direct scenario.
-- End-to-end CI verification.
-- Negative security regression and REVIEW cases.
-- Timelock route compatibility assessment.
-- Documentation and release acceptance.
+### v0.5-D: Independent Adoption and Release
+
+- Measure consumer integration effort.
+- Measure Forge execution, Python verification
+  and independent compiler replay time.
+- Reuse identical build-unit verification inside
+  a run rather than repeating it per scenario.
+- Preserve fresh execution for every required run.
+- Do not add a persistent compiler cache without
+  measured justification.
+- Have an independent developer follow the guide.
+- Confirm clean-clone reproducibility.
+- Assess Timelock compatibility and release scope.
 
 ## 24. Architectural Decisions Required
 
@@ -731,6 +906,22 @@ ADR-005B must resolve:
 7. CI behavior for tampered or missing evidence.
 8. The trust boundary of pull-request workflows.
 
+Additional ADR-005A decisions:
+
+- How to represent external dependency provenance
+  without fabricating Git revision fields.
+- EOA actor admission boundary.
+- One compilation unit verified once per run.
+- The minimum external export API.
+
+Additional ADR-005B decisions:
+
+- Trusted list of required scenarios.
+- Commit and CI run binding.
+- Trusted verifier and gate version selection.
+- Saved verification report trust boundary.
+- Remediation REVIEW default and override policy.
+
 ## 25. Acceptance Criteria
 
 v0.5 is complete only if:
@@ -753,6 +944,20 @@ v0.5 is complete only if:
 - The external integration works from a clean clone.
 - Existing v0.4.1 scenarios and APIs remain compatible.
 
+Further acceptance requirements:
+
+- External consumer integration begins in v0.5-A.
+- No false dependency Git revisions are generated.
+- Direct contract actor inputs are rejected.
+- A stale valid artifact cannot satisfy a new CI run.
+- Removing a required scenario cannot produce PASS.
+- Standalone gate does not trust a saved report alone.
+- Identical compilation units are not needlessly
+  reverified within one execution.
+- Terminal output prioritizes scenario, decision,
+  reason and evidence location.
+- Independent adoption is tested before release.
+
 ## 26. Proposed Decision
 
 Proceed with v0.5 as a portable evidence workflow
@@ -766,9 +971,13 @@ Preserve independent Python classification logic.
 Extract shared orchestration only where it removes
 demonstration-specific assumptions and duplication.
 
-Do not begin implementation until the external
-producer contract and policy trust boundary
-are accepted through ADR-005A and ADR-005B.
+Define the minimal producer contract and trusted
+gate boundary in ADR-005A and ADR-005B before
+implementing the first external vertical slice.
+
+Use that consumer integration to validate and
+refine subsequent architecture decisions rather
+than finalizing generalized orchestration first.
 
 RFC-005 is a proposal for independent review,
 not an accepted implementation specification.
