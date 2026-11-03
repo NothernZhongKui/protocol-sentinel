@@ -66,6 +66,79 @@ echo "PASS | Clean committed test checkout"
 
 RUNNER="$INSTALLED/scripts/run_portable_direct.py"
 
+echo
+echo "=== PREFLIGHT NEGATIVE CONTROLS ==="
+
+python - "$RUNNER" "$CONSUMER" <<'PYTEST'
+import sys
+from pathlib import Path
+from unittest.mock import patch
+
+runner_path = Path(sys.argv[1]).resolve()
+project = Path(sys.argv[2]).resolve()
+
+sys.path.insert(0, str(runner_path.parent))
+import run_portable_direct as runner
+
+
+def rejects(expected, patches):
+    with patches[0], patches[1], patches[2]:
+        try:
+            runner.preflight_tools(project)
+        except ValueError as exc:
+            assert expected in str(exc), str(exc)
+        else:
+            raise AssertionError(
+                f"Preflight accepted missing requirement: {expected}"
+            )
+
+
+rejects(
+    "Forge executable not found",
+    (
+        patch.object(runner.shutil, "which", return_value=None),
+        patch.object(runner, "dependencies", return_value=[]),
+        patch.object(runner, "compiler_binary", return_value=None),
+    ),
+)
+
+rejects(
+    "Missing dependency: lib/forge-std",
+    (
+        patch.object(
+            runner.shutil, "which", return_value="/usr/bin/forge"
+        ),
+        patch.object(
+            runner, "dependencies",
+            side_effect=ValueError(
+                "Missing dependency: lib/forge-std"
+            ),
+        ),
+        patch.object(runner, "compiler_binary", return_value=None),
+    ),
+)
+
+rejects(
+    "Exact solc 0.8.24",
+    (
+        patch.object(
+            runner.shutil, "which", return_value="/usr/bin/forge"
+        ),
+        patch.object(runner, "dependencies", return_value=[]),
+        patch.object(
+            runner, "compiler_binary",
+            side_effect=ValueError(
+                "Exact solc 0.8.24+commit.e11b9ed9 not found"
+            ),
+        ),
+    ),
+)
+
+print("PASS | Missing Forge rejected")
+print("PASS | Missing dependency rejected")
+print("PASS | Missing exact solc rejected")
+PYTEST
+
 run_gate() {
   local label="$1"
   local verdict="$2"
