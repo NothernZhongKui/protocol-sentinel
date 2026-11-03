@@ -82,7 +82,7 @@ import run_portable_direct as runner
 
 
 def rejects(expected, patches):
-    with patches[0], patches[1], patches[2]:
+    with patches[0], patches[1]:
         try:
             runner.preflight_tools(project)
         except ValueError as exc:
@@ -98,7 +98,6 @@ rejects(
     (
         patch.object(runner.shutil, "which", return_value=None),
         patch.object(runner, "dependencies", return_value=[]),
-        patch.object(runner, "compiler_binary", return_value=None),
     ),
 )
 
@@ -114,29 +113,11 @@ rejects(
                 "Missing dependency: lib/forge-std"
             ),
         ),
-        patch.object(runner, "compiler_binary", return_value=None),
-    ),
-)
-
-rejects(
-    "Exact solc 0.8.24",
-    (
-        patch.object(
-            runner.shutil, "which", return_value="/usr/bin/forge"
-        ),
-        patch.object(runner, "dependencies", return_value=[]),
-        patch.object(
-            runner, "compiler_binary",
-            side_effect=ValueError(
-                "Exact solc 0.8.24+commit.e11b9ed9 not found"
-            ),
-        ),
     ),
 )
 
 print("PASS | Missing Forge rejected")
 print("PASS | Missing dependency rejected")
-print("PASS | Missing exact solc rejected")
 PYTEST
 
 run_gate() {

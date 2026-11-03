@@ -36,6 +36,8 @@ yet supported by this portable runner. These requirements are checked
 before Forge execution and before creating a run directory. The
 runner reports a setup failure instead of publishing completed Evidence.
 
+Foundry may install the configured Solidity compiler on its first build. The portable runner therefore checks the exact compiler during independent replay, after Forge execution and before completed Evidence publication.
+
 The verifier looks for solc in common Foundry/SVM locations or on `PATH`. A matching compiler on `PATH` can be checked with `solc --version`. See [compiler replay](build-reproducibility.md).
 
 ## 1. Install and configure

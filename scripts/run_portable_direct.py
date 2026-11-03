@@ -29,7 +29,7 @@ from build_provenance import (
     read_json,
     verify_evidence_build,
 )
-from replay_build_compilation import compiler_binary, verify_build_units
+from replay_build_compilation import verify_build_units
 from replay_direct_comparison import replay
 from run_direct_comparison import check_lossless
 from validate_comparison_schema import (
@@ -203,7 +203,6 @@ def preflight_tools(project):
     )
 
     dependencies(project)
-    compiler_binary()
 
 
 def source_inputs(project, bundle, config_name):
