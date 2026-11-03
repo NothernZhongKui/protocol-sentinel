@@ -18,6 +18,10 @@ import uuid
 from pathlib import Path
 
 from assemble_direct_comparison import assemble
+from trusted_direct_gate import (
+    evaluate_gate,
+    read_trusted_policy,
+)
 from build_provenance import (
     attach_evidence_build,
     capture_bundle,
@@ -36,6 +40,8 @@ from validate_comparison_schema import (
 
 TOOLS = (
     "scripts/run_portable_direct.py",
+    "scripts/trusted_direct_gate.py",
+    "scripts/ci_policy.py",
     "scripts/assemble_direct_comparison.py",
     "scripts/build_provenance.py",
     "scripts/replay_build_compilation.py",
@@ -264,7 +270,7 @@ def write_json(path, document):
         stream.write("\n")
 
 
-def run(project, config, config_name):
+def run(project, config, config_name, gate=None):
     require(
         not git(project, "status", "--porcelain"),
         "Consumer checkout must be clean",
@@ -495,6 +501,19 @@ def run(project, config, config_name):
             "Source input changed during verification",
         )
 
+        gate_result = None
+
+        if gate is not None:
+            gate_result = evaluate_gate(
+                gate,
+                config,
+                document,
+                report,
+                checkout=git(project, "rev-parse", "HEAD"),
+                run_id=run_id,
+                tool_revision=revision,
+            )
+
         write_json(evidence_path, document)
 
         write_json(
@@ -512,6 +531,9 @@ def run(project, config, config_name):
                 "ci_decision": "NOT_EVALUATED",
             },
         )
+
+        if gate_result is not None:
+            write_json(staging / "ci-gate.json", gate_result)
 
         for temporary in (
             fresh_info,
@@ -537,8 +559,16 @@ def run(project, config, config_name):
         print("SCENARIO:", config["id"])
         print("CLASSIFICATION:", report["comparison"])
         print("REPLAY: MATCH")
-        print("CI DECISION: NOT_EVALUATED")
+        decision = (
+            gate_result["decision"]
+            if gate_result is not None
+            else "NOT_EVALUATED"
+        )
+
+        print("CI DECISION:", decision)
         print("COMPLETED:", completed)
+
+        return decision
 
     except Exception:
         print(
@@ -570,6 +600,12 @@ def main():
         default=Path("sentinel.toml"),
     )
 
+    parser.add_argument(
+        "--trusted-policy",
+        type=Path,
+        help="Absolute path to policy selected by trusted CI",
+    )
+
     args = parser.parse_args()
 
     project = args.project.resolve()
@@ -588,17 +624,51 @@ def main():
         "Unsafe configuration name",
     )
 
-    run(
+    gate = (
+        read_trusted_policy(
+            args.trusted_policy,
+            project,
+            os.environ,
+        )
+        if args.trusted_policy is not None
+        else None
+    )
+
+    return run(
         project,
         read_config(config_path),
         args.config.as_posix(),
+        gate=gate,
     )
 
 
 if __name__ == "__main__":
+    ci_mode = any(
+        arg == "--trusted-policy"
+        or arg.startswith("--trusted-policy=")
+        for arg in sys.argv[1:]
+    )
+
     try:
-        main()
-    except (ValueError, subprocess.CalledProcessError) as exc:
-        raise SystemExit(
-            f"PORTABLE RUN FAILED | {exc}"
-        ) from exc
+        outcome = main()
+    except Exception as exc:
+        if ci_mode:
+            print("CI DECISION: BLOCK", file=sys.stderr)
+            print(f"CI GATE FAILED | {exc}", file=sys.stderr)
+            raise SystemExit(2) from exc
+
+        if isinstance(
+            exc, (ValueError, subprocess.CalledProcessError)
+        ):
+            raise SystemExit(
+                f"PORTABLE RUN FAILED | {exc}"
+            ) from exc
+
+        raise
+
+    raise SystemExit({
+        "NOT_EVALUATED": 0,
+        "PASS": 0,
+        "BLOCK": 2,
+        "REVIEW": 3,
+    }[outcome])
