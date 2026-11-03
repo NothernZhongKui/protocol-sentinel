@@ -317,6 +317,7 @@ jobs:
           assert report["after"]["status"] == "FAIL"
           assert report["source_context"] == "MATCHED_LOCAL_CHECKOUT"
           assert report["build_provenance"] == "LOCAL_INPUTS_VERIFIED"
+          assert report["build_replay"] == "NORMALIZED_OUTPUT_MATCH"
           assert report["execution_provenance"] == "UNAUTHENTICATED"
 
           subprocess.run(
@@ -366,6 +367,32 @@ jobs:
           test "$before" = "$after"
 
           echo "PASS | Post-write failure did not publish evidence"
+
+
+      - name: Adversarial independent build replay (direct)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/test_build_compilation.py artifacts/demo/comparison-runs/completed
+
+      - name: Reject forged build before publication (direct)
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="artifacts/demo/comparison-runs/completed"
+          before="$(find "$root" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+          log="$(mktemp)"
+          trap 'rm -f "$log"' EXIT
+
+          if python scripts/run_direct_comparison.py --inject-build-replay-mutation > "$log" 2>&1; then
+            echo "FAIL | Forged build was published"
+            exit 1
+          fi
+
+          grep -q "Build-info SHA-256 mismatch" "$log"
+          after="$(find "$root" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+          test "$before" = "$after"
+          echo "PASS | Forged build failed closed"
 
   comparison_c3:
     name: Comparison Evidence C3
@@ -451,6 +478,7 @@ jobs:
           assert report["mutation_tests"] == "PASS"
           assert report["source_context"] == "MATCHED_LOCAL_CHECKOUT"
           assert report["build_provenance"] == "LOCAL_INPUTS_VERIFIED"
+          assert report["build_replay"] == "NORMALIZED_OUTPUT_MATCH"
           assert report["execution_provenance"] == "UNAUTHENTICATED"
 
           for label, fixture in TESTS.items():
@@ -599,6 +627,32 @@ jobs:
           test "$before" = "$after"
 
           echo "PASS | Failed C3 producer cannot publish"
+
+
+      - name: Adversarial independent build replay (timelock)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/test_build_compilation.py artifacts/demo/comparison-runs/c3/completed
+
+      - name: Reject forged build before publication (timelock)
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="artifacts/demo/comparison-runs/c3/completed"
+          before="$(find "$root" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+          log="$(mktemp)"
+          trap 'rm -f "$log"' EXIT
+
+          if python scripts/run_timelock_comparison.py --inject-build-replay-mutation > "$log" 2>&1; then
+            echo "FAIL | Forged build was published"
+            exit 1
+          fi
+
+          grep -q "Build-info SHA-256 mismatch" "$log"
+          after="$(find "$root" -mindepth 1 -maxdepth 1 -type d | wc -l)"
+          test "$before" = "$after"
+          echo "PASS | Forged build failed closed"
 
   comparison_c4:
     name: Comparison Evidence C4
