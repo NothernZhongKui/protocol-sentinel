@@ -32,10 +32,10 @@ From the root of your existing Foundry project, add Sentinel as a submodule and 
 
 ```bash
 git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/protocol-sentinel
-git -C lib/protocol-sentinel checkout fbfbe63fc554843d168d7c95a4584afe021ee18b
+git -C lib/protocol-sentinel checkout v0.5.0
 ```
 
-This revision includes the v0.5 portable runner. Pin a reviewed release or commit when upgrading; older releases do not contain this runner. Keep the submodule initialized when cloning the consumer:
+This release includes the v0.5 portable runner. Pin a reviewed release or commit when upgrading; older releases do not contain this runner. Keep the submodule initialized when cloning the consumer:
 
 ```bash
 git submodule update --init --recursive
