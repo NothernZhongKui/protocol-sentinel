@@ -3,6 +3,21 @@
 Status: Experimental Foundry library (pre-1.0)
 Scope: Authority Regression / Local EVM
 
+## Current portable workflow and trust boundaries
+
+The v0.5.1 Direct runner executes a consumer-supplied Foundry producer, captures Comparison Evidence 1.0, verifies local source and build inputs, independently replays the recorded classification in Python, and reproduces normalized compiler outputs. An optional trusted policy makes a separate CI decision.
+
+| Boundary | What is checked | What it does not establish |
+| --- | --- | --- |
+| Consumer producer | One selected test executes and exports a capture. | The test, fixture, actor selection and expected revert describe a complete or honest security property. |
+| Evidence and Python replay | Recorded observations, identity and classification are checked for consistency. | Authenticity of the underlying EVM execution or safety beyond the declared scenario. |
+| Compiler replay | Recorded inputs reproduce normalized compiler contracts and sources. | Trusted source authorship, deployed bytecode identity, or execution provenance. |
+| Trusted CI | A policy binds the required producer, repository and CI context; the verified result is mapped to a decision. | That candidate-controlled workflow or policy changes are protected unless repository rules enforce the boundary. |
+
+A malicious or incorrect producer can manufacture a passing scenario or omit an important one. A fully fabricated but internally consistent evidence bundle is not independently authenticated. Review producer and fixture changes, required scenario inventory, pinned verifier and policy as well as the code under test. Ensure repository rules prevent unreviewed replacement or bypass of required workflows and checks. A local `MATCH` is classification agreement, not approval to merge. See [CI guide](guides/ci.md) and [build reproducibility](build-reproducibility.md).
+
+The fixture-specific material below describes the original authority regression model; it does not limit the preceding boundaries to those fixtures.
+
 ## 1. Security Objective
 
 Detect whether an implementation upgrade introduces an

@@ -16,11 +16,13 @@ It does not discover every permission or prove protocol security.
 
 ## Import
 
-After the v0.4.1 tag is published, install:
+In a Git-tracked Foundry project, install and pin the library. If forge-std is already present, retain a compatible version rather than adding it again:
 
 ~~~bash
-forge install --no-commit foundry-rs/forge-std@v1.17.0
-forge install --no-commit NothernZhongKui/protocol-sentinel@v0.4.1
+git submodule add https://github.com/foundry-rs/forge-std.git lib/forge-std
+git -C lib/forge-std checkout v1.17.0
+git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/protocol-sentinel
+git -C lib/protocol-sentinel checkout v0.5.1
 ~~~
 
 If forge-std is already installed, keep your existing
@@ -139,7 +141,11 @@ the consolidated v0.4.1 release.
 
 See [Timelock Route Quick Start](timelock-route-quickstart.md).
 
-## Migration from v0.1.x to v0.2.x
+## Historical migration notes
+
+The following sections describe earlier versions. For current installation, use the instructions above.
+
+### Migration from v0.1.x to v0.2.x
 
 The v0.2.0 release introduced the additional
 targetValidAtObservation field in Observation.
@@ -147,7 +153,7 @@ targetValidAtObservation field in Observation.
 Low-level consumers constructing Observation manually
 must update their code.
 
-## Migration from v0.2.0 to v0.2.1
+### Migration from v0.2.0 to v0.2.1
 
 The Solidity AuthorityProbe API is unchanged.
 
@@ -173,7 +179,7 @@ provided _observeCall or _observeIsolatedCall helpers.
 The opt-in _checkIsolatedUpgradeDetailed(spec) returns
 the observation, verdict and diagnostic reason.
 
-## Migration from v0.2.1 to v0.3.0
+### Migration from v0.2.1 to v0.3.0
 
 No Solidity AuthorityProbe API migration is required.
 
