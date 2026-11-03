@@ -79,7 +79,7 @@ def source_inputs():
     return entries
 
 
-def assemble(capture, run_id=None):
+def assemble(capture, run_id=None, *, context=None):
     expected = {
         "format",
         "chain_id",
@@ -134,8 +134,89 @@ def assemble(capture, run_id=None):
             },
         }
 
+    if context is None:
+        # Preserve the existing v0.4.1 demonstration contract.
+        project_root = ROOT
+        fixture_id = "role-vault-v1-to-risky-v2"
+        repository = "NothernZhongKui/protocol-sentinel"
+        manifest_inputs = source_inputs()
+        reproduce_command = (
+            "python3.12 scripts/run_direct_comparison.py"
+        )
+    else:
+        required = {
+            "projectRoot",
+            "fixtureId",
+            "repository",
+            "sourceInputs",
+            "reproduceCommand",
+        }
+
+        if not isinstance(context, dict) or set(context) != required:
+            raise ValueError("Invalid external assembly context")
+
+        project_root = Path(context["projectRoot"]).resolve()
+
+        if not (project_root / "foundry.toml").is_file():
+            raise ValueError("Missing consumer Foundry configuration")
+
+        fixture_id = context["fixtureId"]
+        repository = context["repository"]
+        manifest_inputs = context["sourceInputs"]
+        reproduce_command = context["reproduceCommand"]
+
+        for label, value in (
+            ("fixtureId", fixture_id),
+            ("repository", repository),
+            ("reproduceCommand", reproduce_command),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"Invalid {label}")
+
+        if not isinstance(manifest_inputs, list) or not manifest_inputs:
+            raise ValueError("Missing consumer source inputs")
+
+        seen = set()
+
+        for item in manifest_inputs:
+            if not isinstance(item, dict) or set(item) != {
+                "path", "sha256"
+            }:
+                raise ValueError("Invalid source input entry")
+
+            name = item["path"]
+            digest = item["sha256"]
+
+            if not isinstance(name, str) or not isinstance(digest, str):
+                raise ValueError("Invalid source input types")
+
+            relative = Path(name)
+
+            if (
+                relative.is_absolute()
+                or ".." in relative.parts
+                or name in seen
+                or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            ):
+                raise ValueError("Unsafe or duplicate source input")
+
+            seen.add(name)
+
+            local = (project_root / relative).resolve()
+
+            if (
+                not local.is_relative_to(project_root)
+                or not local.is_file()
+            ):
+                raise ValueError(f"Missing source: {name}")
+
+            actual = hashlib.sha256(local.read_bytes()).hexdigest()
+
+            if actual != digest:
+                raise ValueError(f"Source hash mismatch: {name}")
+
     config = tomllib.loads(
-        (ROOT / "foundry.toml").read_text()
+        (project_root / "foundry.toml").read_text()
     )
 
     deps = {}
@@ -147,9 +228,33 @@ def assemble(capture, run_id=None):
             "lib/openzeppelin-contracts-upgradeable",
         ),
     ):
-        deps[name] = git("rev-parse", "HEAD", cwd=ROOT / directory)
+        dependency = project_root / directory
 
-    clean = not bool(git("status", "--porcelain"))
+        if not dependency.is_dir():
+            raise ValueError(f"Missing dependency: {directory}")
+
+        revision = git("rev-parse", "HEAD", cwd=dependency)
+
+        index = git(
+            "ls-files", "--stage", "--", directory,
+            cwd=project_root,
+        ).split()
+
+        if (
+            len(index) != 4
+            or index[0] != "160000"
+            or index[1] != revision
+            or index[3] != directory
+        ):
+            raise ValueError(
+                f"Unpinned dependency: {directory}"
+            )
+
+        deps[name] = revision
+
+    clean = not bool(
+        git("status", "--porcelain", cwd=project_root)
+    )
 
     if run_id is None:
         run_id = uuid.uuid4().hex
@@ -182,7 +287,7 @@ def assemble(capture, run_id=None):
             "reason": capture["comparison_reason"],
         },
         "environment": {
-            "fixtureId": "role-vault-v1-to-risky-v2",
+            "fixtureId": fixture_id,
             "executionMode": "local_fixture",
             "chainId": capture["chain_id"],
             "forgeVersion": subprocess.check_output(
@@ -192,12 +297,12 @@ def assemble(capture, run_id=None):
             "dependencyRevisions": deps,
         },
         "provenance": {
-            "repository": "NothernZhongKui/protocol-sentinel",
-            "sourceCommit": git("rev-parse", "HEAD"),
+            "repository": repository,
+            "sourceCommit": git("rev-parse", "HEAD", cwd=project_root),
             "workingTreeClean": clean,
             "runId": run_id,
-            "sourceInputs": source_inputs(),
-            "reproduceCommand": "python3.12 scripts/run_direct_comparison.py",
+            "sourceInputs": manifest_inputs,
+            "reproduceCommand": reproduce_command,
         },
     }
 
