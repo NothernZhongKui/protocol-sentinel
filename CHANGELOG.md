@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (v0.5.1)
+## v0.5.1 - 2026-11-03
 
 ### Improved
 - Added external Treasury consumer integration to Sentinel CI,
