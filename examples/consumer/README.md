@@ -1,32 +1,20 @@
-# Standalone Foundry Consumer
+# Standalone Foundry consumer examples
 
-This example demonstrates importing Protocol Sentinel v0.1.0
-into an independent Foundry project.
+These examples exercise Solidity helper APIs in a separate Foundry project. Python is not required for these library-only examples. The repository CI checks their supported imports and scenarios.
 
-## Verified behavior
+| Example | Purpose |
+| --- | --- |
+| `SentinelConsumer.t.sol` | Basic authority helper; also exercised against v0.1.0 for compatibility. |
+| `SentinelDetailedConsumer.t.sol` | Detailed observation and diagnostic result. |
+| `SentinelComparativeConsumer.t.sol` | Compare a declared Direct scenario between implementations. |
+| `SentinelTimelockConsumer.t.sol` | Separate OpenZeppelin Timelock route. |
 
-- Baseline authorization: PASS
-- Intentionally expanded upgrade authority: FAIL
-- Snapshot restores the original implementation slot
+See the [library guide](../../docs/library-quickstart.md), [comparison guide](../../docs/comparative-authority-quickstart.md), and [Timelock guide](../../docs/timelock-route-quickstart.md). To run the independent Timelock consumer from the Sentinel repository root:
 
-## Import
+```bash
+bash scripts/check_timelock_consumer.sh
+```
 
-Install Protocol Sentinel v0.1.0 as a Foundry dependency.
+For portable evidence and trusted CI rather than library-only tests, see the [portable quickstart](../../docs/portable-direct-v0.5.md) and [Treasury consumer](https://github.com/NothernZhongKui/protocol-sentinel-consumer).
 
-Configure the remapping:
-
-    protocol-sentinel/=lib/protocol-sentinel/src/
-
-Copy SentinelConsumer.t.sol into the consumer project's
-test directory.
-
-Run:
-
-    forge test --match-path test/SentinelConsumer.t.sol -vv
-
-## Scope
-
-This is an API integration smoke test using a mock contract
-with an ERC-1967 implementation slot.
-
-It is not a full UUPS proxy integration or a security audit.
+The basic example uses a mock with an ERC-1967 implementation slot; it is not a full UUPS proxy integration or a security audit.

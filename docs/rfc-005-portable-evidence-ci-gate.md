@@ -1,6 +1,8 @@
 # RFC-005: Portable Evidence Workflow & CI Policy Gate
 
-Status: PROPOSED — architecture reviewed, decisions pending
+Status: Historical proposal (v0.5 decisions accepted; see [ADR-005A](adr-005a-external-producer.md) and [ADR-005B](adr-005b-trusted-ci-gate.md))
+
+This document records the proposal and its original assumptions. For current usage and scope, start with the [documentation index](README.md).
 Review revision: 2 — external-consumer-first approach
 Target: Protocol Sentinel v0.5
 Baseline: released v0.4.1

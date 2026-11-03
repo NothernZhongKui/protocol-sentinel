@@ -4,6 +4,39 @@ Use Protocol Sentinel in a Foundry project to compare a declared upgrade-authori
 
 For a complete working project, see the [Treasury consumer](https://github.com/NothernZhongKui/protocol-sentinel-consumer), including its [producer test](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/main/test/TreasuryAuthority.t.sol).
 
+## Try the pinned Treasury example
+
+This example uses the consumer at commit `1f1eb1799b8cfd01e6506bf477eb94fff7f1afbb`, which pins Sentinel commit `944ff25f356f2b5c537076c43d4ce8b0edb181b0` (the portable runner predates v0.5.1). The version pinned in your own project can be newer. Requirements below still apply, including Foundry, Python 3.12 and the exact solc.
+
+```bash
+git clone https://github.com/NothernZhongKui/protocol-sentinel-consumer.git
+cd protocol-sentinel-consumer
+git checkout 1f1eb1799b8cfd01e6506bf477eb94fff7f1afbb
+git submodule update --init --recursive
+python3.12 -m venv ../sentinel-example-venv
+source ../sentinel-example-venv/bin/activate
+python -m pip install -r lib/protocol-sentinel/evidence/requirements-schema.txt \
+  -r lib/protocol-sentinel/evidence/requirements-abi.txt
+python -B lib/protocol-sentinel/scripts/run_portable_direct.py \
+  --project "$PWD" --config sentinel-safe.toml
+```
+
+The safe fixture is expected to finish with output including:
+
+```text
+SCENARIO: treasury_safe
+CLASSIFICATION: STILL_SATISFIED
+REPLAY: MATCH
+CI DECISION: NOT_EVALUATED
+COMPLETED: .../artifacts/sentinel/runs/completed/<run-id>
+```
+
+The run ID and absolute path vary. Local verification makes no merge decision. Inspect `evidence.json` and `verification.json` in the completed directory. The [configuration reference](reference/configuration.md) explains the files and troubleshooting.
+
+## Connect your own project
+
+The steps below target Sentinel `v0.5.1`.
+
 ## Supported scenario
 
 | Component | v0.5 portable runner |
@@ -75,6 +108,15 @@ artifacts/sentinel/
 
 ## 2. Write the producer test
 
+The names below refer to different implementations:
+
+| Name | Role |
+| --- | --- |
+| Baseline | Active before the authorized transition. |
+| Updated | Installed by the authorized actor between observations. |
+| Candidate | The implementation the actor under test attempts to install during each isolated probe. |
+
+
 Inherit `DirectComparisonCapture` in a Foundry test. Set up your proxy and implementations, then:
 
 1. Define an `UpgradeCheck` with the actor, target, candidate, expected revert and policy.
@@ -83,9 +125,9 @@ Inherit `DirectComparisonCapture` in a Foundry test. Set up your proxy and imple
 4. Capture the updated stage with the same specification.
 5. Call `_compareDirectUpgrade` and `_exportDirectComparison` with the same `bytes32` scenario ID.
 
-The test must pass, be uniquely selected, and export one Direct capture. An intentionally unsafe example can pass a Foundry assertion that expects `CHANGED_TO_VIOLATION`: a passing test does not itself authorize a merge.
+The producer must execute successfully, be uniquely selected, and export one Direct capture. For a CI producer, record the observed result without asserting it is safe: the trusted gate decides whether to pass, block or review. Put expected safe/unsafe verdict assertions in separate tests. A passing producer does not itself authorize a merge.
 
-Adapt the [complete Treasury producer](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/main/test/TreasuryAuthority.t.sol) to your contracts and roles. The scenario ID in your configuration must match the value passed to both Solidity calls.
+Adapt the [complete Treasury producer](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/1f1eb1799b8cfd01e6506bf477eb94fff7f1afbb/test/TreasuryAuthority.t.sol) to your contracts and roles. The scenario ID in your configuration must match the value passed to both Solidity calls. The linked producer is a complete executable example; replace its fixture, actors, expected revert and authorized transition with your own.
 
 ## 3. Configure and commit
 
@@ -147,7 +189,7 @@ For `PASS`, `BLOCK`, or `REVIEW`, trusted CI supplies `--trusted-policy` with an
 
 Missing, duplicated, or invalid required scenarios block. In trusted-policy mode, the runner exits with code `0` for PASS, `2` for BLOCK or an error, and `3` for REVIEW. Without a trusted policy, a successfully verified local run exits `0` regardless of its classification.
 
-Protect the required workflow, policy, tool revision and branch rules against unreviewed changes. The runner alone cannot establish that trust boundary.
+Protect the required workflow, policy, tool revision and branch rules against unreviewed changes. The runner alone cannot establish that trust boundary. See the [CI guide](guides/ci.md) and [configuration and troubleshooting reference](reference/configuration.md).
 
 ## What verification establishes
 

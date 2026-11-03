@@ -61,6 +61,7 @@ Each completed run contains:
 - evidence.json
 - forge-results.json
 - verification.json
+- build/ (compiler build-info and provenance)
 
 A fresh staging directory is used for every invocation.
 

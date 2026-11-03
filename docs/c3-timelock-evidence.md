@@ -104,6 +104,7 @@ Each contains exactly:
 - waiting-evidence.json
 - forge-results.json
 - verification.json
+- build/ (compiler build-info and provenance)
 
 Both producing tests must succeed before publication.
 
