@@ -75,7 +75,18 @@ The verifier looks for solc in common Foundry/SVM locations or on `PATH`. A matc
 
 ## 1. Install and configure
 
-From the root of your existing Foundry project, add Sentinel as a submodule and pin a reviewed revision:
+From the root of your existing Git-tracked Foundry project, add the three required dependencies as clean Git submodules if they are not already installed at these paths. The revisions below match the tested Treasury consumer; if a matching submodule already exists, keep its reviewed compatible pin rather than adding it twice:
+
+```bash
+git submodule add https://github.com/foundry-rs/forge-std.git lib/forge-std
+git -C lib/forge-std checkout f3dae6e6ee381f25eb6a246f7da9b85c91a68219
+git submodule add https://github.com/OpenZeppelin/openzeppelin-contracts.git lib/openzeppelin-contracts
+git -C lib/openzeppelin-contracts checkout c64a1edb67b6e3f4a15cca8909c9482ad33a02b0
+git submodule add https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable.git lib/openzeppelin-contracts-upgradeable
+git -C lib/openzeppelin-contracts-upgradeable checkout e725abddf1e01cf05ace496e950fc8e243cc7cab
+```
+
+Then install and pin Sentinel:
 
 ```bash
 git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/protocol-sentinel
@@ -97,6 +108,8 @@ fs_permissions = [{ access = "read-write", path = "./artifacts/sentinel" }]
 remappings = [
   "forge-std/=lib/forge-std/src/",
   "protocol-sentinel/=lib/protocol-sentinel/src/",
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "@openzeppelin/contracts-upgradeable/=lib/openzeppelin-contracts-upgradeable/contracts/",
 ]
 ```
 
