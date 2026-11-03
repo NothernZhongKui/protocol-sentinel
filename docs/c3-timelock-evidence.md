@@ -119,7 +119,9 @@ A failed producing test cannot publish a completed run.
 Either evidence file can be independently replayed
 without Foundry or RPC:
 
-    python scripts/replay_timelock_comparison.py evidence.json
+    RUN_DIR="$(ls -td artifacts/demo/comparison-runs/c3/completed/*/ | head -n 1)"
+    python scripts/replay_timelock_comparison.py "$RUN_DIR/ready-evidence.json"
+    python scripts/replay_timelock_comparison.py "$RUN_DIR/waiting-evidence.json"
 
 An InvalidTimelockPreparation exception aborts
 replay of a completed comparison.
