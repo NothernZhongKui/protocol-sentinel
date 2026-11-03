@@ -24,6 +24,7 @@ from trusted_direct_gate import (
 )
 from build_provenance import (
     attach_evidence_build,
+    dependencies,
     capture_bundle,
     read_json,
     verify_evidence_build,
@@ -188,6 +189,22 @@ def verify_tool_pin(project):
     return revision
 
 
+def preflight_tools(project):
+    """Check the supported toolchain before staging Evidence."""
+
+    require(
+        sys.version_info >= (3, 12),
+        "Python 3.12 or newer is required",
+    )
+
+    require(
+        shutil.which("forge") is not None,
+        "Forge executable not found on PATH; install Foundry",
+    )
+
+    dependencies(project)
+
+
 def source_inputs(project, bundle, config_name):
     manifest = read_json(bundle / "build-provenance.json")
 
@@ -316,6 +333,9 @@ def run(project, config, config_name, gate=None):
         ignored.returncode == 0,
         "Evidence output directory must be Git-ignored",
     )
+
+    preflight_tools(project)
+    print("PASS | Portable prerequisites", flush=True)
 
     run_id = uuid.uuid4().hex
     base = project / "artifacts/sentinel/runs"

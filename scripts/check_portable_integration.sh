@@ -66,6 +66,60 @@ echo "PASS | Clean committed test checkout"
 
 RUNNER="$INSTALLED/scripts/run_portable_direct.py"
 
+echo
+echo "=== PREFLIGHT NEGATIVE CONTROLS ==="
+
+python - "$RUNNER" "$CONSUMER" <<'PYTEST'
+import sys
+from pathlib import Path
+from unittest.mock import patch
+
+runner_path = Path(sys.argv[1]).resolve()
+project = Path(sys.argv[2]).resolve()
+
+sys.path.insert(0, str(runner_path.parent))
+import run_portable_direct as runner
+
+
+def rejects(expected, patches):
+    with patches[0], patches[1]:
+        try:
+            runner.preflight_tools(project)
+        except ValueError as exc:
+            assert expected in str(exc), str(exc)
+        else:
+            raise AssertionError(
+                f"Preflight accepted missing requirement: {expected}"
+            )
+
+
+rejects(
+    "Forge executable not found",
+    (
+        patch.object(runner.shutil, "which", return_value=None),
+        patch.object(runner, "dependencies", return_value=[]),
+    ),
+)
+
+rejects(
+    "Missing dependency: lib/forge-std",
+    (
+        patch.object(
+            runner.shutil, "which", return_value="/usr/bin/forge"
+        ),
+        patch.object(
+            runner, "dependencies",
+            side_effect=ValueError(
+                "Missing dependency: lib/forge-std"
+            ),
+        ),
+    ),
+)
+
+print("PASS | Missing Forge rejected")
+print("PASS | Missing dependency rejected")
+PYTEST
+
 run_gate() {
   local label="$1"
   local verdict="$2"
