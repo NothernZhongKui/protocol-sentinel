@@ -14,6 +14,11 @@ import sys
 import uuid
 from pathlib import Path
 
+from replay_build_compilation import (
+    inject_build_output_mutation,
+    verify_build_units,
+)
+
 from build_provenance import (
     capture_bundle,
     attach_evidence_build,
@@ -46,6 +51,7 @@ EXPECTED_INPUTS = {
     "scripts/validate_comparison_schema.py",
     "scripts/run_direct_comparison.py",
     "scripts/build_provenance.py",
+    "scripts/replay_build_compilation.py",
 }
 
 
@@ -221,6 +227,10 @@ def main():
 
     parser.add_argument(
         "--inject-assembly-mutation",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--inject-build-replay-mutation",
         action="store_true",
     )
     args = parser.parse_args()
@@ -461,10 +471,17 @@ def main():
 
         print("PASS | Source hashes and build provenance", flush=True)
 
+        if args.inject_build_replay_mutation:
+            inject_build_output_mutation(build_bundle)
+
+        verify_build_units(build_bundle)
+        print("PASS | Independent Solidity build replay", flush=True)
+
         # A replay match is not a claim that execution
         # provenance has been authenticated.
         report["source_context"] = "MATCHED_LOCAL_CHECKOUT"
         report["build_provenance"] = "LOCAL_INPUTS_VERIFIED"
+        report["build_replay"] = "NORMALIZED_OUTPUT_MATCH"
         report["execution_provenance"] = "UNAUTHENTICATED"
         report["producer_test"] = "Success"
         report["run_id"] = run_id

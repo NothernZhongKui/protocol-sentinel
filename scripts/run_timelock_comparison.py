@@ -14,6 +14,11 @@ import sys
 import uuid
 from pathlib import Path
 
+from replay_build_compilation import (
+    inject_build_output_mutation,
+    verify_build_units,
+)
+
 from build_provenance import (
     capture_bundle,
     attach_evidence_build,
@@ -65,6 +70,7 @@ SOURCE_INPUTS = {
     "scripts/test_timelock_comparison_mutations.py",
     "scripts/run_timelock_comparison.py",
     "scripts/build_provenance.py",
+    "scripts/replay_build_compilation.py",
     "scripts/validate_comparison_schema.py",
     "evidence/semantics/registry.json",
     "evidence/schema/comparison-1.0.schema.json",
@@ -413,6 +419,10 @@ def main():
         action="store_true",
     )
 
+    parser.add_argument(
+        "--inject-build-replay-mutation",
+        action="store_true",
+    )
     args = parser.parse_args()
 
     run_id = uuid.uuid4().hex
@@ -621,6 +631,12 @@ def main():
 
         print("PASS | C3 adversarial matrix", flush=True)
 
+        if args.inject_build_replay_mutation:
+            inject_build_output_mutation(build_bundle)
+
+        verify_build_units(build_bundle)
+        print("PASS | Independent Solidity build replay", flush=True)
+
         report = {
             "run_id": run_id,
             "producer_tests": {
@@ -629,6 +645,7 @@ def main():
             "fixtures": reports,
             "source_context": "MATCHED_LOCAL_CHECKOUT",
             "build_provenance": "LOCAL_INPUTS_VERIFIED",
+            "build_replay": "NORMALIZED_OUTPUT_MATCH",
             "execution_provenance": "UNAUTHENTICATED",
             "mutation_tests": "PASS",
             "publication": "COMPLETED",
