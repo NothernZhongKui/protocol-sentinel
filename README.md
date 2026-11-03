@@ -5,6 +5,31 @@ Execution-based authority regression testing for upgradeable Ethereum contracts.
 **Status:** Experimental Foundry library (pre-1.0)  
 **Scope:** Local authority regression tests for declared actors and actions.
 
+## Portable Foundry Integration — v0.5
+
+Protocol Sentinel can now run a declared Direct EOA/UUPS
+authority regression in an independent Foundry project.
+
+One configured runner performs fresh test execution,
+Evidence capture, independent Python classification
+replay and independent Solidity compiler reproduction.
+
+An optional trusted CI policy separates a correctly
+replayed result from a safe-to-merge result:
+
+- `PASS` — declared restriction remains satisfied.
+- `BLOCK` — a violation is present or verification fails.
+- `REVIEW` — the result requires an explicit decision.
+
+**Start here:** [Portable Direct Quick Start](docs/portable-direct-v0.5.md).
+
+**Working external example:**
+[Protocol Sentinel Consumer](https://github.com/NothernZhongKui/protocol-sentinel-consumer).
+
+The portable integration is experimental and does not
+automatically discover privileges or prove contract
+security. Existing Timelock functionality remains separate.
+
 ## The Problem
 
 Upgradeable contracts may introduce new privileged execution paths
