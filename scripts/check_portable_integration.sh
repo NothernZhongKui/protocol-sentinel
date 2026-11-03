@@ -15,7 +15,7 @@ test "$TOOL_SHA" = "$GITHUB_SHA"
 TEMP="$(mktemp -d "${RUNNER_TEMP:-/tmp}/sentinel-portable.XXXXXX")"
 trap 'rm -rf "$TEMP"' EXIT
 
-CONSUMER="$TEMP/consumer"
+CONSUMER="$TEMP/protocol-sentinel-consumer"
 POLICY="$TEMP/trusted-policy.toml"
 
 echo
