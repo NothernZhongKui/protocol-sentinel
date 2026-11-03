@@ -73,7 +73,8 @@ cannot produce a completed publication.
 An existing evidence document can be classified without
 Foundry or RPC:
 
-    python scripts/replay_direct_comparison.py evidence.json
+    RUN_DIR="$(ls -td artifacts/demo/comparison-runs/completed/*/ | head -n 1)"
+    python scripts/replay_direct_comparison.py "$RUN_DIR/evidence.json"
 
 Replay independently checks:
 
