@@ -1,5 +1,48 @@
 # Changelog
 
+## Unreleased (v0.5.1)
+
+### Improved
+- Added external Treasury consumer integration to Sentinel CI,
+  covering safe PASS, regression BLOCK, and failed producer
+  without completed Evidence publication.
+- Added early Python, Forge, and pinned Git dependency checks
+  before Evidence staging. Foundry may bootstrap solc before
+  mandatory independent compiler replay.
+- Documented the currently supported dependency layout.
+- The reference consumer now provides a GitHub Job Summary
+  and downloadable Evidence and diagnostics on PASS and BLOCK.
+
+### Scope
+- No change to public Solidity APIs, comparison semantics,
+  Evidence schema, or the trusted policy decision table.
+- Portable execution remains limited to a declared Direct
+  EOA/UUPS scenario and the documented dependency layout.
+- Replay does not authenticate the original EVM execution.
+
+## v0.5.0 - 2026-11-03
+
+### Added
+- Portable runner for one declared external Direct EOA/UUPS
+  producer test in a Git-tracked Foundry project.
+- Solidity capture helper and versioned TOML configuration.
+- Fresh Forge execution, source and build provenance checks,
+  independent Python classification replay, and normalized
+  independent solc recompilation.
+- Atomic publication of completed verified Evidence.
+- Trusted CI policy decisions: PASS, BLOCK, and REVIEW.
+- Independent Treasury consumer with real GitHub Actions gate
+  and protected-workflow integrity check.
+
+### Compatibility and limits
+- Existing public Solidity APIs retained.
+- Timelock functionality remains separate from the portable
+  Direct runner.
+- No automatic discovery of privilege paths or independent
+  authentication of EVM execution.
+
+See [v0.5.0 release notes](docs/releases/v0.5.0.md).
+
 ## v0.4.1 - 2026-11-03
 
 Consolidated release of the v0.4-A/B/C and v0.4.1 cycle.

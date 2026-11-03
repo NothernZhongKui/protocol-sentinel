@@ -1,6 +1,6 @@
 # ADR-005A: External Producer and Portable Evidence Boundary
 
-Status: PROPOSED
+Status: ACCEPTED (v0.5.0 Direct slice implemented)
 Target: Protocol Sentinel v0.5-A
 Parent: RFC-005, revision 2
 Baseline: v0.4.1
@@ -512,12 +512,17 @@ These costs are acceptable for v0.5-A.
 
 ## 20. Decision Status
 
-This ADR is proposed for review.
+Accepted for the v0.5.0 external Direct EOA/UUPS slice.
 
-It becomes accepted only after the external
-producer contract and first-slice constraints
-have been agreed.
+The released implementation uses a pinned Sentinel
+submodule, one declared Foundry producer, verified
+Evidence, independent replay, and a trusted CI gate.
 
-Implementation should proceed incrementally,
-with the external consumer used continuously
-as the acceptance target.
+The implemented entry point is
+`scripts/run_portable_direct.py` within the installed
+Sentinel dependency. The proposed `sentinel run` CLI,
+arbitrary dependency layouts, and generalized route
+adapters have not shipped.
+
+The integration proves one supported workflow,
+not compatibility with every Foundry project.
