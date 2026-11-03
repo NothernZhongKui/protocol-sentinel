@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.4.1 - 2026-11-03
+
+Consolidated release of the v0.4-A/B/C and v0.4.1 cycle.
+
+### Added
+- Direct before/after authority comparison core.
+- OpenZeppelin Timelock single-operation route adapter.
+- Strict Comparison Evidence 1.0 for Direct and Timelock.
+- Independent Python classification and comparison replay.
+- External consumer and Solidity/Python differential oracles.
+- Fresh compiler build-info and source/dependency provenance.
+- Evidence-to-build SHA-256 manifest binding.
+- Independent normalized solc output reproduction.
+- Adversarial compilation and fail-closed publication gates.
+
+### Compatibility
+- Existing AuthorityProbe public API retained.
+- Legacy witness schemas 0.2, 0.3 and 0.4 retained.
+- Comparison Evidence 1.0 remains a separate namespace.
+
+### Limitations
+- Experimental local Foundry testing only.
+- Supported actors and governance routes remain explicit.
+- Compiler replay does not authenticate EVM execution.
+- No automatic privilege discovery or complete security audit.
+
+See docs/releases/v0.4.1.md.
+
 ## v0.3.0 - 2026-11-03
 
 ### Added

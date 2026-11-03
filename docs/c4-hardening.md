@@ -1,6 +1,6 @@
 # C4 — Evidence Hardening & Independent Reproduction
 
-Status: IMPLEMENTED FOR REVIEW
+Status: IMPLEMENTED
 Scope: Protocol Sentinel v0.4-C
 Architecture: RFC-004C / ADR-004C
 
@@ -119,3 +119,18 @@ schema versions were added.
 
 The existing C1, C2, C3 and legacy pipelines remain
 separate and continue to run in CI.
+
+## v0.4.1 build reproducibility extension
+
+The subsequent v0.4.1 work binds each completed
+Direct and Timelock run to fresh compiler build-info,
+checks dependency revisions and source contents,
+and independently recompiles compiler inputs.
+
+Publication is gated on normalized contracts and
+sources matching the recorded compiler output.
+Negative controls cover compiler output, optimizer
+settings and failure before publication.
+
+These checks do not authenticate EVM execution.
+See [Build Reproducibility](build-reproducibility.md).

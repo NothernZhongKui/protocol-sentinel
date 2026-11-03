@@ -16,12 +16,11 @@ It does not discover every permission or prove protocol security.
 
 ## Import
 
-Install the experimental v0.3.0 release
-after its tag is published:
+After the v0.4.1 tag is published, install:
 
 ~~~bash
 forge install --no-commit foundry-rs/forge-std@v1.17.0
-forge install --no-commit NothernZhongKui/protocol-sentinel@v0.3.0
+forge install --no-commit NothernZhongKui/protocol-sentinel@v0.4.1
 ~~~
 
 If forge-std is already installed, keep your existing
@@ -115,20 +114,18 @@ branch caused a matching revert.
 
 ## Experimental comparison API — v0.4-A
 
-The unreleased v0.4-A development branch adds
-`ComparativeAuthorityProbe`, a separate helper for
-comparing declared direct EOA upgrade scenarios.
-
-It is not part of the published v0.3.0 tag.
+The v0.4-A work introduced `ComparativeAuthorityProbe`,
+a separate helper for comparing declared direct EOA
+upgrade scenarios. It is included in v0.4.1.
 The existing AuthorityProbe API remains unchanged.
 
 See [Comparative Authority Quick Start](comparative-authority-quickstart.md).
 
 ## Experimental Timelock route API — v0.4-B
 
-The unreleased v0.4-B development branch adds
-TimelockAuthorityProbe for contract-mediated
-OpenZeppelin administrative upgrades.
+The v0.4-B work introduced TimelockAuthorityProbe
+for contract-mediated OpenZeppelin administrative
+upgrades. It is included in v0.4.1.
 
 This separate API does not change AuthorityProbe
 or ComparativeAuthorityProbe.
@@ -137,7 +134,8 @@ It supports declared ready and waiting Timelock
 operations, real isolated execution, pure evaluation,
 and comparison between active implementations.
 
-It is not included in the published v0.3.0 tag.
+The comparison and Timelock APIs are both part of
+the consolidated v0.4.1 release.
 
 See [Timelock Route Quick Start](timelock-route-quickstart.md).
 

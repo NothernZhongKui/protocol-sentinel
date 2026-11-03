@@ -69,9 +69,9 @@ The original status-only API remains available.
 See [Library Quick Start](docs/library-quickstart.md)
 for usage examples, supported scenarios, and limitations.
 
-## Timelock Route Adapter — experimental v0.4-B
+## Timelock Route Adapter — v0.4 series
 
-The unreleased TimelockAuthorityProbe supports one
+TimelockAuthorityProbe supports one
 contract-mediated administrative upgrade route:
 
 EOA executor -> TimelockController -> ProxyAdmin ->
@@ -94,7 +94,7 @@ See [Timelock Route Quick Start](docs/timelock-route-quickstart.md)
 and the independent consumer example in
 examples/consumer/SentinelTimelockConsumer.t.sol.
 
-## Comparison Evidence and Independent Replay — v0.4-C
+## Comparison Evidence and Build Reproducibility — v0.4.1
 
 Experimental comparison Evidence 1.0 supports two routes:
 `DIRECT_EOA_UUPS` and `OZ_TIMELOCK_SINGLE`.
@@ -114,10 +114,18 @@ This includes isolated external replay, Solidity/Python
 differential parity, forged-evidence controls and legacy
 schema compatibility.
 
+Direct and Timelock evidence publication also requires
+fresh Foundry compiler build-info, a verified provenance
+manifest and independent solc 0.8.24 recompilation.
+Normalized compiler contracts and sources must match
+before a run can be published.
+
 **Replay consistency is not execution authentication.**
 Evidence provenance remains `UNAUTHENTICATED`.
 
-See [C4 Hardening](docs/c4-hardening.md) and
+See [C4 Hardening](docs/c4-hardening.md),
+[Build Reproducibility](docs/build-reproducibility.md),
+[v0.4.1 Release Notes](docs/releases/v0.4.1.md) and
 [ADR-004C](docs/adr-004c-evidence-replay.md).
 
 ## Quick Start
@@ -247,7 +255,8 @@ The scenario demonstrates PASS -> FAIL -> PASS as upgrade
 authority is preserved, accidentally expanded, and restored.
 
 CI covers Foundry tests, legacy evidence, independent
-consumers, comparison evidence C1–C4 and external regressions.
+consumers, comparison evidence C1–C4, independent compiler
+replay gates and external regressions.
 
 See examples/consumer/ and examples/x402/ for details.
 
@@ -336,8 +345,9 @@ Its current convenience API supports:
 - Empty initialization calldata
 - Local EVM execution with snapshot restoration
 
-The helper does not discover arbitrary actors, selectors,
-privilege paths or contract-mediated execution flows.
+The direct convenience API does not discover arbitrary
+actors, selectors or privilege paths. A separate Timelock
+adapter supports one declared contract-mediated route.
 
 A `PASS` means the specified expected rejection was observed.
 It does not establish that a contract is generally secure.
