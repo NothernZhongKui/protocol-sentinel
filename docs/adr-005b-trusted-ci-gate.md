@@ -1,6 +1,6 @@
 # ADR-005B: Trusted CI Policy Gate
 
-Status: PROPOSED
+Status: ACCEPTED (v0.5.0 single-scenario gate implemented)
 Target: Protocol Sentinel v0.5
 Parent: RFC-005, revision 2
 Dependency: ADR-005A
@@ -456,20 +456,18 @@ Keep the first gate small.
 
 ## 19. Decision Status
 
-This ADR is PROPOSED.
+Accepted for the v0.5.0 trusted Direct CI slice.
 
-It defines the intended trust and policy
-contract for Protocol Sentinel v0.5.
+The implementation binds one required producer to
+trusted policy and GitHub CI context. Verified Evidence
+and policy decisions remain distinct. A reproduced
+authority violation produces BLOCK, not PASS.
 
-Implementation begins with one external
-Direct EOA/UUPS vertical slice.
+The policy engine supports a fixed verdict decision
+table. The portable trusted gate currently accepts
+one required scenario per invocation.
 
-The first consumer validates the actual
-usability of the public workflow.
-
-The initial policy engine should be a
-small deterministic function, not a
-new framework.
-
-Further abstractions require evidence
-from an additional real consumer scenario.
+Standalone `sentinel verify` and `sentinel gate`
+commands remain proposed interfaces, not released
+commands. Trust still depends on the protected CI
+workflow and the selected tool revision.
