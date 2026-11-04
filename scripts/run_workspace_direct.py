@@ -193,7 +193,13 @@ def run(project, tool, config_name, solc, policy_path=None):
             ),
         )
         check_lossless(raw, document)
-        verify_workspace_evidence(document, context, manifest_digest)
+        verify_workspace_evidence(
+            document, context, manifest_digest,
+            (
+                trusted["policy"]["consumer_repository"]
+                if trusted is not None else "LOCAL_UNTRUSTED_CHECKOUT"
+            ),
+        )
         report = replay(document, schema=schema_for(document))
         require(
             report["schema"] == "VALID"
