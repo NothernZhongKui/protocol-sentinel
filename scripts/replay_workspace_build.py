@@ -15,6 +15,7 @@ import tempfile
 from pathlib import Path
 
 from replay_build_compilation import canonical, verify_outputs
+from build_provenance import unique_pairs, invalid_constant
 from source_closure import attest_build_sources, materialize_imports
 from workspace_context import resolve_workspace
 
@@ -60,6 +61,21 @@ def replay_unit(context, info, solc):
             observed.startswith(info["solcVersion"]),
             "Compiler commit mismatch",
         )
+    if "solcLongVersion" in info:
+        expected_long = info["solcLongVersion"]
+        require(
+            isinstance(expected_long, str) and expected_long,
+            "Invalid recorded compiler long version",
+        )
+        actual_long = subprocess.run(
+            [str(solc), "--version"], text=True, capture_output=True,
+            check=False, timeout=30,
+        )
+        require(
+            actual_long.returncode == 0
+            and expected_long in actual_long.stdout,
+            "Compiler long version mismatch",
+        )
 
     attested = attest_build_sources(context, info)
     standard = {key: info["input"][key] for key in ("language", "sources", "settings")}
@@ -92,7 +108,10 @@ def replay_unit(context, info, solc):
         if raw.startswith(">>>"):
             raw = raw.split("\n", 1)[1]
         try:
-            output = json.loads(raw)
+            output = json.loads(
+                raw, object_pairs_hook=unique_pairs,
+                parse_constant=invalid_constant,
+            )
         except (ValueError, UnicodeDecodeError) as exc:
             raise ReplayError("Invalid compiler output JSON") from exc
         errors = [e for e in output.get("errors", []) if e.get("severity") == "error"]
