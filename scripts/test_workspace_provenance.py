@@ -7,6 +7,7 @@ from pathlib import Path
 
 from test_workspace_context import init, commit, git
 from workspace_context import resolve_workspace
+from replay_workspace_build import replay_unit
 from workspace_provenance import (
     WorkspaceProvenanceError, capture_v2, verify_v2,
 )
@@ -74,7 +75,17 @@ def main():
                     "test/Oracle.t.sol": {"id": 0},
                     "lib/protocol-sentinel/src/Capture.sol": {"id": 1},
                 },
-                "contracts": {},
+                "contracts": {
+                    "test/Oracle.t.sol": {
+                        "Oracle": {
+                            "abi": [],
+                            "evm": {
+                                "bytecode": {"object": "6000"},
+                                "deployedBytecode": {"object": "6000"},
+                            },
+                        },
+                    },
+                },
             },
         }
         (fresh / "unit.json").write_text(json.dumps(original))
@@ -93,6 +104,34 @@ def main():
             for entry in manifest["integrationInputs"]
         )
         print("PASS | V2 capture, exact manifest, inherited config pinning")
+
+        # Deterministic mock compiler: tests the replay wiring and strict
+        # comparison, NOT actual Solidity compilation.
+        fake = base / "fake-solc"
+        fake.write_text(
+            "#!/usr/bin/env python3\n"
+            "import json, sys\n"
+            "if '--version' in sys.argv:\n"
+            "    print('Version: 0.8.26+commit.8a97fa7a.Linux.g++')\n"
+            "    sys.exit(0)\n"
+            "sys.stdin.buffer.read()\n"
+            "print(" + repr(json.dumps(original["output"])) + ")\n"
+        )
+        fake.chmod(0o755)
+        report = replay_unit(context, original, fake)
+        assert report["contracts"] == 1
+        assert report["source_units"] == 2
+        assert report["snapshot_imports"] == 0
+        print("PASS | Standalone replay plumbing with deterministic mock compiler")
+
+        original_fake = fake.read_text()
+        fake.write_text(original_fake.replace("6000", "6001"))
+        reject(
+            "changed compiler output bytecode",
+            lambda: replay_unit(context, original, fake),
+            "CONTRACTS MISMATCH",
+        )
+        fake.write_text(original_fake)
 
         path = bundle / "build-info/unit.json"
         original_bytes = path.read_bytes()
