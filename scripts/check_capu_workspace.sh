@@ -252,6 +252,28 @@ PY
   grep -Fqx "CI_DECISION=$decision" "$verify_log"
 
   if test "$variant" = "safe"; then
+    echo "=== REJECT REPLAY WITH DIFFERENT CI ATTEMPT ==="
+    local swapped_attempt="$((CI_RUN_ATTEMPT + 1))"
+    local attempt_status=0
+    env \
+      GITHUB_REPOSITORY="$CI_REPOSITORY" \
+      GITHUB_SHA="$CI_SHA" \
+      GITHUB_RUN_ID="$CI_RUN_ID" \
+      GITHUB_RUN_ATTEMPT="$swapped_attempt" \
+      GITHUB_WORKFLOW_REF="$CI_WORKFLOW_REF" \
+      python3 -B "$INSTALLED/scripts/verify_workspace_run.py" \
+        --project "$PROJECT" \
+        --tool-root "$INSTALLED" \
+        --run-dir "$completed" \
+        --config sentinel-safe.toml \
+        --solc "$SOLC" \
+        --trusted-policy "$POLICY" \
+        > "$TEMP/swapped-attempt.log" 2>&1 || attempt_status=$?
+    cat "$TEMP/swapped-attempt.log"
+    test "$attempt_status" -eq 2
+    grep -q 'Published trusted CI gate differs' "$TEMP/swapped-attempt.log"
+    echo "PASS | Different GitHub run attempt cannot reuse published gate"
+
     echo "=== REJECT TAMPERED COMPLETED EVIDENCE ==="
     local evidence="$completed/evidence.json"
     local original="$TEMP/safe-evidence-original.json"
