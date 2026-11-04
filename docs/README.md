@@ -18,6 +18,6 @@
 
 - [Contributing](../CONTRIBUTING.md) and [architecture](architecture.md).
 - [Release notes](releases/) and [changelog](../CHANGELOG.md).
-- Proposed v0.6 design (not implemented): [RFC-006 — Existing Foundry pilot](rfc-006-existing-foundry-pilot.md) and [ADR-006A — Pilot boundary](adr-006a-external-oss-pilot-boundary.md).
+- Proposed v0.6 design (not implemented): [RFC-006 — Existing Foundry pilot](rfc-006-existing-foundry-pilot.md) and [ADR-006A — Pilot boundary](adr-006a-external-oss-pilot-boundary.md), with [ADR-006B — Portable workspace and provenance](adr-006b-portable-workspace-provenance.md) proposed after pilot diagnostics.
 - Design history: [RFC-004](rfc-004-comparative-authority-regression.md), [RFC-004C](rfc-004c-evidence-replay.md), [RFC-005](rfc-005-portable-evidence-ci-gate.md), and [ADRs](adr-005b-trusted-ci-gate.md). These record decisions and past proposals; current guides take precedence for usage.
 - Maintainer evidence demonstrations: [Direct](c2-direct-evidence.md), [Timelock](c3-timelock-evidence.md), and [hardening](c4-hardening.md).
