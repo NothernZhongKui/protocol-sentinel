@@ -34,7 +34,8 @@ def read_workspace_policy(path, context, environ):
     require(
         isinstance(policy, dict)
         and set(policy) == {
-            "version", "repository", "workspace", "workflow", "tool_commit"
+            "version", "repository", "consumer_repository",
+            "consumer_commit", "workspace", "workflow", "tool_commit"
         }
         and policy["version"] == "2",
         "UNSUPPORTED_WORKSPACE_POLICY",
@@ -42,6 +43,17 @@ def read_workspace_policy(path, context, environ):
     require(
         REPO.fullmatch(policy["repository"]) is not None,
         "INVALID_POLICY_REPOSITORY",
+    )
+    require(
+        isinstance(policy["consumer_repository"], str)
+        and REPO.fullmatch(policy["consumer_repository"]) is not None,
+        "INVALID_CONSUMER_REPOSITORY",
+    )
+    require(
+        isinstance(policy["consumer_commit"], str)
+        and SHA.fullmatch(policy["consumer_commit"]) is not None
+        and policy["consumer_commit"] == context.repository_commit,
+        "TRUSTED_CONSUMER_COMMIT_MISMATCH",
     )
     require(
         policy["workspace"] == context.workspace,
@@ -82,7 +94,7 @@ def read_workspace_policy(path, context, environ):
     )
     require(
         ci["GITHUB_REPOSITORY"] == policy["repository"]
-        and ci["GITHUB_SHA"] == context.repository_commit
+        and isinstance(ci["GITHUB_SHA"], str)
         and SHA.fullmatch(ci["GITHUB_SHA"]) is not None,
         "CI_CHECKOUT_MISMATCH",
     )
@@ -119,7 +131,7 @@ def evaluate_workspace_gate(trusted, context, producer, evidence, report, run_id
         "EVIDENCE_IDENTITY_MISMATCH",
     )
     require(
-        provenance["repository"] == policy["repository"].split("/")[-1],
+        provenance["repository"] == policy["consumer_repository"],
         "EVIDENCE_REPOSITORY_MISMATCH",
     )
     require(
