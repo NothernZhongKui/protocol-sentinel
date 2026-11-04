@@ -92,6 +92,15 @@ not authentication. The trusted CI gate binds identity to
 protected policy, CI context, actual checkout commit, tool pin
 and run/attempt identifiers.
 
+**Trusted workspace identity:** required-scenario policy must
+bind the selected producer to a normalized, repository-relative
+workspace path (e.g. `projects/capu`) plus a pinned config path
+and producer identity. Resolve it against the verified repository
+root. Reject alternate workspace selection by candidate-branch
+config, even if two workspaces share the same test path, contract
+name and test name. Do not bind machine-specific absolute paths;
+relocated clean clones must retain the same scenario identity.
+
 ## 5. Compiler source mapping
 
 For each fresh compiler input source:
@@ -100,20 +109,30 @@ For each fresh compiler input source:
 2. Resolve its physical path relative to the effective Foundry
    workspace using the actual supported Foundry path model.
 3. Canonicalize path components and inspect symlinks.
-4. Require the resolved file to belong to the verified checkout
-   or an explicitly verified, pinned dependency root.
+4. Require the resolved file to belong to the consumer checkout
+   or Git submodules reachable through a verified gitlink chain
+   rooted in that checkout. External dependency roots are out of
+   scope for v0.6.
 5. Compare file bytes with the bytes supplied to solc, without
    normalizing either source or logical name.
-6. Record a deterministic mapping to the owning Git checkout,
+6. Verify the file is Git-tracked in its immediate owning checkout.
+   For a submodule, validate each parent gitlink's mode `160000`
+   and pinned revision through the full chain from consumer root.
+   Reject untracked and ignored-only files, even if bytes match.
+7. Record deterministic mapping to the owning checkout,
    repository-relative physical path and source content digest.
-7. Require identical logical names across build units to map
-   consistently, or reject conflicts.
+8. Require a stable logical-name-to-physical-file mapping across
+   build units; reject conflicts. Multiple logical source names
+   may point at one verified physical file and must retain their
+   original logical compiler input keys.
 
 `..` may occur in compiler logical paths; it is not
 automatically unsafe **if** physical resolution and ownership
 pass. It must never grant arbitrary access beyond verified roots.
-An absolute path, symlink escape, missing file, dirty dependency
-or conflicting content is an error, not a reason to skip a source.
+An absolute path, symlink escape, missing/untracked/ignored-only
+file, dirty dependency or conflicting content is an error, not
+a reason to skip a source. Clean `git status` alone is
+insufficient to prove that compiler sources are tracked.
 
 Preserve logical names in independently replayed Standard JSON.
 Physical path normalization belongs to verification metadata,
@@ -133,8 +152,10 @@ a fixed path list. Do not invent dependency revisions.
 A Foundry lockfile is evidence **when actually present and
 tracked**. Its absence must not be a blanket failure if the
 effective source/dependency graph can be completely verified
-through other supported evidence. A missing lockfile must not
-silently imply pinned dependency integrity; unsupported or
+through other supported evidence. Distinguish absent lockfile
+from present but untracked/ignored **and used** lockfile: the
+latter cannot silently count as absence. A missing lockfile
+must not imply pinned dependency integrity; unsupported or
 untracked inputs still fail closed.
 
 The minimum v0.6 scope is Git-tracked sources plus verified
@@ -161,12 +182,24 @@ difference to obtain `MATCH`.
 
 ## 8. Evidence and manifest compatibility
 
-Three identities must remain distinguishable:
+Preserve at least three categories of verified inputs:
 
-- `sourceInputs`: actual compiler source content digests.
-- Dependency provenance: real version-pinned Git checkouts.
-- Build manifest: effective compiler inputs and settings,
-  build-info units, source mappings and dependency identities.
+- **Compiler inputs:** exact source bytes, logical source names,
+  effective compiler settings and build units.
+- **Integration inputs:** Sentinel scenario/config, all effective
+  Foundry configuration files (including workspace and inherited
+  root settings), remappings, dependency metadata and tracked
+  lockfiles when present.
+- **Verification tooling:** pinned Sentinel code, verifier scripts,
+  schema, semantics registry and their relevant dependencies.
+
+Existing `provenance.sourceInputs` contains more than compiler
+sources: it also hashes `.gitmodules`, `foundry.toml`,
+`foundry.lock`, the consumer config and Sentinel scripts/schema/
+semantics. Any new format must preserve these checks and adapt
+them correctly to inherited Foundry configurations and optional
+lockfiles. These categories are a data contract, not a demand
+for three new files.
 
 Evidence 1.0 currently fixes
 `protocol-sentinel-build-provenance-v1` in its build-manifest
@@ -178,16 +211,24 @@ reference and requires named OpenZeppelin revisions.
   and the Treasury consumer as a compatibility path.
 - Define a separately versioned, strict build manifest for
   actual dependency graphs and verified source mappings.
+- **Before any new writer publishes Evidence**, define the
+  smallest versioned manifest schema and Evidence reference
+  compatibility matrix, including required workspace binding.
 - When binding that format to Evidence, introduce an
-  explicit schema/version evolution with dual-reading,
-  rather than changing what v1 fields mean.
+  explicit schema/version evolution with strict version dispatch:
+  old v1 stays accepted on its own terms; malformed or unknown
+  new formats cannot fall back to a legacy reader.
+- Add negative tests for mixed Evidence/manifest versions,
+  unsupported versions and inconsistent version claims.
+  Avoid maintaining two independent writer pipelines by default.
 - Keep `direct-eoa-v1` classification semantics untouched;
   metadata versioning does not imply new verdict semantics.
 
-Exact v2 manifest field names and the corresponding Evidence
-schema revision are **deferred to a focused schema amendment**
-after validating actual Capminal build-info. The first code PR
-must not silently ship a new JSON shape under a v1 identifier.
+Exact next-version field names and the Evidence schema revision
+remain a focused design task, but **must be frozen before new
+pipeline publication or gate integration**. Diagnostic source
+mapping and compiler replay can proceed independently. No code
+PR may silently ship a new JSON shape under a v1 identifier.
 
 ## 9. Publication and trusted gate
 
@@ -214,10 +255,12 @@ producer inventory or trusted CI identity.
    installed-tool pin resolution; preserve Treasury behavior.
 2. Verify real source mappings and actual Git dependency
    ownership, with explicit failure reasons.
-3. Support fresh effective compiler metadata and exact
-   `0.8.26` replay without losing `0.8.24`.
-4. Version any necessary manifest/Evidence metadata evolution
-   and verify backward compatibility.
+3. Independently test exact `0.8.26` Standard JSON replay
+   from existing Capminal build-info, then support the proven
+   compiler build without losing `0.8.24`.
+4. Freeze the minimal manifest/Evidence version contract and
+   compatibility matrix **before** publishing through a revised
+   runner; verify backward compatibility.
 5. Align runner, assembler and trusted gate with the same
    verified context; test safe and faulty pipelines end-to-end.
 6. Improve first actionable error display: phase, reason,
@@ -229,12 +272,23 @@ runner is required by this ADR.
 ## 11. Negative controls and release acceptance
 
 Tests must reject: traversal/symlink escape, untracked or
-dirty source, mutated compiler source content, duplicate
-logical name with conflicting content, absent/dirty gitlink,
-wrong repository/workspace pairing, forged dependency
-revision, wrong solc binary or compiler settings, altered
-build-info, mismatched build manifest digest, swapped
+ignored-only source, dirty tracked source, mutated compiler
+source content, duplicate logical name with conflicting
+content, absent/dirty gitlink or broken nested gitlink chain,
+wrong repository/workspace pairing or producer with duplicated
+name in another workspace, forged dependency revision, wrong
+solc binary or compiler settings, altered build-info, mixed
+Evidence/manifest versions, unsupported version or failed
+strict version dispatch, mismatched manifest digest, swapped
 consumer commit, old CI run identity and untrusted policy.
+
+Positive portability tests must accept: relocated checkout
+under a renamed parent directory, verified source imported from
+an adjacent workspace, correctly pinned nested submodule,
+absent lockfile with otherwise fully verified inputs and
+Git dependencies, and two logical compiler source names mapping
+deterministically to one physical tracked file while retaining
+both logical keys. Treasury remains a required legacy control.
 
 Acceptance requires a clean clone of the real Capminal pilot
 to produce safe and synthetic-regression completed Evidence,
@@ -263,6 +317,10 @@ verification.
    any justified change to output normalization?
 6. Which verified identity fields must be shared between
    provenance, runner and trusted gate?
+7. What is the minimal trusted-policy representation of
+   repository-relative workspace path and config identity?
+8. Which integration inputs must be included when root and
+   workspace Foundry configurations are inherited?
 
 ## 13. Status
 
