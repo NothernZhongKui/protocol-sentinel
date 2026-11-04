@@ -164,7 +164,27 @@ def capture_v2(context, fresh, destination, producer_source):
 
 def verify_v2(context, bundle, producer_source):
     bundle = Path(bundle)
-    recorded = read_json(bundle / "build-provenance.json")
+    require(bundle.is_dir() and not bundle.is_symlink(), "Invalid build bundle directory")
+    require(
+        {p.name for p in bundle.iterdir()} == {"build-info", "build-provenance.json"},
+        "Unexpected build bundle contents",
+    )
+    manifest_path = bundle / "build-provenance.json"
+    folder = bundle / "build-info"
+    require(
+        manifest_path.is_file() and not manifest_path.is_symlink(),
+        "Invalid build manifest file",
+    )
+    require(
+        folder.is_dir() and not folder.is_symlink()
+        and all(
+            child.is_file() and not child.is_symlink()
+            and SAFE_NAME.fullmatch(child.name) is not None
+            for child in folder.iterdir()
+        ),
+        "Unexpected build-info file or symlink",
+    )
+    recorded = read_json(manifest_path)
     require(isinstance(recorded, dict), "Invalid v2 manifest")
     require(recorded.get("format") == FORMAT_V2, "Unsupported manifest version")
     require(
