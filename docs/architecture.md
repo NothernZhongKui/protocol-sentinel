@@ -1,15 +1,16 @@
 # Architecture
 
-Sentinel separates observing EVM behavior from evaluating it, reproducing the classification, and deciding CI policy.
+Sentinel separates execution, observation, classification, replay and policy.
 
-| Component | Responsibility | Entry points |
+| Component | Responsibility | Entry point |
 | --- | --- | --- |
-| Observation and evaluation | Execute isolated upgrade attempts, restore state, evaluate declared policy. | [AuthorityProbe.sol](../src/AuthorityProbe.sol) |
-| Direct comparison and capture | Compare two active implementations and export observations. | [ComparativeAuthorityProbe.sol](../src/ComparativeAuthorityProbe.sol), [DirectComparisonCapture.sol](../src/DirectComparisonCapture.sol) |
-| Timelock route | Observe and compare the declared OpenZeppelin administrative route. | [TimelockAuthorityProbe.sol](../src/TimelockAuthorityProbe.sol) |
-| Evidence and replay | Assemble and validate recorded evidence; independently recompute Direct classification. | [run_portable_direct.py](../scripts/run_portable_direct.py), [replay_direct_comparison.py](../scripts/replay_direct_comparison.py), [schema and semantics](../evidence/) |
-| Policy | Map verified comparisons to a separate CI decision and bind a trusted scenario. | [ci_policy.py](../scripts/ci_policy.py), [trusted_direct_gate.py](../scripts/trusted_direct_gate.py) |
+| Solidity helper | Execute isolated declared attempts, restore state, evaluate and compare observations. | [AuthorityProbe.sol](../src/AuthorityProbe.sol), [ComparativeAuthorityProbe.sol](../src/ComparativeAuthorityProbe.sol), [DirectComparisonCapture.sol](../src/DirectComparisonCapture.sol) |
+| Workspace runner | Execute one fresh producer; assemble Evidence 1.1 and optionally apply trusted policy. | [run_workspace_direct.py](../scripts/run_workspace_direct.py) |
+| Workspace provenance | Resolve checkout and submodule identities; attest compiler source closure and build inputs. | [workspace_context.py](../scripts/workspace_context.py), [source_closure.py](../scripts/source_closure.py), [workspace_provenance.py](../scripts/workspace_provenance.py) |
+| Replay | Independently reproduce recorded classification and normalized compiler output. | [replay_direct_comparison.py](../scripts/replay_direct_comparison.py), [replay_workspace_build.py](../scripts/replay_workspace_build.py) |
+| Trusted policy and reverification | Bind CI context and scenario, map classification to decision, and recheck a completed trusted bundle. | [trusted_workspace_gate.py](../scripts/trusted_workspace_gate.py), [verify_workspace_run.py](../scripts/verify_workspace_run.py) |
+| Timelock | Separate OpenZeppelin route helper; outside the portable Direct runner. | [TimelockAuthorityProbe.sol](../src/TimelockAuthorityProbe.sol) |
 
-The Solidity and Python classification implementations are intentionally independent so replay can detect disagreements. They must preserve the same specified semantics; removing one as “duplicate” would remove that cross-check.
+The Solidity and Python classification implementations are intentionally independent: replay can detect disagreement between implementations, not independently authenticate execution. Their specified semantics must remain aligned.
 
-The runner checks recorded build inputs and recompiles them with solc. This is not independent EVM execution attestation. See [build reproducibility](build-reproducibility.md), [threat model](threat-model.md), and [ADR-005B](adr-005b-trusted-ci-gate.md).
+The v0.5 [portable runner](../scripts/run_portable_direct.py), Evidence 1.0 and v1 build provenance remain separate from the v0.6 workspace runner, Evidence 1.1 and v2 provenance. See the [workspace guide](portable-workspace-v0.6.md), [threat model](threat-model.md) and [CI guide](guides/ci.md).

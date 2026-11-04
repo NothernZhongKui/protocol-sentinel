@@ -1,5 +1,50 @@
 # Changelog
 
+## Unreleased — v0.6.0 release candidate
+
+### Added
+- Separate portable Direct EOA/UUPS runner for Git-pinned Foundry
+  workspaces nested inside monorepos, without changing the legacy runner.
+- Comparison Evidence 1.1 and build-provenance v2 with explicit
+  repository, workspace, tool revision, compiler and source ownership.
+- Git-attested compiler source closure across pinned submodule chains;
+  isolated Standard JSON recompilation with original source-unit keys.
+- Independent completed-Evidence verifier that rechecks raw capture,
+  recorded producer outcome, source provenance, compiler replay,
+  classification and trusted CI policy.
+- Pinned external Capminal acceptance for synthetic safe and faulty
+  migrations, failed-producer nonpublication and artifact mutations.
+- Portable workspace v0.6 quickstart and release-candidate review notes.
+
+### Fixed and hardened
+- Keep `MATCH + CHANGED_TO_VIOLATION` as CI `BLOCK`, including a
+  nonzero exit code from independent completed-Evidence verification.
+- Reject forged Evidence compiler version or execution mode, compiler
+  commit mismatches, unsupported short compiler identities, altered
+  build artifacts, symlinked build inputs and mismatched CI run attempts.
+- Support nested Foundry workspaces without a repository-root
+  `foundry.toml`, while requiring a tracked workspace configuration.
+- Use real GitHub Actions run identity in CI acceptance and explicitly
+  synthetic context for local harness runs.
+- Avoid duplicate push/PR CI runs on feature branches and cancel
+  superseded pull-request checks.
+
+### Compatibility and limitations
+- Evidence 1.0, the v0.5 portable runner, existing Solidity APIs,
+  Timelock adapter and classification decision semantics are retained.
+- v0.6 remains one explicitly declared Direct EOA/UUPS scenario per
+  invocation; other upgrade routes are not supported by this runner.
+- Compiler/source replay verifies consistency of recorded observations
+  but cannot independently authenticate original EVM execution or
+  discover every privilege path.
+- The Capminal faulty implementation is test-only and does not imply
+  any vulnerability in upstream Capminal.
+- **Not released:** PR #41 remains draft pending maintainer approval
+  and final required checks before merge.
+
+See [v0.6 release-candidate review](docs/releases/v0.6.0-rc-review.md)
+and [portable workspace quickstart](docs/portable-workspace-v0.6.md).
+
 ## v0.5.1 - 2026-11-03
 
 ### Improved

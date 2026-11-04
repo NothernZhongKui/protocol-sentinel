@@ -1,6 +1,6 @@
 # Portable Direct configuration and artifacts
 
-Applies to the v0.5.1 portable runner. Start with the [quickstart](../portable-direct-v0.5.md).
+Applies to the v0.5.1 portable runner and Evidence 1.0. Start with the [v0.5 quickstart](../portable-direct-v0.5.md). For the unreleased v0.6 workspace runner and Evidence 1.1, see the [workspace reference](workspace-v0.6.md).
 
 ## Producer configuration
 
@@ -43,7 +43,7 @@ A successful run is published under `artifacts/sentinel/runs/completed/<run-id>/
 | --- | --- |
 | `raw-capture.json` | Solidity producer capture. |
 | `evidence.json` | Assembled comparison evidence. |
-| `verification.json` | Replay and build verification summary. Its `ci_decision` is `NOT_EVALUATED`; inspect `ci-gate.json` for the trusted decision. |
+| `verification.json` | Replay and build verification summary. Its `ci_decision` is `NOT_EVALUATED` without a trusted policy; in trusted mode it records the gate decision. Inspect `ci-gate.json` for the trusted policy result and CI context. |
 | `forge-results.json` | Selected test's Forge execution record. |
 | `build/` | Compiler build-info and provenance. |
 | `ci-gate.json` | Trusted policy decision, only when a trusted policy was supplied. |

@@ -1,5 +1,7 @@
 # Build Reproducibility — Protocol Sentinel v0.4.1
 
+This page describes the legacy Direct and Timelock runners and Evidence 1.0. For the unreleased v0.6 workspace runner, Git-attested source closure and Evidence 1.1, see the [workspace guide](portable-workspace-v0.6.md) and [architecture](architecture.md).
+
 Status: IMPLEMENTED
 Scope: Direct and Timelock Comparison Evidence 1.0
 

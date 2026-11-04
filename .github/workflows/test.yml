@@ -4,8 +4,15 @@ permissions: {}
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+# A PR runs once per revision; replaced revisions do not occupy runners.
+# Main retains push validation and is never cancelled by a PR update.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -718,6 +725,33 @@ jobs:
           python scripts/test_ci_policy.py
           python scripts/test_trusted_direct_gate.py
 
+      - name: Verify v0.6 workspace context foundation
+        run: python scripts/test_workspace_context.py
+
+      - name: Verify v0.6 Git compiler source closure
+        run: python scripts/test_source_closure.py
+
+      - name: Verify v0.6 strict workspace provenance v2
+        run: python scripts/test_workspace_provenance.py
+
+      - name: Verify v0.6 trusted workspace PASS and BLOCK
+        run: python scripts/test_trusted_workspace_gate.py
+
+      - name: Validate workspace Evidence 1.1 schema and runner syntax
+        run: |
+          python -m py_compile scripts/workspace_context.py scripts/source_closure.py scripts/workspace_provenance.py scripts/workspace_evidence.py scripts/assemble_workspace_direct.py scripts/replay_workspace_build.py scripts/trusted_workspace_gate.py scripts/run_workspace_direct.py scripts/verify_workspace_run.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator
+          p = Path("evidence/schema/comparison-1.1.schema.json")
+          schema = json.loads(p.read_text())
+          Draft202012Validator.check_schema(schema)
+          assert schema["properties"]["schema_version"]["const"] == "1.1"
+          assert schema["$defs"]["provenance"]["properties"]["buildProvenance"]["properties"]["format"]["const"] == "protocol-sentinel-build-provenance-v2"
+          print("PASS | Workspace Evidence 1.1 schema and executable syntax")
+          PY
+
       - name: Verify portable runner with external consumer
         run: bash scripts/check_portable_integration.sh
 
@@ -742,3 +776,34 @@ jobs:
 
       - name: Run Fortytwo PASS FAIL PASS regression
         run: bash scripts/reproduce_x402.sh
+
+  capu_v06:
+    name: Capminal external Evidence 1.1 acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version-file: evidence/python-version.txt
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.7
+
+      - name: Install Evidence verification dependencies
+        run: |
+          python -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
+          python -m pip check
+
+      - name: Pinned Capminal safe PASS and faulty BLOCK
+        run: bash scripts/check_capu_workspace.sh

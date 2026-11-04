@@ -5,7 +5,7 @@ Scope: Authority Regression / Local EVM
 
 ## Current portable workflow and trust boundaries
 
-The v0.5.1 Direct runner executes a consumer-supplied Foundry producer, captures Comparison Evidence 1.0, verifies local source and build inputs, independently replays the recorded classification in Python, and reproduces normalized compiler outputs. An optional trusted policy makes a separate CI decision.
+The v0.6 workspace runner executes a consumer-supplied Foundry producer, captures Comparison Evidence 1.1, checks Git-owned source closure and build inputs, independently replays the recorded classification in Python, and reproduces normalized compiler outputs in an isolated source snapshot. An optional trusted policy makes a separate CI decision. The completed-run verifier rechecks a trusted bundle and its recorded producer result; it does not re-execute the original EVM test. The separate v0.5 runner produces Evidence 1.0. See the [workspace guide](portable-workspace-v0.6.md) for the unreleased v0.6 scope.
 
 | Boundary | What is checked | What it does not establish |
 | --- | --- | --- |
@@ -184,7 +184,9 @@ The prototype does not:
 The current witness is generated from a local execution,
 not from a public Ethereum transaction.
 
-## 9. Evidence Limitations
+## 9. Legacy witness evidence limitations
+
+This section describes the earlier witness schemas 0.2–0.4, separate from Comparison Evidence 1.0 and the v0.6 Evidence 1.1 workflow introduced above.
 
 The JSON witness is generated from local Foundry execution.
 It is not a public-chain transaction record or cryptographic
@@ -201,7 +203,7 @@ Python policy replay checks verdict semantics from recorded
 observations. Five Solidity/Python scenarios and thirteen Python
 self-tests are included.
 
-New execution witnesses and diagnostic policy evidence
+The earlier execution witnesses and diagnostic policy evidence
 use schema 0.4, requiring reason and
 target_valid_at_observation.
 Legacy evidence requires explicit replay opt-in.
