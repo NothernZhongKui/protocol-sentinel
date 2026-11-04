@@ -188,4 +188,71 @@ PY
 run_case safe STILL_SATISFIED PASS 0
 run_case faulty CHANGED_TO_VIOLATION BLOCK 2
 
+echo "=== FAILED PRODUCER MUST NOT PUBLISH EVIDENCE ==="
+
+python3 - "$PROJECT/test/CapuSentinelProducer.t.sol" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+content = path.read_text()
+before = """    function test_ProduceSafe() public {
+        _record(false);
+    }"""
+after = """    function test_ProduceSafe() public {
+        _record(false);
+        assertTrue(false);
+    }"""
+assert content.count(before) == 1
+path.write_text(content.replace(before, after))
+PY
+
+git -C "$CONSUMER" add projects/capu/test/CapuSentinelProducer.t.sol
+git -C "$CONSUMER" \
+  -c user.name="Sentinel CI" \
+  -c user.email="sentinel-ci@example.invalid" \
+  commit -q -m "test: deliberately fail external Sentinel producer"
+
+NEW_CONSUMER_SHA="$(git -C "$CONSUMER" rev-parse HEAD)"
+
+python3 - "$POLICY" "$CONSUMER_SHA" "$NEW_CONSUMER_SHA" <<'PY'
+from pathlib import Path
+import sys
+path = Path(sys.argv[1])
+old, new = sys.argv[2:]
+before = f'consumer_commit = "{old}"'
+after = f'consumer_commit = "{new}"'
+content = path.read_text()
+assert content.count(before) == 1
+path.write_text(content.replace(before, after))
+PY
+
+COMPLETED_ROOT="$PROJECT/artifacts/sentinel/runs/completed"
+BEFORE="$(find "$COMPLETED_ROOT" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+FAIL_LOG="$TEMP/failed-producer.log"
+FAIL_STATUS=0
+
+env \
+  GITHUB_REPOSITORY="NothernZhongKui/protocol-sentinel" \
+  GITHUB_SHA="$TOOL_SHA" \
+  GITHUB_RUN_ID="123" \
+  GITHUB_RUN_ATTEMPT="1" \
+  GITHUB_WORKFLOW_REF="NothernZhongKui/protocol-sentinel/.github/workflows/test.yml@refs/heads/main" \
+  python3 -B "$RUNNER" \
+    --project "$PROJECT" \
+    --tool-root "$INSTALLED" \
+    --config sentinel-safe.toml \
+    --solc "$SOLC" \
+    --trusted-policy "$POLICY" \
+    > "$FAIL_LOG" 2>&1 || FAIL_STATUS=$?
+
+cat "$FAIL_LOG"
+test "$FAIL_STATUS" -eq 2
+grep -q 'Producer failed or ambiguous' "$FAIL_LOG"
+grep -q 'No completed Evidence published' "$FAIL_LOG"
+
+AFTER="$(find "$COMPLETED_ROOT" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+test "$BEFORE" -eq "$AFTER"
+test -z "$(git -C "$CONSUMER" status --porcelain)"
+
+echo "PASS | Failed producer rejected with no completed Evidence"
 echo "=== V0.6 CAPMINAL EXTERNAL ACCEPTANCE PASS ==="
