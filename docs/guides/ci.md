@@ -13,6 +13,12 @@ For the **v0.6 workspace runner**, policy v2 separately binds the workflow repos
 
 For **v0.5**, see the [reference consumer gate](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/1f1eb1799b8cfd01e6506bf477eb94fff7f1afbb/.github/workflows/sentinel-gate.yml), [integrity workflow](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/1f1eb1799b8cfd01e6506bf477eb94fff7f1afbb/.github/workflows/sentinel-integrity.yml) and [policy](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/1f1eb1799b8cfd01e6506bf477eb94fff7f1afbb/.github/sentinel/trusted-policy.toml). Adapt identity, permissions and required checks to your repository; enforce them with repository rules.
 
+## Enforce the check on pull requests
+
+Run the candidate checkout with the exact pinned Sentinel submodule and matching solc. Select the trusted policy from the protected base revision or another source not controlled by the candidate, place it outside the candidate checkout, and bind it to the tested consumer commit. The policy, verifier revision, required scenario and workflow must not be chosen by unreviewed PR code. Publish diagnostics even when the gate exits `2` or `3`.
+
+Configure branch protection or a repository ruleset to **require** the authority gate and any separate integrity check. Confirm with a deliberately unsafe test PR that `CHANGED_TO_VIOLATION` yields `BLOCK` and a failed required check. A failed Actions job by itself is not proof that a merge is prevented. Review changes to producer and fixtures separately: a valid replay cannot establish that an intentionally weakened scenario still protects the intended invariant.
+
 ## Interpret outcomes
 
 | Verified comparison | Decision |
