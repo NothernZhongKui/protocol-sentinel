@@ -2,7 +2,7 @@
 
 ## Use Sentinel
 
-- [v0.6 workspace quickstart](portable-workspace-v0.6.md) — integrate an existing Git-pinned Foundry workspace, capture Evidence 1.1 and reverify a trusted run. **Unreleased release candidate.**
+- [v0.6 workspace quickstart](portable-workspace-v0.6.md) — integrate an existing Git-pinned Foundry workspace, capture Evidence 1.1 and reverify a trusted run. Released in v0.6.0.
 - [v0.5 portable quickstart](portable-direct-v0.5.md) — the released runner and Evidence 1.0.
 - [Solidity library quickstart](library-quickstart.md) and [Direct comparison](comparative-authority-quickstart.md) — use helpers in Foundry tests without Python.
 - [Timelock route](timelock-route-quickstart.md) — separate OpenZeppelin route adapter.
