@@ -121,13 +121,15 @@ def main():
         (project / "src/Shortcut.sol").symlink_to(
             project / "src/Capu.sol"
         )
-        # Resolving symlink aliases to tracked bytes alone is insufficient
-        # to attest the logical path; source unit identity needs separate
-        # anti-alias validation before v0.6 Evidence publication.
+        reject(
+            "symlink alias of a tracked source",
+            lambda: attest_source(context, "src/Shortcut.sol"),
+            "Symlink in compiler source path",
+        )
         reject(
             "source outside checkout",
             lambda: attest_source(context, "/etc/hosts"),
-            "Source outside checkout",
+            "outside checkout",
         )
         (project / "src/Shortcut.sol").unlink()
 
@@ -136,7 +138,7 @@ def main():
         reject(
             "path escape",
             lambda: attest_build_sources(context, missing_info),
-            "Source outside checkout",
+            "outside checkout",
         )
 
     print("=== GIT SOURCE CLOSURE CONTROLS PASSED ===")
