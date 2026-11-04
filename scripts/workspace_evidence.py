@@ -35,13 +35,13 @@ def validate_versioned(document):
     return schema
 
 
-def verify_workspace_evidence(document, context, manifest_digest):
+def verify_workspace_evidence(document, context, manifest_digest, expected_repository):
     if document.get("schema_version") != "1.1":
         raise WorkspaceEvidenceError("Expected workspace Evidence 1.1")
     validate_versioned(document)
     provenance = document["provenance"]
     expected = {
-        "repository": context.repository_root.name,
+        "repository": expected_repository,
         "sourceCommit": context.repository_commit,
         "workspace": context.workspace,
         "toolPath": context.tool_path,
