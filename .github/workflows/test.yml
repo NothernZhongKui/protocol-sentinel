@@ -724,6 +724,9 @@ jobs:
       - name: Verify v0.6 Git compiler source closure
         run: python scripts/test_source_closure.py
 
+      - name: Verify v0.6 strict workspace provenance v2
+        run: python scripts/test_workspace_provenance.py
+
       - name: Verify portable runner with external consumer
         run: bash scripts/check_portable_integration.sh
 
