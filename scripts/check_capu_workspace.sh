@@ -263,6 +263,23 @@ PY
     cmp "$original" "$evidence"
     test -z "$(git -C "$CONSUMER" status --porcelain)"
     echo "PASS | Tampered completed Evidence rejected"
+
+    echo "=== ADVERSARIAL ARTIFACT MUTATIONS: safe ==="
+    env \
+      GITHUB_REPOSITORY="NothernZhongKui/protocol-sentinel" \
+      GITHUB_SHA="$TOOL_SHA" \
+      GITHUB_RUN_ID="123" \
+      GITHUB_RUN_ATTEMPT="1" \
+      GITHUB_WORKFLOW_REF="NothernZhongKui/protocol-sentinel/.github/workflows/test.yml@refs/heads/main" \
+      python3 -B "$INSTALLED/scripts/test_workspace_artifact_mutations.py" \
+        --run-dir "$completed" \
+        --verifier "$INSTALLED/scripts/verify_workspace_run.py" \
+        --project "$PROJECT" \
+        --tool-root "$INSTALLED" \
+        --config sentinel-safe.toml \
+        --solc "$SOLC" \
+        --trusted-policy "$POLICY"
+    test -z "$(git -C "$CONSUMER" status --porcelain)"
   fi
 }
 
