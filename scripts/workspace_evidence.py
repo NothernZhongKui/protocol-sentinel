@@ -35,10 +35,29 @@ def validate_versioned(document):
     return schema
 
 
-def verify_workspace_evidence(document, context, manifest_digest, expected_repository):
+def verify_workspace_evidence(document, context, manifest_digest, expected_repository, manifest):
     if document.get("schema_version") != "1.1":
         raise WorkspaceEvidenceError("Expected workspace Evidence 1.1")
     validate_versioned(document)
+    if document["environment"]["executionMode"] != "local_fixture":
+        raise WorkspaceEvidenceError("Unsupported workspace execution mode")
+    units = manifest.get("units") if isinstance(manifest, dict) else None
+    if not isinstance(units, list) or not units:
+        raise WorkspaceEvidenceError("Missing build compiler units")
+    versions = {
+        unit.get("solcVersion", "").split("+", 1)[0]
+        for unit in units if isinstance(unit, dict)
+        and isinstance(unit.get("solcVersion"), str)
+    }
+    if len(versions) != 1 or any(
+        not isinstance(unit, dict)
+        or not isinstance(unit.get("solcVersion"), str)
+        or not unit["solcVersion"]
+        for unit in units
+    ):
+        raise WorkspaceEvidenceError("Inconsistent manifest compiler versions")
+    if document["environment"]["solcVersion"] != next(iter(versions)):
+        raise WorkspaceEvidenceError("Evidence compiler version differs from manifest")
     provenance = document["provenance"]
     expected = {
         "repository": expected_repository,
