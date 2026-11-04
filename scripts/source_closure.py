@@ -94,14 +94,27 @@ def attest_source(context: WorkspaceContext, logical_name, *, content=None):
         "Invalid compiler source unit",
     )
     logical = Path(logical_name)
-    physical = (
+    candidate = (
         logical if logical.is_absolute()
         else context.project_root / logical
-    ).resolve(strict=True)
+    )
+    require(
+        candidate.is_relative_to(context.repository_root)
+        if candidate.is_absolute()
+        else True,
+        "Compiler source outside checkout",
+    )
+    # Reject symlink aliases instead of silently blessing a different
+    # logical source name with the hash of its resolved target.
+    cursor = candidate
+    while cursor != context.repository_root and cursor != cursor.parent:
+        require(not cursor.is_symlink(), "Symlink in compiler source path")
+        cursor = cursor.parent
+    physical = candidate.resolve()
     require(
         physical.is_file()
         and physical.is_relative_to(context.repository_root),
-        "Compiler source outside checkout",
+        "Compiler source outside checkout or missing",
     )
     owner, revision = attest_owner(context.repository_root, physical)
     relative = physical.relative_to(owner).as_posix()
