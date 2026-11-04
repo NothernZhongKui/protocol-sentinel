@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — v0.6.0 release candidate
+## v0.6.0 - 2026-11-04
 
 ### Added
 - Separate portable Direct EOA/UUPS runner for Git-pinned Foundry
