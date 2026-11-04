@@ -77,13 +77,20 @@ def replay_unit(context, info, solc):
     long_identity = info.get("solcLongVersion")
     full = FULL_ID.fullmatch(short)
     if long_identity is not None:
-        require(
-            isinstance(long_identity, str)
-            and FULL_ID.fullmatch(long_identity) is not None
-            and long_identity.split("+", 1)[0] == actual_version,
-            "Invalid recorded compiler long version",
+        # Foundry build-info can carry the full compiler descriptor,
+        # not merely the semver+commit token (e.g. vendor/platform text).
+        # Require an unambiguous exact semver+commit token inside it.
+        require(isinstance(long_identity, str), "Invalid recorded compiler long version")
+        identities = re.findall(
+            r"(?<![A-Za-z0-9.])0\.\d+\.\d+\+commit\.[0-9a-f]{8}(?![0-9a-f])",
+            long_identity,
         )
-        long_commit = FULL_ID.fullmatch(long_identity).group(2)
+        require(
+            len(identities) == 1
+            and identities[0].split("+", 1)[0] == actual_version,
+            "Invalid recorded compiler long version: " + repr(long_identity[:160]),
+        )
+        long_commit = identities[0].split("+commit.", 1)[1]
         require(long_commit == actual_commit, "Compiler commit mismatch")
         if full is not None:
             require(full.group(2) == long_commit, "Conflicting recorded compiler identities")
