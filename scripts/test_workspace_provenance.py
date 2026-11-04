@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+"""v0.6 build manifest capture/verification and mutation controls."""
+
+import json
+import tempfile
+from pathlib import Path
+
+from test_workspace_context import init, commit, git
+from workspace_context import resolve_workspace
+from workspace_provenance import (
+    WorkspaceProvenanceError, capture_v2, verify_v2,
+)
+
+
+def reject(label, function, reason):
+    try:
+        function()
+    except (WorkspaceProvenanceError, ValueError) as exc:
+        assert reason in str(exc), (label, str(exc))
+        print(f"PASS | Rejected {label}")
+    else:
+        raise AssertionError(f"Accepted {label}")
+
+
+def main():
+    with tempfile.TemporaryDirectory(prefix="sentinel-v2-") as temp:
+        base = Path(temp)
+        root = base / "consumer"
+        tool_src = base / "tool"
+        init(tool_src)
+        (tool_src / "src").mkdir()
+        (tool_src / "src/Capture.sol").write_text("contract Capture {}\n")
+        (tool_src / "scripts").mkdir()
+        (tool_src / "scripts/run_portable_direct.py").write_text("# tool\n")
+        commit(tool_src, "tool")
+
+        init(root)
+        (root / "foundry.toml").write_text("[profile.default]\nsolc = '0.8.26'\n")
+        project = root / "projects/capu"
+        (project / "test").mkdir(parents=True)
+        (project / "foundry.toml").write_text(
+            "[profile.default]\nextends = '../../foundry.toml'\n"
+        )
+        (project / "test/Oracle.t.sol").write_text("contract Oracle {}\n")
+        commit(root, "consumer")
+
+        git(
+            root, "-c", "protocol.file.allow=always",
+            "submodule", "add", "-q", str(tool_src),
+            "projects/capu/lib/protocol-sentinel",
+        )
+        commit(root, "pinned dependencies")
+        tool = project / "lib/protocol-sentinel"
+        context = resolve_workspace(
+            project, tool, expected_workspace="projects/capu"
+        )
+
+        fresh = base / "fresh"
+        fresh.mkdir()
+        original = {
+            "solcVersion": "0.8.26",
+            "input": {
+                "language": "Solidity",
+                "sources": {
+                    "test/Oracle.t.sol": {"content": "contract Oracle {}\n"},
+                    "lib/protocol-sentinel/src/Capture.sol": {
+                        "content": "contract Capture {}\n"
+                    },
+                },
+                "settings": {"optimizer": {"enabled": True, "runs": 200}},
+            },
+            "output": {
+                "sources": {
+                    "test/Oracle.t.sol": {"id": 0},
+                    "lib/protocol-sentinel/src/Capture.sol": {"id": 1},
+                },
+                "contracts": {},
+            },
+        }
+        (fresh / "unit.json").write_text(json.dumps(original))
+        bundle = base / "bundle"
+        digest = capture_v2(context, fresh, bundle, "test/Oracle.t.sol")
+        assert digest == verify_v2(context, bundle, "test/Oracle.t.sol")
+        manifest = json.loads((bundle / "build-provenance.json").read_text())
+        assert manifest["format"] == "protocol-sentinel-build-provenance-v2"
+        assert manifest["workspace"] == "projects/capu"
+        assert any(
+            entry["path"] == "foundry.toml"
+            for entry in manifest["integrationInputs"]
+        )
+        assert any(
+            entry["path"] == "projects/capu/foundry.toml"
+            for entry in manifest["integrationInputs"]
+        )
+        print("PASS | V2 capture, exact manifest, inherited config pinning")
+
+        path = bundle / "build-info/unit.json"
+        original_bytes = path.read_bytes()
+        path.write_bytes(original_bytes + b"\n")
+        reject(
+            "changed build-info",
+            lambda: verify_v2(context, bundle, "test/Oracle.t.sol"),
+            "V2 manifest does not match",
+        )
+        path.write_bytes(original_bytes)
+        assert verify_v2(context, bundle, "test/Oracle.t.sol") == digest
+
+        manifest_path = bundle / "build-provenance.json"
+        original_manifest = manifest_path.read_bytes()
+        modified = json.loads(original_manifest)
+        modified["workspace"] = "projects/other"
+        manifest_path.write_text(json.dumps(modified))
+        reject(
+            "wrong workspace identity",
+            lambda: verify_v2(context, bundle, "test/Oracle.t.sol"),
+            "V2 manifest does not match",
+        )
+        manifest_path.write_bytes(original_manifest)
+
+        modified = json.loads(original_manifest)
+        modified["unsupported"] = "ignored"
+        manifest_path.write_text(json.dumps(modified))
+        reject(
+            "unsupported manifest field",
+            lambda: verify_v2(context, bundle, "test/Oracle.t.sol"),
+            "Unexpected v2 manifest fields",
+        )
+        manifest_path.write_bytes(original_manifest)
+
+        modified = json.loads(original_manifest)
+        modified["format"] = "protocol-sentinel-build-provenance-v1"
+        manifest_path.write_text(json.dumps(modified))
+        reject(
+            "v2 downgrade to v1",
+            lambda: verify_v2(context, bundle, "test/Oracle.t.sol"),
+            "Unsupported manifest version",
+        )
+        manifest_path.write_bytes(original_manifest)
+
+        (project / "test/Oracle.t.sol").write_text("contract Forged {}\n")
+        reject(
+            "changed tracked producer source",
+            lambda: verify_v2(context, bundle, "test/Oracle.t.sol"),
+            "pinned Git blob",
+        )
+
+    print("=== WORKSPACE PROVENANCE V2 CONTROLS PASSED ===")
+
+
+if __name__ == "__main__":
+    main()
