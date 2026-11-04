@@ -55,6 +55,10 @@ git -C "$CONSUMER" \
   -c user.email="sentinel-ci@example.invalid" \
   commit -q -m "test: isolate Sentinel v0.6 external pilot"
 
+# Keep generated Evidence out of the tracked upstream checkout without
+# modifying or committing its .gitignore.
+printf '\n/projects/capu/artifacts/\n' >> "$CONSUMER/.git/info/exclude"
+
 test -z "$(git -C "$CONSUMER" status --porcelain)"
 test -z "$(git -C "$INSTALLED" status --porcelain --untracked-files=all)"
 git -C "$CONSUMER" diff --quiet "$UPSTREAM_SHA" HEAD -- \
