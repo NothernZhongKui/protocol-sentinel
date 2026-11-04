@@ -24,6 +24,17 @@ class ReplayError(ValueError):
     pass
 
 
+# Supported short solcVersion fields from Foundry build-info, pinned to the
+# exact upstream compiler commit. Unknown short versions fail closed; their
+# callers must supply an authenticated long version/build identity.
+KNOWN_COMPILER_COMMITS = {
+    "0.8.24": "e11b9ed9",
+    "0.8.26": "8a97fa7a",
+}
+FULL_ID = re.compile(r"(0\.\d+\.\d+)\+commit\.([0-9a-f]{8})(?:\.[A-Za-z0-9_.+-]+)?\Z")
+SHORT_ID = re.compile(r"0\.\d+\.\d+\Z")
+
+
 def require(condition, message):
     if not condition:
         raise ReplayError(message)
@@ -52,30 +63,36 @@ def replay_unit(context, info, solc):
     require(isinstance(info.get("output"), dict), "Missing original compiler output")
     require(isinstance(info.get("solcVersion"), str), "Missing recorded solc version")
     observed = compiler_version(solc)
+    short = info["solcVersion"]
     require(
-        observed.startswith(info["solcVersion"].split("+", 1)[0] + "+"),
+        SHORT_ID.fullmatch(short) is not None
+        or FULL_ID.fullmatch(short) is not None,
+        "Invalid recorded solc version",
+    )
+    actual_version, actual_commit = observed.split("+commit.", 1)
+    require(
+        actual_version == short.split("+", 1)[0],
         "Compiler version mismatch",
     )
-    if "+" in info["solcVersion"]:
+    long_identity = info.get("solcLongVersion")
+    full = FULL_ID.fullmatch(short)
+    if long_identity is not None:
         require(
-            observed.startswith(info["solcVersion"]),
-            "Compiler commit mismatch",
-        )
-    if "solcLongVersion" in info:
-        expected_long = info["solcLongVersion"]
-        require(
-            isinstance(expected_long, str) and expected_long,
+            isinstance(long_identity, str)
+            and FULL_ID.fullmatch(long_identity) is not None
+            and long_identity.split("+", 1)[0] == actual_version,
             "Invalid recorded compiler long version",
         )
-        actual_long = subprocess.run(
-            [str(solc), "--version"], text=True, capture_output=True,
-            check=False, timeout=30,
-        )
-        require(
-            actual_long.returncode == 0
-            and expected_long in actual_long.stdout,
-            "Compiler long version mismatch",
-        )
+        long_commit = FULL_ID.fullmatch(long_identity).group(2)
+        require(long_commit == actual_commit, "Compiler commit mismatch")
+        if full is not None:
+            require(full.group(2) == long_commit, "Conflicting recorded compiler identities")
+    elif full is not None:
+        require(full.group(2) == actual_commit, "Compiler commit mismatch")
+    else:
+        expected_commit = KNOWN_COMPILER_COMMITS.get(short)
+        require(expected_commit is not None, "Missing exact compiler build identity")
+        require(actual_commit == expected_commit, "Compiler commit mismatch")
 
     attested = attest_build_sources(context, info)
     standard = {key: info["input"][key] for key in ("language", "sources", "settings")}
