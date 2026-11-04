@@ -4,8 +4,15 @@ permissions: {}
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
+
+# A PR runs once per revision; replaced revisions do not occupy runners.
+# Main retains push validation and is never cancelled by a PR update.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
