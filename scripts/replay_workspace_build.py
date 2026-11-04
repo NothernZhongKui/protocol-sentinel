@@ -77,23 +77,34 @@ def replay_unit(context, info, solc):
     long_identity = info.get("solcLongVersion")
     full = FULL_ID.fullmatch(short)
     if long_identity is not None:
-        # Foundry build-info can carry the full compiler descriptor,
-        # not merely the semver+commit token (e.g. vendor/platform text).
-        # Require an unambiguous exact semver+commit token inside it.
         require(isinstance(long_identity, str), "Invalid recorded compiler long version")
-        identities = re.findall(
-            r"(?<![A-Za-z0-9.])0\.\d+\.\d+\+commit\.[0-9a-f]{8}(?![0-9a-f])",
-            long_identity,
-        )
-        require(
-            len(identities) == 1
-            and identities[0].split("+", 1)[0] == actual_version,
-            "Invalid recorded compiler long version: " + repr(long_identity[:160]),
-        )
-        long_commit = identities[0].split("+commit.", 1)[1]
-        require(long_commit == actual_commit, "Compiler commit mismatch")
-        if full is not None:
-            require(full.group(2) == long_commit, "Conflicting recorded compiler identities")
+        if SHORT_ID.fullmatch(long_identity) is not None:
+            # Real Foundry build-info can use the short version for BOTH fields.
+            # In that case an explicit pinned version-to-commit mapping is required.
+            require(
+                long_identity == actual_version,
+                "Compiler long version mismatch",
+            )
+            pinned_commit = KNOWN_COMPILER_COMMITS.get(long_identity)
+            require(pinned_commit is not None, "Missing exact compiler build identity")
+            require(actual_commit == pinned_commit, "Compiler commit mismatch")
+            if full is not None:
+                require(full.group(2) == actual_commit, "Compiler commit mismatch")
+        else:
+            # Also accept full version descriptors, with one unambiguous commit.
+            identities = re.findall(
+                r"(?<![A-Za-z0-9.])0\.\d+\.\d+\+commit\.[0-9a-f]{8}(?![0-9a-f])",
+                long_identity,
+            )
+            require(
+                len(identities) == 1
+                and identities[0].split("+", 1)[0] == actual_version,
+                "Invalid recorded compiler long version: " + repr(long_identity[:160]),
+            )
+            long_commit = identities[0].split("+commit.", 1)[1]
+            require(long_commit == actual_commit, "Compiler commit mismatch")
+            if full is not None:
+                require(full.group(2) == long_commit, "Conflicting recorded compiler identities")
     elif full is not None:
         require(full.group(2) == actual_commit, "Compiler commit mismatch")
     else:
