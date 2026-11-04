@@ -90,6 +90,20 @@ def main():
         command,
     )
     rejected(
+        "Evidence compiler version substitution",
+        evidence,
+        lambda doc: doc["environment"].__setitem__("solcVersion", "0.8.24"),
+        "Evidence compiler version differs from manifest",
+        command,
+    )
+    rejected(
+        "Evidence execution mode substitution",
+        evidence,
+        lambda doc: doc["environment"].__setitem__("executionMode", "fork"),
+        "Unsupported workspace execution mode",
+        command,
+    )
+    rejected(
         "Evidence consumer commit substitution",
         evidence,
         lambda doc: doc["provenance"].__setitem__("sourceCommit", "a" * 40),
