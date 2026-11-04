@@ -23,3 +23,7 @@ A replay `MATCH` means Python reproduced the classification from the recorded ob
 **Status:** Experimental, pre-1.0. Results apply only to the declared scenario. Sentinel does not discover all privilege paths, validate storage layout, independently authenticate EVM execution or prove contract security. See the [threat model](docs/threat-model.md).
 
 [Documentation](docs/README.md) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE)
+
+## Contact
+
+Questions or feedback? Reach out on X: [@AdvanZeroX](https://x.com/AdvanZeroX).
