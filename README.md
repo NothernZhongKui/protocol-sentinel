@@ -11,6 +11,8 @@ Define an actor and an upgrade action. Sentinel probes that action before and af
 | Check authority inside a Foundry test | [Solidity library guide](docs/library-quickstart.md) | Foundry; no Python required |
 | Capture evidence, replay classification and use a CI policy | [Portable Direct quickstart](docs/portable-direct-v0.5.md) | Foundry, Python and the pinned compiler |
 
+A draft [v0.6 nested Foundry workspace guide](docs/portable-workspace-v0.6.md) documents the independently tested Capminal pilot. This is unreleased; the v0.5 quickstart remains the supported portable workflow.
+
 The [Treasury consumer](https://github.com/NothernZhongKui/protocol-sentinel-consumer) is a separate, working integration. For API details, results, architecture and contributing, see the [documentation index](docs/README.md).
 
 ## Supported routes
