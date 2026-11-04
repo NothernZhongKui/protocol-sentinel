@@ -14,6 +14,31 @@ INSTALLED="$PROJECT/lib/protocol-sentinel"
 POLICY="$TEMP/trusted-policy.toml"
 RUNNER="$INSTALLED/scripts/run_workspace_direct.py"
 
+# Local CLI runs use explicit synthetic CI context. In GitHub Actions, never
+# overwrite the actual workflow/run/attempt identity with test constants.
+if test "${GITHUB_ACTIONS:-}" = "true"; then
+  : "${GITHUB_REPOSITORY:?}"
+  : "${GITHUB_SHA:?}"
+  : "${GITHUB_RUN_ID:?}"
+  : "${GITHUB_RUN_ATTEMPT:?}"
+  : "${GITHUB_WORKFLOW_REF:?}"
+  test "$GITHUB_REPOSITORY" = "NothernZhongKui/protocol-sentinel"
+  test "$GITHUB_SHA" = "$TOOL_SHA"
+  CI_REPOSITORY="$GITHUB_REPOSITORY"
+  CI_SHA="$GITHUB_SHA"
+  CI_RUN_ID="$GITHUB_RUN_ID"
+  CI_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT"
+  CI_WORKFLOW_REF="$GITHUB_WORKFLOW_REF"
+  echo "PASS | Using real GitHub Actions run/attempt/workflow context"
+else
+  CI_REPOSITORY="NothernZhongKui/protocol-sentinel"
+  CI_SHA="$TOOL_SHA"
+  CI_RUN_ID="123"
+  CI_RUN_ATTEMPT="1"
+  CI_WORKFLOW_REF="NothernZhongKui/protocol-sentinel/.github/workflows/test.yml@refs/heads/main"
+  echo "LOCAL | Using synthetic CI context (not production workflow attestation)"
+fi
+
 echo "=== V0.6 CAPMINAL EXTERNAL ACCEPTANCE ==="
 for name in \
   AuthorityRegressionOracle.t.sol \
@@ -154,11 +179,11 @@ PY
 
   echo "=== V0.6 $variant: $verdict -> $decision ==="
   env \
-    GITHUB_REPOSITORY="NothernZhongKui/protocol-sentinel" \
-    GITHUB_SHA="$TOOL_SHA" \
-    GITHUB_RUN_ID="123" \
-    GITHUB_RUN_ATTEMPT="1" \
-    GITHUB_WORKFLOW_REF="NothernZhongKui/protocol-sentinel/.github/workflows/test.yml@refs/heads/main" \
+    GITHUB_REPOSITORY="$CI_REPOSITORY" \
+    GITHUB_SHA="$CI_SHA" \
+    GITHUB_RUN_ID="$CI_RUN_ID" \
+    GITHUB_RUN_ATTEMPT="$CI_RUN_ATTEMPT" \
+    GITHUB_WORKFLOW_REF="$CI_WORKFLOW_REF" \
     python3 -B "$RUNNER" \
       --project "$PROJECT" \
       --tool-root "$INSTALLED" \
@@ -208,11 +233,11 @@ PY
   local verify_log="$TEMP/$variant-independent.log"
   local verify_status=0
   env \
-    GITHUB_REPOSITORY="NothernZhongKui/protocol-sentinel" \
-    GITHUB_SHA="$TOOL_SHA" \
-    GITHUB_RUN_ID="123" \
-    GITHUB_RUN_ATTEMPT="1" \
-    GITHUB_WORKFLOW_REF="NothernZhongKui/protocol-sentinel/.github/workflows/test.yml@refs/heads/main" \
+    GITHUB_REPOSITORY="$CI_REPOSITORY" \
+    GITHUB_SHA="$CI_SHA" \
+    GITHUB_RUN_ID="$CI_RUN_ID" \
+    GITHUB_RUN_ATTEMPT="$CI_RUN_ATTEMPT" \
+    GITHUB_WORKFLOW_REF="$CI_WORKFLOW_REF" \
     python3 -B "$INSTALLED/scripts/verify_workspace_run.py" \
       --project "$PROJECT" \
       --tool-root "$INSTALLED" \
@@ -243,11 +268,11 @@ path.write_text(json.dumps(doc, sort_keys=True) + "\n")
 PY
     local tamper_status=0
     env \
-      GITHUB_REPOSITORY="NothernZhongKui/protocol-sentinel" \
-      GITHUB_SHA="$TOOL_SHA" \
-      GITHUB_RUN_ID="123" \
-      GITHUB_RUN_ATTEMPT="1" \
-      GITHUB_WORKFLOW_REF="NothernZhongKui/protocol-sentinel/.github/workflows/test.yml@refs/heads/main" \
+      GITHUB_REPOSITORY="$CI_REPOSITORY" \
+      GITHUB_SHA="$CI_SHA" \
+      GITHUB_RUN_ID="$CI_RUN_ID" \
+      GITHUB_RUN_ATTEMPT="$CI_RUN_ATTEMPT" \
+      GITHUB_WORKFLOW_REF="$CI_WORKFLOW_REF" \
       python3 -B "$INSTALLED/scripts/verify_workspace_run.py" \
         --project "$PROJECT" \
         --tool-root "$INSTALLED" \
@@ -266,11 +291,11 @@ PY
 
     echo "=== ADVERSARIAL ARTIFACT MUTATIONS: safe ==="
     env \
-      GITHUB_REPOSITORY="NothernZhongKui/protocol-sentinel" \
-      GITHUB_SHA="$TOOL_SHA" \
-      GITHUB_RUN_ID="123" \
-      GITHUB_RUN_ATTEMPT="1" \
-      GITHUB_WORKFLOW_REF="NothernZhongKui/protocol-sentinel/.github/workflows/test.yml@refs/heads/main" \
+      GITHUB_REPOSITORY="$CI_REPOSITORY" \
+      GITHUB_SHA="$CI_SHA" \
+      GITHUB_RUN_ID="$CI_RUN_ID" \
+      GITHUB_RUN_ATTEMPT="$CI_RUN_ATTEMPT" \
+      GITHUB_WORKFLOW_REF="$CI_WORKFLOW_REF" \
       python3 -B "$INSTALLED/scripts/test_workspace_artifact_mutations.py" \
         --run-dir "$completed" \
         --verifier "$INSTALLED/scripts/verify_workspace_run.py" \
@@ -349,11 +374,11 @@ FAIL_LOG="$TEMP/failed-producer.log"
 FAIL_STATUS=0
 
 env \
-  GITHUB_REPOSITORY="NothernZhongKui/protocol-sentinel" \
-  GITHUB_SHA="$TOOL_SHA" \
-  GITHUB_RUN_ID="123" \
-  GITHUB_RUN_ATTEMPT="1" \
-  GITHUB_WORKFLOW_REF="NothernZhongKui/protocol-sentinel/.github/workflows/test.yml@refs/heads/main" \
+  GITHUB_REPOSITORY="$CI_REPOSITORY" \
+  GITHUB_SHA="$CI_SHA" \
+  GITHUB_RUN_ID="$CI_RUN_ID" \
+  GITHUB_RUN_ATTEMPT="$CI_RUN_ATTEMPT" \
+  GITHUB_WORKFLOW_REF="$CI_WORKFLOW_REF" \
   python3 -B "$RUNNER" \
     --project "$PROJECT" \
     --tool-root "$INSTALLED" \
