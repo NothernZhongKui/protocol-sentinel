@@ -1,6 +1,6 @@
 # ADR-006A: External OSS Pilot Boundary
 
-Status: PROPOSED — pending architectural review  
+Status: PROPOSED — revised after architectural review  
 Target: v0.6 discovery phase  
 Parent: [RFC-006](rfc-006-existing-foundry-pilot.md)  
 Baseline: v0.5.1  
@@ -70,8 +70,9 @@ compatibility and workflow outcomes remain unknown.
 | Upstream production sources | Untouched; preserve pinned upstream identity |
 | Existing test fixtures | Prefer reuse, without modifying their intended semantics |
 | New Foundry producer | Consumer-side, in the isolated pilot workspace |
-| Safe candidate implementation | Real compatible UUPS implementation, explicitly constructed for the test |
-| Unsafe candidate implementation | Intentionally vulnerable **test-only** variant; never a proposed upstream patch |
+| Baseline | Original implementation active before the transition |
+| Updated | Safe or intentionally faulty test-only V2, installed by the authorized admin |
+| Probe candidate | The same valid, separate UUPS implementation targeted by the actor in both observations; distinct from each active implementation |
 | Sentinel runner and verifier | Pinned, unmodified v0.5.1 |
 | Changes required in Sentinel | Separate issue and reviewed PR after documenting a blocker |
 | CI policy / workflow | Trusted outside untrusted candidate-controlled inputs |
@@ -85,10 +86,9 @@ substitute a locally edited verifier.
 
 The initial property:
 
-> For a declared unprivileged EOA, a direct
-> `upgradeToAndCall(address,bytes)` invocation must not
-> replace the UUPS proxy's implementation, before or
-> after an authorized upgrade.
+> The specified actor must not **acquire direct upgrade authority** as a result of the authorized implementation transition.
+
+The actor has no upgrade permission at baseline. A synthetic faulty V2 may grant it `DEFAULT_ADMIN_ROLE` after migration; it must not still be described as unprivileged at that point.
 
 The producer chooses one actual proxy, known actor,
 candidate implementation, comparison fixture and
@@ -110,9 +110,9 @@ Acceptance examples:
 | Synthetic regression permits unauthorized upgrade | `CHANGED_TO_VIOLATION` | `MATCH` | `BLOCK` |
 | Missing/failed producer or invalid provenance | No trusted completed result | No acceptable replay | `BLOCK` |
 
-The intentionally unsafe candidate must be distinct
-from the original production implementation and must
-not be characterized as an upstream security finding.
+`Capu._authorizeUpgrade` is not `virtual`: the faulty V2 must not rely on overriding it. A proposed, as-yet-uncompiled fixture is an inherited test-only V2 with an explicit migration that grants the selected actor `DEFAULT_ADMIN_ROLE` during the authorized upgrade. Validate initializer behavior, storage compatibility and actual resulting authority with an ordinary Foundry test before using Sentinel.
+
+Distinguish three implementations throughout: baseline, updated V2 and fixed probe candidate. Keep the probe candidate unchanged across observations and distinct from the active implementations. The intentionally faulty V2 is not an upstream finding.
 
 The pilot must not treat `MATCH` by itself as a
 policy `PASS`. In the trusted gate, a real security
@@ -153,6 +153,10 @@ guarantees. This pilot does not change that boundary.
 4. Log the **first reproducible failure** and exact
    remediation effort. Do not mask the failure by
    downgrading compiler or adding irrelevant libraries.
+   After stopping the normal run, investigate other independent
+   suspected blockers with isolated diagnostics. Mark each
+   `Reproduced` (executed), `Source-confirmed` (inspection only)
+   or `Not tested` (unknown). Never claim later E2E stages passed.
 5. Add a small producer test and test-only candidate
    only if the required Solidity semantics can be
    represented without changing production sources.
@@ -172,6 +176,9 @@ A **completed experiment** needs:
   command on the pinned upstream revision.
 - A table of setup steps, manual file changes and
   time spent, separating clean clone from warm runs.
+- Time to write the ordinary Foundry behavior test and the
+  additional Sentinel capture, config and trusted CI gate;
+  count copied Treasury code and inspections of internals.
 - A supported/unsupported verdict for each stage.
 - Real command logs and error messages.
 - A distinction between consumer mistakes,
@@ -186,6 +193,9 @@ replay, classification `MATCH` and trusted gate
 
 A maintainers-run pilot cannot claim that an
 unassisted external developer completed onboarding.
+Research may conclude `UNSUPPORTED`, but a v0.6 portability
+claim requires safe PASS, synthetic-regression BLOCK, fail-closed
+technical errors and a passing Treasury control on clean clones.
 
 ## 9. Alternatives considered
 
