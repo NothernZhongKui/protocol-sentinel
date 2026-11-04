@@ -5,7 +5,7 @@ Scope: Authority Regression / Local EVM
 
 ## Current portable workflow and trust boundaries
 
-The v0.6 workspace runner executes a consumer-supplied Foundry producer, captures Comparison Evidence 1.1, checks Git-owned source closure and build inputs, independently replays the recorded classification in Python, and reproduces normalized compiler outputs in an isolated source snapshot. An optional trusted policy makes a separate CI decision. The completed-run verifier rechecks a trusted bundle and its recorded producer result; it does not re-execute the original EVM test. The separate v0.5 runner produces Evidence 1.0. See the [workspace guide](portable-workspace-v0.6.md) for the unreleased v0.6 scope.
+The v0.6 workspace runner executes a consumer-supplied Foundry producer, captures Comparison Evidence 1.1, checks Git-owned source closure and build inputs, independently replays the recorded classification in Python, and reproduces normalized compiler outputs in an isolated source snapshot. An optional trusted policy makes a separate CI decision. The completed-run verifier rechecks a trusted bundle and its recorded producer result; it does not re-execute the original EVM test. The separate v0.5 runner produces Evidence 1.0. See the [workspace guide](portable-workspace-v0.6.md) for the v0.6 scope.
 
 | Boundary | What is checked | What it does not establish |
 | --- | --- | --- |
