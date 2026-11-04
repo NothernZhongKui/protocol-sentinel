@@ -732,7 +732,7 @@ jobs:
 
       - name: Validate workspace Evidence 1.1 schema and runner syntax
         run: |
-          python -m py_compile scripts/workspace_context.py scripts/source_closure.py scripts/workspace_provenance.py scripts/workspace_evidence.py scripts/assemble_workspace_direct.py scripts/replay_workspace_build.py scripts/trusted_workspace_gate.py scripts/run_workspace_direct.py
+          python -m py_compile scripts/workspace_context.py scripts/source_closure.py scripts/workspace_provenance.py scripts/workspace_evidence.py scripts/assemble_workspace_direct.py scripts/replay_workspace_build.py scripts/trusted_workspace_gate.py scripts/run_workspace_direct.py scripts/verify_workspace_run.py
           python - <<'PY'
           import json
           from pathlib import Path
