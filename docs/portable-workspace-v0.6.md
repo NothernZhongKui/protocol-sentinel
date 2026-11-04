@@ -103,4 +103,6 @@ python3 -B lib/protocol-sentinel/scripts/verify_workspace_run.py \
 
 The verifier reads the published artifacts again, validates source ownership and hashes, repeats the recorded compilation and classification, and recomputes the trusted policy decision. It outputs `PUBLISHED_EVIDENCE=INDEPENDENTLY_REVERIFIED` when successful.
 
+Like the producer runner, the verifier exits `0` for a verified `PASS`, `2` for a verified `BLOCK` or an invalid artifact, and `3` for a verified `REVIEW`. A successfully reproduced `BLOCK` is not an exit-zero result; consumers should inspect the printed `CI_DECISION` to distinguish an unsafe comparison from a verification error.
+
 **Boundary:** This establishes agreement between recorded observations, compiler inputs/outputs, Git ownership and policy decision within the trusted checkout. It does not independently attest the original EVM execution, all possible privileges, or contract safety. The current v0.6 scope is Direct EOA UUPS only; Timelock remains a separate Solidity route. For the legacy Treasury workflow and Evidence 1.0, keep using the [v0.5 quickstart](portable-direct-v0.5.md).
