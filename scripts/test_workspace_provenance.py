@@ -142,6 +142,11 @@ def main():
             lambda: replay_unit(context, mismatched, fake),
             "Compiler commit mismatch",
         )
+        fake_other = base / "fake-solc-other"
+        fake_other.write_text(fake.read_text().replace(
+            "0.8.26+commit.8a97fa7a", "0.8.26+commit.00000000"
+        ))
+        fake_other.chmod(0o755)
         short_long = dict(original, solcLongVersion="0.8.26")
         assert replay_unit(context, short_long, fake)["contracts"] == 1
         print("PASS | Foundry short solcLongVersion with pinned exact commit")
@@ -164,11 +169,6 @@ def main():
             lambda: replay_unit(context, misleading_long, fake),
             "Compiler commit mismatch",
         )
-        fake_other = base / "fake-solc-other"
-        fake_other.write_text(fake.read_text().replace(
-            "0.8.26+commit.8a97fa7a", "0.8.26+commit.00000000"
-        ))
-        fake_other.chmod(0o755)
         reject(
             "short compiler version with wrong installed commit",
             lambda: replay_unit(context, original, fake_other),
