@@ -100,7 +100,7 @@ def main():
         "Evidence execution mode substitution",
         evidence,
         lambda doc: doc["environment"].__setitem__("executionMode", "fork"),
-        "Unsupported workspace execution mode",
+        "Invalid comparison evidence at environment",
         command,
     )
     rejected(
