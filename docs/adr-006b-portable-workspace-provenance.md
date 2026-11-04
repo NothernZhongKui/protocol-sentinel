@@ -39,11 +39,17 @@ The isolated consumer pilot commit is
 | Fresh compiler build-info | solc `0.8.26`; one settings set; producer included | Reproduced |
 | Source mapping | 100 unique names: 71 inside workspace, 29 outside workspace but inside checkout, 12 with `..`, zero unresolved | Reproduced |
 | Actual file bytes versus compiler input | `SOURCE_INTEGRITY=MATCH` | Reproduced |
-| Portable Python replay / compiler replay / trusted CI gate | Not executed | Not tested |
+| Exact solc 0.8.26 replay with original Standard JSON and restricted checkout filesystem access | 1 build unit, 111 compiled source units, 87 contracts, output `MATCH`, 10.76 s | Reproduced (filesystem-assisted diagnostic) |
+| Strictly self-contained solc replay without import callback | Missing import source units; recorded `input.sources` has 100 keys while outputs have 111 | Reproduced (blocked) |
+| Portable Python replay / hermetic compiler replay / trusted CI gate | Not executed | Not tested |
 
-The source-mapping and byte-match checks are standalone diagnostic
-scripts, **not** execution of Sentinel's portable verifier.
-They do not establish verified provenance or completed Evidence.
+The source-mapping, byte-match and filesystem-assisted replay
+checks are standalone diagnostic scripts, **not** execution of
+Sentinel's portable verifier. The replay used the exact local
+solc `0.8.26+commit.8a97fa7a` and the existing output comparison.
+It required the compiler to load additional imports from the
+checkout, not a hermetically verified input closure. These checks
+do not establish verified Git provenance or completed Evidence.
 
 ## 3. Concrete v0.5.1 limitations
 
@@ -137,6 +143,23 @@ insufficient to prove that compiler sources are tracked.
 Preserve logical names in independently replayed Standard JSON.
 Physical path normalization belongs to verification metadata,
 not a rewrite of the compiler input.
+
+**Observed compiler-input closure gap (STEP 008B–C):** fresh
+Foundry build-info included 100 `input.sources` keys, but
+`output.sources` contained 111 source-unit names. Some imports
+requested relative names such as
+`../cap-staking/lib/openzeppelin-contracts/contracts/proxy/Proxy.sol`
+while the same physical files were listed in `input.sources`
+under absolute names. Vanilla `--standard-json` with no import
+callback failed to resolve these; allowing checkout filesystem
+access reproduced 87 contracts and matched both output sections.
+A v0.6 verifier must recover and independently validate **all**
+actual compiler source units and their ownership, not just the
+100 prepopulated input entries. The source-unit closure and its
+correspondence to fresh execution must be represented explicitly.
+Try deterministic, in-memory supplementation of missing logical
+names as a separate diagnostic; do not assume it preserves output
+identities or pass a filesystem-assisted result off as hermetic.
 
 ## 6. Dependency identity and lockfiles
 
@@ -255,9 +278,10 @@ producer inventory or trusted CI identity.
    installed-tool pin resolution; preserve Treasury behavior.
 2. Verify real source mappings and actual Git dependency
    ownership, with explicit failure reasons.
-3. Independently test exact `0.8.26` Standard JSON replay
-   from existing Capminal build-info, then support the proven
-   compiler build without losing `0.8.24`.
+3. Test hermetic import-source closure for the observed 11
+   additional logical source units, reconcile with Git ownership
+   and independently reproduce exact `0.8.26` outputs without
+   unrestricted filesystem access. Maintain `0.8.24` replay.
 4. Freeze the minimal manifest/Evidence version contract and
    compatibility matrix **before** publishing through a revised
    runner; verify backward compatibility.
