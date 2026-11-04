@@ -2,13 +2,13 @@
 
 Use the workspace runner to compare a declared Direct EOA/UUPS upgrade attempt before and after an authorized implementation change. It runs your Foundry producer, captures Comparison Evidence 1.1, replays the classification in Python and reproduces the recorded compiler outputs.
 
-**Release candidate:** this branch is not a released v0.6 tag. Pin the reviewed commit when trying it. For the released Evidence 1.0 workflow, see the [v0.5 guide](portable-direct-v0.5.md).
+**Release:** [v0.6.0](https://github.com/NothernZhongKui/protocol-sentinel/releases/tag/v0.6.0). Pin the release tag for reproducible integration. For the earlier Evidence 1.0 workflow, see the [v0.5 guide](portable-direct-v0.5.md).
 
 ## Try the external acceptance
 
 The Capminal acceptance exercises a real, pinned external Foundry workspace with test-only safe and faulty implementations. The faulty migration is synthetic; it is not an upstream vulnerability.
 
-From a checkout of this PR with the toolchain installed:
+From a checkout of the v0.6.0 release with the toolchain installed:
 
 ```bash
 python3.12 -m venv "$HOME/protocol-sentinel-venv"
@@ -43,12 +43,11 @@ For compiler replay, an explicit `--solc` path is required. If Foundry records o
 
 ### 2. Install and configure
 
-From your Foundry workspace, add Sentinel as a Git submodule and pin a reviewed v0.6 commit. Until a release tag exists, the example pins the fully CI-verified candidate revision `ab6e8fc` (including the documentation update):
+From your Foundry workspace, add Sentinel as a Git submodule and pin the published `v0.6.0` release:
 
 ```bash
 git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/protocol-sentinel
-git -C lib/protocol-sentinel fetch origin feat/v0.6-workspace-context
-git -C lib/protocol-sentinel checkout ab6e8fc07980bc690651c080446257e66b2aa2c6
+git -C lib/protocol-sentinel checkout v0.6.0
 git -C lib/protocol-sentinel submodule update --init --recursive
 ```
 
