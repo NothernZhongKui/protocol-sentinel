@@ -37,6 +37,26 @@ cp "$FIXTURES/CapuSentinelProducer.t.sol" "$PROJECT/test/"
 cp "$FIXTURES/sentinel-safe.toml" "$PROJECT/"
 cp "$FIXTURES/sentinel-faulty.toml" "$PROJECT/"
 
+# The upstream Foundry workspace intentionally has no write permission
+# for vm.writeJson. Grant only the generated Sentinel Evidence directory,
+# and commit the effective test-only config into the temporary consumer.
+python3 - "$PROJECT/foundry.toml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+contents = path.read_text(encoding="utf-8")
+header = "[profile.default]\n"
+assert contents.count(header) == 1
+assert "fs_permissions" not in contents
+contents = contents.replace(
+    header,
+    header + 'fs_permissions = [{ access = "read-write", path = "artifacts/sentinel/runs" }]\n',
+    1,
+)
+path.write_text(contents, encoding="utf-8")
+PY
+
 git -C "$CONSUMER" -c protocol.file.allow=always submodule add -q \
   https://github.com/NothernZhongKui/protocol-sentinel.git \
   projects/capu/lib/protocol-sentinel
@@ -45,7 +65,7 @@ git -C "$INSTALLED" checkout -q --detach "$TOOL_SHA"
 git -C "$INSTALLED" submodule update --init --recursive -q
 
 git -C "$CONSUMER" add \
-  .gitmodules projects/capu/lib/protocol-sentinel \
+  .gitmodules projects/capu/foundry.toml projects/capu/lib/protocol-sentinel \
   projects/capu/test/AuthorityRegressionOracle.t.sol \
   projects/capu/test/CapuSentinelProducer.t.sol \
   projects/capu/sentinel-safe.toml \
