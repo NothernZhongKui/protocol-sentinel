@@ -41,7 +41,8 @@ The isolated consumer pilot commit is
 | Actual file bytes versus compiler input | `SOURCE_INTEGRITY=MATCH` | Reproduced |
 | Exact solc 0.8.26 replay with original Standard JSON and restricted checkout filesystem access | 1 build unit, 111 compiled source units, 87 contracts, output `MATCH`, 10.76 s | Reproduced (filesystem-assisted diagnostic) |
 | Strictly self-contained solc replay without import callback | Missing import source units; recorded `input.sources` has 100 keys while outputs have 111 | Reproduced (blocked) |
-| Portable Python replay / hermetic compiler replay / trusted CI gate | Not executed | Not tested |
+| Original Standard JSON plus isolated snapshot of 11 additional import files | Exact solc 0.8.26 reproduced 87 contracts; existing normalized output comparison `MATCH`; raw AST unequal | Reproduced (sandbox diagnostic) |
+| Portable Python replay / Git-attested source closure / trusted CI gate | Not executed | Not tested |
 
 The source-mapping, byte-match and filesystem-assisted replay
 checks are standalone diagnostic scripts, **not** execution of
@@ -157,9 +158,17 @@ A v0.6 verifier must recover and independently validate **all**
 actual compiler source units and their ownership, not just the
 100 prepopulated input entries. The source-unit closure and its
 correspondence to fresh execution must be represented explicitly.
-Try deterministic, in-memory supplementation of missing logical
-names as a separate diagnostic; do not assume it preserves output
-identities or pass a filesystem-assisted result off as hermetic.
+
+**STEP 009–012:** supplementing the 11 imports directly into
+`input.sources` produced a `CONTRACTS MISMATCH` despite matching
+bytecode and source IDs, because immutable-reference AST IDs
+changed. A separate isolated filesystem snapshot of those 11
+sources kept the original Standard JSON unchanged and reproduced
+87 contracts with the existing Sentinel normalized comparator.
+Raw AST objects still differed; no AST-exact bitwise replay
+claim is made. This sandbox diagnostic checks content but does
+**not** yet prove Git ownership/submodule-chain integrity or
+portable Evidence publication.
 
 ## 6. Dependency identity and lockfiles
 
