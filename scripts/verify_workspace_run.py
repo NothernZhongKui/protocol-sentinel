@@ -118,6 +118,7 @@ def verify_completed(project, tool, run_directory, solc, config_name, policy_pat
     manifest = read_json(bundle / "build-provenance.json")
     verify_workspace_evidence(
         doc, context, manifest_sha, trusted["policy"]["consumer_repository"],
+        manifest,
     )
     require(
         doc["provenance"]["runId"] == run_dir.name,
