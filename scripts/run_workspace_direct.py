@@ -223,6 +223,7 @@ def run(project, tool, config_name, solc, policy_path=None):
                 trusted["policy"]["consumer_repository"]
                 if trusted is not None else "LOCAL_UNTRUSTED_CHECKOUT"
             ),
+            manifest,
         )
         report = replay(document, schema=schema_for(document))
         require(
