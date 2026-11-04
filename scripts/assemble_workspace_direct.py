@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Lossless Direct capture -> comparison Evidence 1.1 for nested Foundry."""
 
-import hashlib
 import re
 
 from assemble_direct_comparison import FIELDS, REGISTRY, ROUTE
@@ -13,7 +12,7 @@ class WorkspaceAssemblyError(ValueError):
     pass
 
 
-def assemble_workspace(capture, run_id, context, manifest, manifest_digest, forge_version):
+def assemble_workspace(capture, run_id, context, manifest, manifest_digest, forge_version, fixture_id, reproduce_command):
     required = {
         "format", "chain_id", "scenario_id", "actor", "target",
         "candidate", "expected_revert", "policy",
@@ -89,7 +88,7 @@ def assemble_workspace(capture, run_id, context, manifest, manifest_digest, forg
             "reason": capture["comparison_reason"],
         },
         "environment": {
-            "fixtureId": manifest["fixtureId"],
+            "fixtureId": fixture_id,
             "executionMode": "local_fixture",
             "chainId": capture["chain_id"],
             "forgeVersion": forge_version,
@@ -104,7 +103,7 @@ def assemble_workspace(capture, run_id, context, manifest, manifest_digest, forg
             "workingTreeClean": True,
             "runId": run_id,
             "sourceInputs": source_inputs,
-            "reproduceCommand": manifest["reproduceCommand"],
+            "reproduceCommand": reproduce_command,
             "buildProvenance": {
                 "format": "protocol-sentinel-build-provenance-v2",
                 "manifestPath": "build/build-provenance.json",
