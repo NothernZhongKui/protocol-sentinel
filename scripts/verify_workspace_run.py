@@ -239,4 +239,7 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"COMPLETED_RUN_REJECTED: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
-    raise SystemExit({"PASS": 0, "BLOCK": 0, "REVIEW": 0}[decision])
+    # Reverification success is not authorization to merge.
+    # Preserve the runner's CI gate exit contract for downstream consumers:
+    # a correctly reproduced unsafe classification still blocks CI.
+    raise SystemExit({"PASS": 0, "BLOCK": 2, "REVIEW": 3}[decision])
