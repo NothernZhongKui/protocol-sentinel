@@ -1,7 +1,7 @@
 # RFC-006: Existing Foundry Project Pilot and v0.6 Adoption
 
 Status: PROPOSED — review requested; not an implementation commitment  
-Review revision: 2 — incorporates external architectural review  
+Review revision: 3 — updated after pilot STEP 001–007 and second review  
 Target: Protocol Sentinel v0.6  
 Baseline: released v0.5.1  
 Companion: [ADR-006A](adr-006a-external-oss-pilot-boundary.md)  
@@ -74,11 +74,15 @@ an intentionally flawed migration. See [ADR-006A](adr-006a-external-oss-pilot-bo
 | Compiler configuration | Root `solc = "0.8.26"`; workspace `extends` | Assembler reads `profile.default.solc_version` |
 | Repository identity | Checkout `capminal-contracts`, workspace `capu` | Runner/gate use `project.name` as identity |
 
-These differences are **hypotheses for integration blockers**,
-not reported outcomes of a completed pilot. The project must
-first pass its own original tests on the pinned revision.
+These differences motivated the pilot. On STEP 001–007 the
+original build/tests, ordinary Foundry oracle and Sentinel
+Solidity comparison/capture passed. The unmodified portable
+runner **reproduced** a missing-workspace-lockfile stop; the
+remaining full pipeline is not yet tested. Fresh build-info
+contains 100 compiler sources, 29 outside the workspace but
+inside the checkout, with byte-for-byte source integrity MATCH.
 Do not add fake lockfiles, unused dependencies or synthetic
-provenance merely to satisfy Sentinel.
+provenance merely to satisfy Sentinel. See [ADR-006B](adr-006b-portable-workspace-provenance.md).
 
 The candidate's [SECURITY.md](https://github.com/Capminal/capminal-contracts/blob/main/SECURITY.md)
 requires private reporting of genuine security findings.
@@ -116,8 +120,6 @@ requires a separate reviewed PR and negative tests.
 | 4 — Negative control | Use a **test-only inherited V2** with a flawed migration that grants the actor `DEFAULT_ADMIN_ROLE` during the authorized transition; do not override the non-`virtual` `_authorizeUpgrade` | `CHANGED_TO_VIOLATION` and trusted `BLOCK`, if supported |
 | 5 — Failure handling | Exercise producer failure and at least one evidence/build or identity mismatch | No completed verified Evidence and no trusted PASS |
 | 6 — CI | Attempt pinned, trusted workflow and policy integration | PASS/BLOCK/REVIEW, provenance and workflow integrity assumptions |
-| 4 — Failure handling | Exercise producer failure and at least one evidence/build or identity mismatch | No completed verified Evidence and no trusted PASS |
-| 5 — CI | Attempt pinned, trusted workflow and policy integration | PASS/BLOCK/REVIEW, provenance and workflow integrity assumptions |
 
 Stage 1 may stop the **normal end-to-end run** on a hard
 compatibility blocker. Continue **separate diagnostic probes**
@@ -249,7 +251,13 @@ to cover only declared actors, actions and fixtures.
    reproducer, expected behavior and required negative tests.
 4. Follow-up implementation ADRs for any change to compiler,
    dependency, Evidence metadata or multi-scenario trust rules.
-5. After fixes, a repeated clean-clone pilot plus the existing
+   Freeze the minimal manifest/schema version compatibility
+   contract **before** connecting new mappings to completed
+   Evidence publication.
+5. Publish a clearly labelled pilot reproducer with test-only
+   sources, exact pins and commands, so external reviewers can
+   independently check claims; local-only logs are not public.
+6. After fixes, a repeated clean-clone pilot plus the existing
    Treasury consumer regression suite. Release success requires
    both safe `PASS` and synthetic regression `BLOCK` on Capminal
    using Sentinel's **published interface**; an `UNSUPPORTED`
@@ -257,7 +265,9 @@ to cover only declared actors, actions and fixtures.
 
 Do not label the pilot as successful solely because Forge tests
 compile. The independent replay and trusted gate must be
-validated for end-to-end claims.
+validated for end-to-end claims. A stand-alone exact-solc
+0.8.26 Standard JSON replay is the next diagnostic experiment;
+it is not a completed portable run.
 
 ## 11. Review questions
 
