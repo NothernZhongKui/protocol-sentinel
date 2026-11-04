@@ -4,31 +4,6 @@ Use the workspace runner to compare a declared Direct EOA/UUPS upgrade attempt b
 
 **Release:** [v0.6.0](https://github.com/NothernZhongKui/protocol-sentinel/releases/tag/v0.6.0). Pin the release tag for reproducible integration. For the earlier Evidence 1.0 workflow, see the [v0.5 guide](portable-direct-v0.5.md).
 
-## Try the external acceptance
-
-The Capminal acceptance exercises a real, pinned external Foundry workspace with test-only safe and faulty implementations. The faulty migration is synthetic; it is not an upstream vulnerability.
-
-From a checkout of the v0.6.0 release with the toolchain installed:
-
-```bash
-python3.12 -m venv "$HOME/protocol-sentinel-venv"
-source "$HOME/protocol-sentinel-venv/bin/activate"
-python -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
-bash scripts/check_capu_workspace.sh
-```
-
-Keep the virtual environment outside the consumer Git checkout, especially when the workspace is nested in a monorepo, so the runner's clean-worktree requirement is preserved.
-
-This requires Git, Foundry 1.8.7, network access to clone the pinned Capminal repository and dependencies, and executable solc `0.8.26+commit.8a97fa7a` in one of the SVM locations checked by the script. The script makes a temporary local integration commit and deletes its temporary checkout on exit. It does not modify or push to the upstream repository.
-
-| Case | Classification | Trusted decision |
-| --- | --- | --- |
-| Test-only safe upgrade | `STILL_SATISFIED` | `PASS` |
-| Synthetic faulty migration | `CHANGED_TO_VIOLATION` | `BLOCK` |
-| Failed producer or tampered artifact | Rejected | `BLOCK` |
-
-The harness also exercises the Solidity oracle, completed-run verifier and mutation controls. A local invocation uses synthetic GitHub context for the test; it does not demonstrate a protected production workflow. The [producer](../tests/external/capu/CapuSentinelProducer.t.sol) and [configuration](../tests/external/capu/sentinel-safe.toml) are executable examples to adapt.
-
 ## Integrate your project
 
 ### 1. Check prerequisites
@@ -72,11 +47,11 @@ Inherit `DirectComparisonCapture`, set up your fixture and use one shared `Upgra
 | --- | --- |
 | Baseline | Active before the authorized transition. |
 | Updated | Installed by the authorized actor between observations. |
-| Candidate | The implementation the actor under test attempts to install during each isolated probe. |
+| Candidate | A separate, valid UUPS implementation the declared actor attempts to install in **both** isolated probes; do not confuse it with the updated implementation. |
 
 The [Capminal producer](../tests/external/capu/CapuSentinelProducer.t.sol) is a complete example in its own fixture, not a drop-in test for a different project. Adapt its actors, proxy, expected revert, candidate and transition to your contracts. Its separate [oracle](../tests/external/capu/AuthorityRegressionOracle.t.sol) shows the underlying fixture and independent assertions.
 
-The producer must complete and export one capture, including when it observes an unsafe verdict. Keep expected-verdict assertions in separate tests; the CI gate makes the policy decision. The runner rejects failed, skipped or ambiguous producer selection.
+The producer must complete and export one capture, including when it observes an unsafe verdict. Supply the exact expected authorization revert and keep the same actor, target, candidate and policy across both stages. Keep expected-verdict assertions in separate tests; the CI gate makes the policy decision. The runner rejects failed, skipped or ambiguous producer selection.
 
 ### 4. Configure and run
 
@@ -109,7 +84,20 @@ python -B lib/protocol-sentinel/scripts/run_workspace_direct.py \
   --solc "/absolute/path/to/solc"
 ```
 
-Successful local output includes `CLASSIFICATION: …`, `REPLAY: MATCH`, `CI DECISION: NOT_EVALUATED` and a completed directory under `artifacts/sentinel/runs/completed/<run-id>/`. The classification is the result of your scenario. `MATCH` does not mean it is safe: it may accompany `CHANGED_TO_VIOLATION`. No policy is applied in local mode.
+Successful local output includes `CLASSIFICATION: …`, `REPLAY: MATCH`, `CI DECISION: NOT_EVALUATED` and a completed directory under `artifacts/sentinel/runs/completed/<run-id>/`.
+
+Interpret these independently:
+
+| Output | Meaning |
+| --- | --- |
+| `PASS \| Fresh producer and scenario` | The selected Foundry producer completed and exported its observation; **not** a security approval. |
+| `PASS \| Isolated compiler replay` | Recorded compiler outputs were independently reproduced. |
+| `CLASSIFICATION: STILL_SATISFIED` | The declared restriction held before and after the authorized upgrade. |
+| `CLASSIFICATION: CHANGED_TO_VIOLATION` | The declared restriction held before the upgrade but failed afterward. |
+| `REPLAY: MATCH` | Python independently reproduced the recorded classification, even if that classification is unsafe. |
+| `CI DECISION: NOT_EVALUATED` | Local verification succeeded without a trusted merge policy; no merge decision was made. |
+
+A trusted policy maps `STILL_SATISFIED` to `PASS` and `CHANGED_TO_VIOLATION` to `BLOCK`. A verified `BLOCK` can still publish Evidence. The local runner does not make that decision.
 
 If Sentinel is installed at another Git-pinned path inside the checkout, invoke its script there and supply `--tool-root /absolute/path/to/protocol-sentinel`. See [configuration and troubleshooting](reference/workspace-v0.6.md).
 
@@ -135,3 +123,28 @@ This verifier requires `ci-gate.json` and the same recorded CI context, includin
 ## Limits
 
 The portable runner covers one declared Direct EOA → ERC-1967/UUPS `upgradeToAndCall(address,bytes)` probe with empty initialization calldata per invocation. It does not discover roles or arbitrary governance routes, validate storage layout, or establish contract security. A matching revert does not prove which authorization branch executed. Git/source and replay checks do not independently authenticate the original EVM execution. See the [threat model](threat-model.md).
+
+## Maintainer acceptance (optional)
+
+This is a maintainer regression suite, not a prerequisite for integrating your own project. The Capminal acceptance exercises a real, pinned external Foundry workspace with test-only safe and faulty implementations. The faulty migration is synthetic; it is not an upstream vulnerability.
+
+From a checkout of the v0.6.0 release with the toolchain installed:
+
+```bash
+python3.12 -m venv "$HOME/protocol-sentinel-venv"
+source "$HOME/protocol-sentinel-venv/bin/activate"
+python -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
+bash scripts/check_capu_workspace.sh
+```
+
+Keep the virtual environment outside the consumer Git checkout, especially when the workspace is nested in a monorepo, so the runner's clean-worktree requirement is preserved.
+
+This requires Git, Foundry 1.8.7, network access to clone the pinned Capminal repository and dependencies, and executable solc `0.8.26+commit.8a97fa7a` in one of the SVM locations checked by the script. The script makes a temporary local integration commit and deletes its temporary checkout on exit. It does not modify or push to the upstream repository.
+
+| Case | Classification | Trusted decision |
+| --- | --- | --- |
+| Test-only safe upgrade | `STILL_SATISFIED` | `PASS` |
+| Synthetic faulty migration | `CHANGED_TO_VIOLATION` | `BLOCK` |
+| Failed producer or tampered artifact | Rejected | `BLOCK` |
+
+The harness also exercises the Solidity oracle, completed-run verifier and mutation controls. A local invocation uses synthetic GitHub context for the test; it does not demonstrate a protected production workflow. The [producer](../tests/external/capu/CapuSentinelProducer.t.sol) and [configuration](../tests/external/capu/sentinel-safe.toml) are executable examples to adapt.
