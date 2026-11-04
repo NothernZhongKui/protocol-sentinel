@@ -124,6 +124,36 @@ def main():
         assert report["snapshot_imports"] == 0
         print("PASS | Standalone replay plumbing with deterministic mock compiler")
 
+        unknown = dict(original, solcVersion="0.8.25")
+        reject(
+            "unknown short compiler version without exact identity",
+            lambda: replay_unit(context, unknown, fake),
+            "Compiler version mismatch",
+        )
+        # Same semver, incorrect recorded build commit: no recompile can bless it.
+        mismatched = dict(original, solcVersion="0.8.26+commit.00000000")
+        reject(
+            "mismatched recorded compiler commit",
+            lambda: replay_unit(context, mismatched, fake),
+            "Compiler commit mismatch",
+        )
+        misleading_long = dict(original, solcLongVersion="0.8.26+commit.00000000")
+        reject(
+            "mismatched recorded long compiler identity",
+            lambda: replay_unit(context, misleading_long, fake),
+            "Compiler commit mismatch",
+        )
+        fake_other = base / "fake-solc-other"
+        fake_other.write_text(fake.read_text().replace(
+            "0.8.26+commit.8a97fa7a", "0.8.26+commit.00000000"
+        ))
+        fake_other.chmod(0o755)
+        reject(
+            "short compiler version with wrong installed commit",
+            lambda: replay_unit(context, original, fake_other),
+            "Compiler commit mismatch",
+        )
+
         original_fake = fake.read_text()
         fake.write_text(original_fake.replace("6000", "6001"))
         reject(
@@ -191,6 +221,27 @@ def main():
             lambda: verify_v2(context, bundle, "test/Oracle.t.sol"),
             "pinned Git blob",
         )
+        git(root, "checkout", "--", "projects/capu/test/Oracle.t.sol")
+
+        # Positive monorepo case with no repository-root foundry.toml.
+        (root / "foundry.toml").unlink()
+        (project / "foundry.toml").write_text(
+            "[profile.default]\nsolc = '0.8.26'\n"
+        )
+        commit(root, "standalone nested Foundry workspace")
+        nested_context = resolve_workspace(
+            project, tool, expected_workspace="projects/capu"
+        )
+        standalone = base / "standalone-bundle"
+        capture_v2(nested_context, fresh, standalone, "test/Oracle.t.sol")
+        standalone_manifest = json.loads(
+            (standalone / "build-provenance.json").read_text()
+        )
+        paths = {entry["path"] for entry in standalone_manifest["integrationInputs"]}
+        assert "foundry.toml" not in paths
+        assert "projects/capu/foundry.toml" in paths
+        verify_v2(nested_context, standalone, "test/Oracle.t.sol")
+        print("PASS | Nested standalone workspace without root foundry.toml")
 
     print("=== WORKSPACE PROVENANCE V2 CONTROLS PASSED ===")
 
