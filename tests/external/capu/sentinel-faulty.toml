@@ -1,0 +1,11 @@
+[sentinel]
+config_version = "1"
+route = "DIRECT_EOA_UUPS"
+
+[producer]
+id = "capu_faulty"
+contract = "CapuSentinelProducerTest"
+test = "test_ProduceFaulty"
+source = "test/CapuSentinelProducer.t.sol"
+fixture_id = "capu-pilot-faulty-v1"
+scenario_id = "0x6e77397ebf651e5dcb0ff8444f8dc3caf149fc69d03bc360bc162feb897b3d01"
