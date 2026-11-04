@@ -43,7 +43,7 @@ A successful run is published under `artifacts/sentinel/runs/completed/<run-id>/
 | --- | --- |
 | `raw-capture.json` | Solidity producer capture. |
 | `evidence.json` | Assembled comparison evidence. |
-| `verification.json` | Replay and build verification summary. Its `ci_decision` is `NOT_EVALUATED`; inspect `ci-gate.json` for the trusted decision. |
+| `verification.json` | Replay and build verification summary. Its `ci_decision` is `NOT_EVALUATED` without a trusted policy; in trusted mode it records the gate decision. Inspect `ci-gate.json` for the trusted policy result and CI context. |
 | `forge-results.json` | Selected test's Forge execution record. |
 | `build/` | Compiler build-info and provenance. |
 | `ci-gate.json` | Trusted policy decision, only when a trusted policy was supplied. |

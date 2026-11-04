@@ -39,8 +39,8 @@
   discover every privilege path.
 - The Capminal faulty implementation is test-only and does not imply
   any vulnerability in upstream Capminal.
-- **Not released:** PR #41 remains draft pending final independent
-  review and successful CI on the final revision.
+- **Not released:** PR #41 remains draft pending maintainer approval
+  and final required checks before merge.
 
 See [v0.6 release-candidate review](docs/releases/v0.6.0-rc-review.md)
 and [portable workspace quickstart](docs/portable-workspace-v0.6.md).

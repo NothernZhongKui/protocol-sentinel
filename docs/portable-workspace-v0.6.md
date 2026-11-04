@@ -11,11 +11,13 @@ The Capminal acceptance exercises a real, pinned external Foundry workspace with
 From a checkout of this PR with the toolchain installed:
 
 ```bash
-python3.12 -m venv ../sentinel-venv
-source ../sentinel-venv/bin/activate
+python3.12 -m venv "$HOME/.venvs/protocol-sentinel"
+source "$HOME/.venvs/protocol-sentinel/bin/activate"
 python -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
 bash scripts/check_capu_workspace.sh
 ```
+
+Keep the virtual environment outside the consumer Git checkout, especially when the workspace is nested in a monorepo, so the runner's clean-worktree requirement is preserved.
 
 This requires Git, Foundry 1.8.7, network access to clone the pinned Capminal repository and dependencies, and executable solc `0.8.26+commit.8a97fa7a` in one of the SVM locations checked by the script. The script makes a temporary local integration commit and deletes its temporary checkout on exit. It does not modify or push to the upstream repository.
 
@@ -41,12 +43,12 @@ For compiler replay, an explicit `--solc` path is required. If Foundry records o
 
 ### 2. Install and configure
 
-From your Foundry workspace, add Sentinel as a Git submodule and pin a reviewed v0.6 commit. Until release, the example uses the implementation commit under review:
+From your Foundry workspace, add Sentinel as a Git submodule and pin a reviewed v0.6 commit. Until a release tag exists, the example pins the fully CI-verified candidate revision `ab6e8fc` (including the documentation update):
 
 ```bash
 git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/protocol-sentinel
 git -C lib/protocol-sentinel fetch origin feat/v0.6-workspace-context
-git -C lib/protocol-sentinel checkout e6640cd13f117057f06ae0398aa857f3e69ef8c2
+git -C lib/protocol-sentinel checkout ab6e8fc07980bc690651c080446257e66b2aa2c6
 git submodule update --init --recursive
 ```
 

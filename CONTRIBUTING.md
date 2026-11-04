@@ -9,8 +9,8 @@ Git, Foundry 1.8.7 and Python 3.12 are used in CI. The legacy evidence suite use
 ```bash
 git clone --recurse-submodules https://github.com/NothernZhongKui/protocol-sentinel.git
 cd protocol-sentinel
-python3.12 -m venv ../sentinel-venv
-source ../sentinel-venv/bin/activate
+python3.12 -m venv "$HOME/.venvs/protocol-sentinel"
+source "$HOME/.venvs/protocol-sentinel/bin/activate"
 python -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
 forge build
 forge test
