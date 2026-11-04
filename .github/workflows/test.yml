@@ -769,3 +769,34 @@ jobs:
 
       - name: Run Fortytwo PASS FAIL PASS regression
         run: bash scripts/reproduce_x402.sh
+
+  capu_v06:
+    name: Capminal external Evidence 1.1 acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version-file: evidence/python-version.txt
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.7
+
+      - name: Install Evidence verification dependencies
+        run: |
+          python -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
+          python -m pip check
+
+      - name: Pinned Capminal safe PASS and faulty BLOCK
+        run: bash scripts/check_capu_workspace.sh
