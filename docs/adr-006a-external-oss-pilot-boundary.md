@@ -141,6 +141,35 @@ A consumer with internally consistent but fabricated
 capture data remains outside execution-authentication
 guarantees. This pilot does not change that boundary.
 
+### Compatibility boundary for follow-up implementation ADRs
+
+The current runner conflates the Git checkout and Foundry
+workspace. An implementation ADR should distinguish
+`repository_root` (checkout/commit identity) from
+`project_root` (Foundry execution/configuration), and
+define how compiler source names map to verified real files.
+The first trust boundary may use the pinned repository and
+verified submodules. Reject symlink and traversal escapes;
+merely accepting `..` is insufficient. Preserve original
+compiler source names for reproduction.
+
+Derive the effective compiler version/settings from fresh
+build-info, rather than assuming that one TOML field describes
+Foundry `extends`. Initially assess exact `0.8.24` and
+`0.8.26`, including normalization negative controls.
+
+Distinguish source content hashes from dependency checkout
+revisions. A versioned build manifest may be necessary for
+real dependency paths. Any change to the existing
+`protocol-sentinel-build-provenance-v1` format requires an
+explicit versioned Evidence reference; do not silently change
+the meaning of v1 or the independent classification semantics.
+
+For user-facing failures, record the failed stage, reason,
+expected and observed values, suggested next action and log
+location. Technical verification failure and verified security
+regression may both block CI but require distinct diagnostics.
+
 ## 7. Procedure and stop rules
 
 1. Capture original upstream tree, Git revision,
