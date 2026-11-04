@@ -199,9 +199,10 @@ def compare(spec, stages, evaluations, calldata):
     return transitions[key], "NONE"
 
 
-def replay(doc):
-    # Validate before interpreting any observed fields.
-    validate_document(doc)
+def replay(doc, *, schema=None):
+    # Legacy Evidence uses frozen v1 by default. v0.6 callers must
+    # explicitly pass a separately validated versioned schema.
+    validate_document(doc, schema=schema)
 
     if doc["route"] != "DIRECT_EOA_UUPS":
         raise ReplayMismatch("This replay supports direct route only")
