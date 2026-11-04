@@ -21,7 +21,7 @@ A successful producer test is **not** itself an authorization to merge. In parti
 
 ## Requirements
 
-- Python 3.12, Foundry 1.8.7 (the tested CI toolchain), Git, and the exact `solc` binary used for the build. The Capminal pilot uses `0.8.26+commit.8a97fa7a`.
+- Python 3.12, Foundry 1.8.7 (the tested CI toolchain), Git, and an exact `solc` build identity. Short Foundry build-info versions are accepted only with pinned compiler commits (`0.8.24+commit.e11b9ed9` or `0.8.26+commit.8a97fa7a`); other versions require a matching full compiler commit identity in build-info.
 - A **clean Git checkout** and pinned, clean Sentinel Git submodule. All compiler source units must belong to that checkout or its pinned Git submodule chain; untracked source files, symlink aliases, external source paths and divergent Git blobs are rejected.
 - A committed workspace `foundry.toml` and any applicable inherited configs; the runner records source unit Git ownership and effective compiler settings from fresh build-info. For fully Git-pinned dependencies, a `foundry.lock` is not required.
 - A uniquely selected producer test inheriting `DirectComparisonCapture`. It records a baseline observation, an authorized change and the new observation. Keep verdict assertions in separate tests.
@@ -41,6 +41,8 @@ From a checked-out v0.6 PR branch with Python dependencies installed and an exac
 python3 -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
 bash scripts/check_capu_workspace.sh
 ```
+
+In GitHub Actions the acceptance harness uses the actual `GITHUB_SHA`, `GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT` and `GITHUB_WORKFLOW_REF`; local runs use explicitly synthetic CI context. A different run attempt is rejected during independent verification. This tests CI binding, not cryptographic authentication of runner environment variables. A production gate still requires protected workflow and policy provenance.
 
 The acceptance script clones the [original Capminal repository](https://github.com/Capminal/capminal-contracts) at pinned commit `40b713b58f39476bcc081d7987c34a46cc085dd9`, stages only the [four test fixtures](../tests/external/capu/), a pinned Sentinel submodule and the scoped Foundry write permission in a temporary checkout, and commits that test-only integration locally. It **never pushes** to Capminal. It runs the native Solidity oracle, safe and faulty Evidence publication, independent completed-run verification, mutation rejection, and a deliberately failed producer. The original Capminal contracts are unchanged.
 
