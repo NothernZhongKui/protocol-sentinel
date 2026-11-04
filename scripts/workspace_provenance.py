@@ -33,15 +33,17 @@ def digest(raw):
 
 
 def integration_inputs(context):
-    # Explicit root and workspace configs, plus root submodule topology.
-    # Additional inherited configs are discovered via profile extends.
+    # Workspace config is mandatory. Root/inherited configs are attested
+    # only if present or explicitly referenced; a monorepo need not have
+    # a Foundry config at its Git root.
     root = context.repository_root
-    names = {
-        "foundry.toml",
-        ".gitmodules",
-        (Path(context.workspace) / "foundry.toml").as_posix(),
-    }
-    to_scan = [root / "foundry.toml", context.project_root / "foundry.toml"]
+    workspace_config = context.project_root / "foundry.toml"
+    require(workspace_config.is_file(), "Missing workspace foundry.toml")
+    names = {(Path(context.workspace) / "foundry.toml").as_posix()}
+    to_scan = [workspace_config]
+    if (root / "foundry.toml").is_file():
+        names.add("foundry.toml")
+        to_scan.append(root / "foundry.toml")
     seen = set()
     import tomllib
     while to_scan:
