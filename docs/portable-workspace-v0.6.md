@@ -11,8 +11,8 @@ The Capminal acceptance exercises a real, pinned external Foundry workspace with
 From a checkout of this PR with the toolchain installed:
 
 ```bash
-python3.12 -m venv "$HOME/.venvs/protocol-sentinel"
-source "$HOME/.venvs/protocol-sentinel/bin/activate"
+python3.12 -m venv "$HOME/protocol-sentinel-venv"
+source "$HOME/protocol-sentinel-venv/bin/activate"
 python -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
 bash scripts/check_capu_workspace.sh
 ```
@@ -49,7 +49,7 @@ From your Foundry workspace, add Sentinel as a Git submodule and pin a reviewed 
 git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/protocol-sentinel
 git -C lib/protocol-sentinel fetch origin feat/v0.6-workspace-context
 git -C lib/protocol-sentinel checkout ab6e8fc07980bc690651c080446257e66b2aa2c6
-git submodule update --init --recursive
+git -C lib/protocol-sentinel submodule update --init --recursive
 ```
 
 Add the following to the workspace's existing `[profile.default]` in `foundry.toml`. Merge it into an existing `fs_permissions` array if present; do not duplicate TOML keys.
