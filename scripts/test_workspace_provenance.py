@@ -142,6 +142,13 @@ def main():
             lambda: replay_unit(context, mismatched, fake),
             "Compiler commit mismatch",
         )
+        decorated_long = dict(
+            original,
+            solcLongVersion="solc, the solidity compiler\nVersion: 0.8.26+commit.8a97fa7a.Linux.g++",
+        )
+        assert replay_unit(context, decorated_long, fake)["contracts"] == 1
+        print("PASS | Foundry-style full compiler descriptor with exact commit")
+
         misleading_long = dict(original, solcLongVersion="0.8.26+commit.00000000")
         reject(
             "mismatched recorded long compiler identity",
