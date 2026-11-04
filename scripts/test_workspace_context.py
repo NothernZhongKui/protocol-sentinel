@@ -31,7 +31,7 @@ def init(path):
 
 def commit(path, message):
     git(path, "add", "-A")
-    git(path, "commit", "-q", "-m", message)
+    git(path, "-c", "user.name=Workspace Fixture", "-c", "user.email=workspace@example.invalid", "commit", "-q", "-m", message)
 
 
 def reject(label, call, reason):
