@@ -4,6 +4,7 @@
 
 - [Solidity library quickstart](library-quickstart.md) — check an upgrade attempt in a Foundry test.
 - [Portable Direct quickstart](portable-direct-v0.5.md) — run the pinned example, adapt a producer and publish evidence.
+- [Portable workspace v0.6 (development)](portable-workspace-v0.6.md) — nested Foundry consumer, Git source closure, Evidence 1.1 and isolated compiler replay.
 - [Direct comparison](comparative-authority-quickstart.md) — compare two active implementations.
 - [Timelock route](timelock-route-quickstart.md) — use the separate OpenZeppelin route adapter.
 - [Trusted CI guide](guides/ci.md) — bind the Direct runner to a protected policy.
