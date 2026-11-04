@@ -185,6 +185,17 @@ def materialize_imports(context, attested, destination):
         "Snapshot cannot write into consumer checkout",
     )
     require(destination.is_dir(), "Missing snapshot directory")
+    # The snapshot workspace can be nested (for example projects/capu).
+    # Its permitted filesystem boundary is the snapshot root, not a parent
+    # outside the temp directory and not the actual consumer checkout.
+    workspace_depth = len(Path(context.workspace).parts) if context.workspace != "." else 0
+    snapshot_root = destination
+    for _ in range(workspace_depth):
+        snapshot_root = snapshot_root.parent
+    require(
+        (snapshot_root / context.workspace).resolve() == destination,
+        "Snapshot workspace identity mismatch",
+    )
     copied = []
     for entry in attested:
         if entry.provided_in_input:
@@ -194,7 +205,7 @@ def materialize_imports(context, attested, destination):
         source = (context.repository_root / entry.repository_path).resolve()
         path = (destination / logical).resolve()
         require(
-            path.is_relative_to(destination.parent),
+            path.is_relative_to(snapshot_root),
             "Snapshot escapes allowed root",
         )
         require(not path.exists(), "Duplicate snapshot source")
