@@ -42,15 +42,22 @@ The isolated consumer pilot commit is
 | Exact solc 0.8.26 replay with original Standard JSON and restricted checkout filesystem access | 1 build unit, 111 compiled source units, 87 contracts, output `MATCH`, 10.76 s | Reproduced (filesystem-assisted diagnostic) |
 | Strictly self-contained solc replay without import callback | Missing import source units; recorded `input.sources` has 100 keys while outputs have 111 | Reproduced (blocked) |
 | Original Standard JSON plus isolated snapshot of 11 additional import files | Exact solc 0.8.26 reproduced 87 contracts; existing normalized output comparison `MATCH`; raw AST unequal | Reproduced (sandbox diagnostic) |
-| Portable Python replay / Git-attested source closure / trusted CI gate | Not executed | Not tested |
+| Git source attestation over all 111 source units | 111/111 source bytes matched tracked files and checked-out gitlinks; 6 Git owners (10 root, 101 submodule); max depth 1 | Reproduced (standalone diagnostic) |
+| Full portable Python replay / trusted CI gate | Not executed | Not tested |
 
 The source-mapping, byte-match and filesystem-assisted replay
 checks are standalone diagnostic scripts, **not** execution of
 Sentinel's portable verifier. The replay used the exact local
 solc `0.8.26+commit.8a97fa7a` and the existing output comparison.
 It required the compiler to load additional imports from the
-checkout, not a hermetically verified input closure. These checks
-do not establish verified Git provenance or completed Evidence.
+checkout, not a hermetically verified input closure. A subsequent
+isolated snapshot replay (STEP 012) matched normalized outputs
+without granting solc access to the original checkout. STEP 013
+independently checked all 111 source units against Git-tracked
+blob identity and the recorded immediate parent gitlinks: 10
+root-owned, 101 submodule-owned across 6 Git owners. That is a
+**local diagnostic**, not hardened v0.6 source attestation.
+No completed portable Evidence or trusted gate has been run.
 
 ## 3. Concrete v0.5.1 limitations
 
