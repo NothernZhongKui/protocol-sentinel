@@ -12,7 +12,7 @@ Define an actor and an upgrade action. Sentinel probes that action before and af
 | Capture and replay evidence in a Git-pinned Foundry workspace | [v0.6 workspace quickstart](docs/portable-workspace-v0.6.md) | Foundry, Python, Git and matching solc |
 | Use the released v0.5 portable runner | [v0.5 quickstart](docs/portable-direct-v0.5.md) | Foundry, Python, Git and solc 0.8.24 |
 
-The v0.6 workspace workflow in this branch is an **unreleased release candidate**. It supports a Foundry workspace at the repository root or in a monorepo, checks Git-pinned source ownership, and produces Comparison Evidence 1.1. Its interface may change before release. The v0.5 runner and Evidence 1.0 remain separate.
+The [v0.6.0 release](https://github.com/NothernZhongKui/protocol-sentinel/releases/tag/v0.6.0) supports Foundry workspaces at the repository root or nested in a monorepo. It checks Git-pinned source ownership and produces Comparison Evidence 1.1. The v0.5 runner and Evidence 1.0 remain separate.
 
 ## Scope
 

@@ -1,6 +1,6 @@
 # Workspace runner reference — v0.6
 
-This reference describes the unreleased v0.6 workspace runner and Evidence 1.1. Start with the [quickstart](../portable-workspace-v0.6.md). The [v0.5 reference](configuration.md) describes the separate legacy runner and Evidence 1.0.
+This reference describes the released v0.6 workspace runner and Evidence 1.1. Start with the [quickstart](../portable-workspace-v0.6.md). The [v0.5 reference](configuration.md) describes the separate legacy runner and Evidence 1.0.
 
 ## Producer configuration
 
@@ -27,7 +27,7 @@ The tracked TOML contains exactly `[sentinel]` and `[producer]`. Unknown or miss
 | `--solc` | Required path to the executable compiler matching the recorded build identity. |
 | `--trusted-policy` | Optional absolute policy path outside the consumer repository. Omit for local verification. |
 
-The completed-run verifier takes the same options plus required `--run-dir`, and requires `--trusted-policy`. It verifies trusted completed runs only; local runs without a gate are not accepted by this verifier.
+The completed-run verifier takes the same options plus required `--run-dir`, and requires `--trusted-policy`. It verifies trusted completed runs only; local runs without a gate are not accepted by this verifier. A `PASS` printed for producer execution or compiler replay is a technical-stage status, not an authority-policy decision; inspect `CLASSIFICATION`, `REPLAY`, and `CI DECISION` separately.
 
 | Invocation | Exit | Meaning |
 | --- | --- | --- |
