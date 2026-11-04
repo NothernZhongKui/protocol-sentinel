@@ -59,9 +59,13 @@ the purpose-built Treasury consumer:
 - No tracked workspace `foundry.lock` in the
   inspected upstream file tree.
 
-These are source-inspection findings, not measured
-runtime failures. Baseline compilation, replay
-compatibility and workflow outcomes remain unknown.
+Initial STEP 001–007 pilot execution has now confirmed original
+build/tests, an independent safe/faulty oracle, and two Sentinel
+Solidity capture verdicts. The unmodified portable runner stops
+at a missing workspace `foundry.lock`; fresh build-info and
+source byte matching also completed. Full portable Evidence,
+independent compiler replay and the trusted gate are still
+**not tested**. See [ADR-006B](adr-006b-portable-workspace-provenance.md).
 
 ## 4. Isolation and ownership
 
@@ -91,7 +95,7 @@ The initial property:
 The actor has no upgrade permission at baseline. A synthetic faulty V2 may grant it `DEFAULT_ADMIN_ROLE` after migration; it must not still be described as unprivileged at that point.
 
 The producer chooses one actual proxy, known actor,
-candidate implementation, comparison fixture and
+fixed **probe candidate** implementation, comparison fixture and
 expected rejection bytes. Both observations must be
 genuine and comparable under the existing Direct
 semantics. Expected revert bytes must be derived
@@ -276,6 +280,9 @@ imply that the original project is vulnerable.
 
 ## 13. Status
 
-Proposed for architectural review. No implementation
-change is approved by this ADR, and no external
-Capminal integration has yet been executed.
+Proposed for architectural review. The Capminal Solidity
+integration and STEP 001–007 diagnostics have been executed
+and reported, but the pilot checkout and logs are not yet
+published for independent reproduction. Full portable Evidence,
+independent compiler replay and trusted CI have not run.
+No v0.6 implementation change is approved by this ADR.
