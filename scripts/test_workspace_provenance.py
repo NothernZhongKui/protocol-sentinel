@@ -133,6 +133,15 @@ def main():
         )
         fake.write_text(original_fake)
 
+        unexpected = bundle / "unexpected.txt"
+        unexpected.write_text("unverified artifact\n")
+        reject(
+            "unexpected build bundle entry",
+            lambda: verify_v2(context, bundle, "test/Oracle.t.sol"),
+            "Unexpected build bundle contents",
+        )
+        unexpected.unlink()
+
         path = bundle / "build-info/unit.json"
         original_bytes = path.read_bytes()
         path.write_bytes(original_bytes + b"\n")
