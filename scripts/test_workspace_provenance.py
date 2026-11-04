@@ -125,10 +125,15 @@ def main():
         print("PASS | Standalone replay plumbing with deterministic mock compiler")
 
         unknown = dict(original, solcVersion="0.8.25")
+        fake_unknown = base / "fake-solc-unknown"
+        fake_unknown.write_text(fake.read_text().replace(
+            "0.8.26+commit.8a97fa7a", "0.8.25+commit.b61c2a91"
+        ))
+        fake_unknown.chmod(0o755)
         reject(
             "unknown short compiler version without exact identity",
-            lambda: replay_unit(context, unknown, fake),
-            "Compiler version mismatch",
+            lambda: replay_unit(context, unknown, fake_unknown),
+            "Missing exact compiler build identity",
         )
         # Same semver, incorrect recorded build commit: no recompile can bless it.
         mismatched = dict(original, solcVersion="0.8.26+commit.00000000")
