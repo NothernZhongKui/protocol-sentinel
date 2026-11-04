@@ -222,7 +222,7 @@ PY
       --trusted-policy "$POLICY" \
       > "$verify_log" 2>&1 || verify_status=$?
   cat "$verify_log"
-  test "$verify_status" -eq 0
+  test "$verify_status" -eq "$exit_expected"
   grep -Fqx "PUBLISHED_EVIDENCE=INDEPENDENTLY_REVERIFIED" "$verify_log"
   grep -Fqx "CI_DECISION=$decision" "$verify_log"
 
