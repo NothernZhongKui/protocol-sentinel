@@ -142,6 +142,15 @@ def main():
             lambda: replay_unit(context, mismatched, fake),
             "Compiler commit mismatch",
         )
+        short_long = dict(original, solcLongVersion="0.8.26")
+        assert replay_unit(context, short_long, fake)["contracts"] == 1
+        print("PASS | Foundry short solcLongVersion with pinned exact commit")
+        reject(
+            "short long-version with unexpected installed commit",
+            lambda: replay_unit(context, short_long, fake_other),
+            "Compiler commit mismatch",
+        )
+
         decorated_long = dict(
             original,
             solcLongVersion="solc, the solidity compiler\nVersion: 0.8.26+commit.8a97fa7a.Linux.g++",
