@@ -234,16 +234,35 @@ git -C "$CONSUMER" \
 
 NEW_CONSUMER_SHA="$(git -C "$CONSUMER" rev-parse HEAD)"
 
-python3 - "$POLICY" "$CONSUMER_SHA" "$NEW_CONSUMER_SHA" <<'PY'
+# Rebind BOTH the trusted consumer revision and the selected scenario:
+# the preceding run used the faulty policy, but this negative control
+# intentionally invokes the safe producer with a failing assertion.
+python3 - "$POLICY" "$CONSUMER_SHA" "$NEW_CONSUMER_SHA" "$FIXTURES/sentinel-safe.toml" <<'PY'
 from pathlib import Path
 import sys
+import tomllib
+
 path = Path(sys.argv[1])
-old, new = sys.argv[2:]
-before = f'consumer_commit = "{old}"'
-after = f'consumer_commit = "{new}"'
-content = path.read_text()
-assert content.count(before) == 1
-path.write_text(content.replace(before, after))
+old, new, safe_config = sys.argv[2:]
+existing = tomllib.loads(path.read_text())
+policy = existing["policy"]
+assert policy["consumer_commit"] == old
+assert existing["required_scenario"][0]["id"] == "capu_faulty"
+policy["consumer_commit"] = new
+producer = tomllib.loads(Path(safe_config).read_text())["producer"]
+lines = ["[policy]"]
+for key in (
+    "version", "repository", "consumer_repository", "consumer_commit",
+    "workspace", "workflow", "tool_commit",
+):
+    lines.append(f'{key} = "{policy[key]}"')
+lines.extend(["", "[[required_scenario]]"])
+for key in ("id", "scenario_id", "source", "contract", "test", "fixture_id"):
+    lines.append(f'{key} = "{producer[key]}"')
+lines.append('route = "DIRECT_EOA_UUPS"')
+path.write_text("\n".join(lines) + "\n")
+assert tomllib.loads(path.read_text())["required_scenario"][0]["id"] == "capu_safe"
+print("PASS | Trusted policy rebound to safe producer and new consumer commit")
 PY
 
 COMPLETED_ROOT="$PROJECT/artifacts/sentinel/runs/completed"
