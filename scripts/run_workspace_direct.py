@@ -146,7 +146,31 @@ def run(project, tool, config_name, solc, policy_path=None):
                 "stderr": result.stderr,
             },
         )
-        verify_producer(result.stdout, result.returncode, config)
+        try:
+            verify_producer(result.stdout, result.returncode, config)
+        except ValueError:
+            print(f"FORGE_EXIT_CODE={result.returncode}", file=sys.stderr)
+            try:
+                failure = json.loads(result.stdout)
+                for suite, suite_info in failure.items():
+                    for test_name, test_info in suite_info.get("test_results", {}).items():
+                        if test_info.get("status") != "Success":
+                            print(
+                                "FORGE_TEST_FAILURE=" + json.dumps(
+                                    {
+                                        "suite": suite,
+                                        "test": test_name,
+                                        "status": test_info.get("status"),
+                                        "reason": test_info.get("reason"),
+                                    },
+                                    sort_keys=True,
+                                ),
+                                file=sys.stderr,
+                            )
+            except (ValueError, AttributeError, TypeError):
+                print("FORGE_STDOUT_TAIL=" + result.stdout[-2000:], file=sys.stderr)
+            print("FORGE_STDERR_TAIL=" + result.stderr[-3000:], file=sys.stderr)
+            raise
         require(raw_path.is_file() and raw_path.stat().st_size, "Missing raw capture")
         raw = load_document(raw_path)
         require(
