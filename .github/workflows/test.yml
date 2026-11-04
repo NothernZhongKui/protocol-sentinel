@@ -718,6 +718,9 @@ jobs:
           python scripts/test_ci_policy.py
           python scripts/test_trusted_direct_gate.py
 
+      - name: Verify v0.6 workspace context foundation
+        run: python scripts/test_workspace_context.py
+
       - name: Verify portable runner with external consumer
         run: bash scripts/check_portable_integration.sh
 
