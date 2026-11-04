@@ -203,6 +203,67 @@ assert verification["publication"] == "COMPLETED"
 assert gate["decision"] == decision
 print("PASS | Completed Evidence 1.1 and trusted policy gate")
 PY
+
+  echo "=== INDEPENDENT COMPLETED EVIDENCE REPLAY: $variant ==="
+  local verify_log="$TEMP/$variant-independent.log"
+  local verify_status=0
+  env \
+    GITHUB_REPOSITORY="NothernZhongKui/protocol-sentinel" \
+    GITHUB_SHA="$TOOL_SHA" \
+    GITHUB_RUN_ID="123" \
+    GITHUB_RUN_ATTEMPT="1" \
+    GITHUB_WORKFLOW_REF="NothernZhongKui/protocol-sentinel/.github/workflows/test.yml@refs/heads/main" \
+    python3 -B "$INSTALLED/scripts/verify_workspace_run.py" \
+      --project "$PROJECT" \
+      --tool-root "$INSTALLED" \
+      --run-dir "$completed" \
+      --config "sentinel-$variant.toml" \
+      --solc "$SOLC" \
+      --trusted-policy "$POLICY" \
+      > "$verify_log" 2>&1 || verify_status=$?
+  cat "$verify_log"
+  test "$verify_status" -eq 0
+  grep -Fqx "PUBLISHED_EVIDENCE=INDEPENDENTLY_REVERIFIED" "$verify_log"
+  grep -Fqx "CI_DECISION=$decision" "$verify_log"
+
+  if test "$variant" = "safe"; then
+    echo "=== REJECT TAMPERED COMPLETED EVIDENCE ==="
+    local evidence="$completed/evidence.json"
+    local original="$TEMP/safe-evidence-original.json"
+    cp "$evidence" "$original"
+    python3 - "$evidence" <<'PY'
+import json
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+doc = json.loads(path.read_text())
+assert doc["comparison"]["verdict"] == "STILL_SATISFIED"
+doc["comparison"]["verdict"] = "CHANGED_TO_VIOLATION"
+path.write_text(json.dumps(doc, sort_keys=True) + "\n")
+PY
+    local tamper_status=0
+    env \
+      GITHUB_REPOSITORY="NothernZhongKui/protocol-sentinel" \
+      GITHUB_SHA="$TOOL_SHA" \
+      GITHUB_RUN_ID="123" \
+      GITHUB_RUN_ATTEMPT="1" \
+      GITHUB_WORKFLOW_REF="NothernZhongKui/protocol-sentinel/.github/workflows/test.yml@refs/heads/main" \
+      python3 -B "$INSTALLED/scripts/verify_workspace_run.py" \
+        --project "$PROJECT" \
+        --tool-root "$INSTALLED" \
+        --run-dir "$completed" \
+        --config "sentinel-safe.toml" \
+        --solc "$SOLC" \
+        --trusted-policy "$POLICY" \
+        > "$TEMP/tampered-evidence.log" 2>&1 || tamper_status=$?
+    cat "$TEMP/tampered-evidence.log"
+    test "$tamper_status" -eq 2
+    grep -q "COMPLETED_RUN_REJECTED:" "$TEMP/tampered-evidence.log"
+    cp "$original" "$evidence"
+    cmp "$original" "$evidence"
+    test -z "$(git -C "$CONSUMER" status --porcelain)"
+    echo "PASS | Tampered completed Evidence rejected"
+  fi
 }
 
 run_case safe STILL_SATISFIED PASS 0
