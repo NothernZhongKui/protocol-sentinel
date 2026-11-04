@@ -187,6 +187,10 @@ def run(project, tool, config_name, solc, policy_path=None):
         document = assemble_workspace(
             raw, run_id, context, manifest, manifest_digest,
             forge_version, config["fixture_id"], command_display,
+            (
+                trusted["policy"]["consumer_repository"]
+                if trusted is not None else "LOCAL_UNTRUSTED_CHECKOUT"
+            ),
         )
         check_lossless(raw, document)
         verify_workspace_evidence(document, context, manifest_digest)
@@ -297,7 +301,8 @@ if __name__ == "__main__":
     except Exception as exc:
         if ci_mode:
             print("CI DECISION: BLOCK", file=sys.stderr)
-            raise SystemExit(f"WORKSPACE GATE FAILED: {exc}") from exc
+            print(f"WORKSPACE GATE FAILED: {exc}", file=sys.stderr)
+            raise SystemExit(2) from exc
         raise SystemExit(f"WORKSPACE RUN FAILED: {exc}") from exc
     raise SystemExit({
         "NOT_EVALUATED": 0,
