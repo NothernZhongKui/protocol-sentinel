@@ -1,15 +1,24 @@
-# Trusted CI for Portable Direct
+# Trusted CI for Direct comparisons
 
-The local runner verifies and publishes evidence but does not make a merge decision. A trusted CI policy adds that decision for one declared Direct producer per run.
+A local runner can validate and publish evidence without deciding whether a change should merge. A trusted CI policy adds `PASS`, `BLOCK` or `REVIEW` for one declared Direct scenario per invocation. A classification replay `MATCH` alone is not approval.
 
-1. Configure a producer that records the observed comparison without asserting that it is safe. Put expected safe or unsafe verdict assertions in separate tests.
-2. Select the policy from a trusted base revision and place it outside the consumer checkout. Pass its absolute path using `--trusted-policy`.
-3. Pin the Sentinel verifier revision in a protected workflow and bind the expected repository, workflow and producer in the policy.
-4. Protect the required workflow, policy, dependency pin and required checks against unreviewed changes. Review scenario and fixture changes as well.
-5. Inspect the gate decision and evidence. `MATCH` alone is not approval; see [results](../reference/results.md).
+## Establish the boundary
 
-The gate validates GitHub CI context, checkout revision and producer identity. A file outside the checkout, a matching workflow name, or a green job by itself does not establish that the workflow cannot be replaced by the PR.
+1. Write a producer that captures the actual comparison and completes even if it reports a violation. Put expected-verdict assertions in separate tests.
+2. Select a pinned Sentinel verifier and the required scenario from protected configuration. Select policy from a trusted base or other protected source, place it outside the consumer checkout, and pass its absolute path using `--trusted-policy`.
+3. Protect the workflow, policy, verifier revision and required checks against unreviewed changes. Review changes to the scenario, fixture and producer; a valid replay cannot prove that a deliberately weakened test covers the intended property.
+4. Make branch rules require the actual trusted check. A file outside the checkout, a matching workflow name or a green job alone does not prevent a PR from replacing a workflow.
 
-The [reference consumer's gate](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/1f1eb1799b8cfd01e6506bf477eb94fff7f1afbb/.github/workflows/sentinel-gate.yml), [integrity workflow](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/1f1eb1799b8cfd01e6506bf477eb94fff7f1afbb/.github/workflows/sentinel-integrity.yml), and [policy](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/1f1eb1799b8cfd01e6506bf477eb94fff7f1afbb/.github/sentinel/trusted-policy.toml) show one integration. Adapt repository identity, paths, pinned version, permissions and required checks to your own repository; the repository rules must actually enforce those checks.
+For the **v0.6 workspace runner**, policy v2 separately binds the workflow repository and workflow context, consumer repository and exact consumer commit, workspace, tool commit and one required producer. The gate reads GitHub environment values; those values are only as trustworthy as the workflow and execution environment that supplies them. See the [policy and context reference](../reference/workspace-v0.6.md#trusted-policy). The [Capminal acceptance harness](../../scripts/check_capu_workspace.sh) demonstrates binding and negative controls; its local synthetic context is for testing, not a production trust boundary.
 
-A producer that fails, is skipped, is ambiguous or fails verification cannot produce a valid gate PASS. Trusted policy mode returns exit codes `0` (PASS), `2` (BLOCK or error), and `3` (REVIEW). Details: [configuration](../reference/configuration.md) and [ADR-005B](../adr-005b-trusted-ci-gate.md).
+For **v0.5**, see the [reference consumer gate](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/1f1eb1799b8cfd01e6506bf477eb94fff7f1afbb/.github/workflows/sentinel-gate.yml), [integrity workflow](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/1f1eb1799b8cfd01e6506bf477eb94fff7f1afbb/.github/workflows/sentinel-integrity.yml) and [policy](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/1f1eb1799b8cfd01e6506bf477eb94fff7f1afbb/.github/sentinel/trusted-policy.toml). Adapt identity, permissions and required checks to your repository; enforce them with repository rules.
+
+## Interpret outcomes
+
+| Verified comparison | Decision |
+| --- | --- |
+| `STILL_SATISFIED` | `PASS` |
+| `CHANGED_TO_VIOLATION`, `STILL_VIOLATED` | `BLOCK` |
+| `CHANGED_TO_SATISFIED`, `INDETERMINATE`, `INCOMPARABLE` | `REVIEW` |
+
+A missing, failed, skipped or ambiguous required producer, invalid evidence or failed verification blocks. Trusted runner exit codes are `0` for PASS, `2` for BLOCK or error, `3` for REVIEW. A verified BLOCK may still produce a completed evidence bundle. See [results](../reference/results.md).

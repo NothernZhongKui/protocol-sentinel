@@ -4,7 +4,7 @@ Issues and pull requests are welcome. For a larger change, open an issue first t
 
 ## Set up
 
-Git, Foundry 1.8.7 and Python 3.12 are used in CI. Evidence build replay also needs solc `0.8.24+commit.e11b9ed9`.
+Git, Foundry 1.8.7 and Python 3.12 are used in CI. The legacy evidence suite uses solc `0.8.24+commit.e11b9ed9`; the v0.6 Capminal acceptance uses `0.8.26+commit.8a97fa7a`.
 
 ```bash
 git clone --recurse-submodules https://github.com/NothernZhongKui/protocol-sentinel.git
@@ -37,6 +37,7 @@ Run the relevant checks for your change; [CI](.github/workflows/test.yml) define
 | --- | --- |
 | Solidity | `forge fmt --check`, `forge build`, `forge test` and relevant targeted tests. |
 | Replay or policy | Relevant `scripts/test_*.py` tests and `bash scripts/run_comparison_c4.sh` for the evidence pipeline. |
+| v0.6 workspace and provenance | Relevant `scripts/test_workspace_*.py`, `scripts/test_source_closure.py`, `scripts/test_trusted_workspace_gate.py`, and `bash scripts/check_capu_workspace.sh` for the external acceptance. See the [quickstart](docs/portable-workspace-v0.6.md) for the Capminal compiler and network requirements. |
 | Schema or semantics | `python scripts/build_comparison_schema.py --check`, `python scripts/test_comparison_schema_contract.py`, `python scripts/test_comparison_semantics_registry.py`. |
 | Documentation | Check links, commands and examples against the code; run changed workflows where practical. |
 

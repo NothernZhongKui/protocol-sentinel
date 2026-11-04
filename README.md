@@ -2,38 +2,24 @@
 
 Execution-based authority regression testing for upgradeable EVM contracts, built for Foundry.
 
-Define an actor and an upgrade action. Sentinel probes that action before and after an authorized implementation change and compares the observed behavior. For example, if an operator cannot upgrade in V1 but can upgrade in V2, the comparison reports `CHANGED_TO_VIOLATION`; the trusted CI policy maps that result to `BLOCK`.
+Define an actor and an upgrade action. Sentinel probes that action before and after an authorized implementation change and compares the observations. If an operator cannot upgrade in V1 but can upgrade in V2, the comparison is `CHANGED_TO_VIOLATION`. A configured trusted CI policy maps that result to `BLOCK`.
 
-## Choose a workflow
+## Get started
 
-| Goal | Start here | Requirements |
+| Goal | Guide | Requirements |
 | --- | --- | --- |
-| Check authority inside a Foundry test | [Solidity library guide](docs/library-quickstart.md) | Foundry; no Python required |
-| Capture evidence, replay classification and use a CI policy | [Portable Direct quickstart](docs/portable-direct-v0.5.md) | Foundry, Python and the pinned compiler |
+| Check a declared upgrade attempt in a Foundry test | [Solidity library](docs/library-quickstart.md) | Foundry; no Python |
+| Capture and replay evidence in a Git-pinned Foundry workspace | [v0.6 workspace quickstart](docs/portable-workspace-v0.6.md) | Foundry, Python, Git and matching solc |
+| Use the released v0.5 portable runner | [v0.5 quickstart](docs/portable-direct-v0.5.md) | Foundry, Python, Git and solc 0.8.24 |
 
-A draft [v0.6 nested Foundry workspace guide](docs/portable-workspace-v0.6.md) documents the independently tested Capminal pilot. This is unreleased; the v0.5 quickstart remains the supported portable workflow.
+The v0.6 workspace workflow in this branch is an **unreleased release candidate**. It supports a Foundry workspace at the repository root or in a monorepo, checks Git-pinned source ownership, and produces Comparison Evidence 1.1. Its interface may change before release. The v0.5 runner and Evidence 1.0 remain separate.
 
-The [Treasury consumer](https://github.com/NothernZhongKui/protocol-sentinel-consumer) is a separate, working integration. For API details, results, architecture and contributing, see the [documentation index](docs/README.md).
+## Scope
 
-## Supported routes
+The portable workflows cover one declared Direct EOA → ERC-1967/UUPS `upgradeToAndCall(address,bytes)` attempt with empty initialization calldata per run. The test author chooses the actor, candidate, expected revert, fixture and authorized transition. A separate [Timelock helper](docs/timelock-route-quickstart.md) covers a specific OpenZeppelin route; it is not supported by the portable runners.
 
-| Route | Solidity helper | Portable runner | Trusted CI gate |
-| --- | --- | --- | --- |
-| Direct EOA → ERC-1967 / UUPS | Yes | Yes | Yes |
-| EOA → OpenZeppelin Timelock → ProxyAdmin → Transparent proxy | [Separate adapter](docs/timelock-route-quickstart.md) | No | No |
+A replay `MATCH` means Python reproduced the classification from the recorded observations. It can accompany `CHANGED_TO_VIOLATION`; it is not a merge approval. See [results](docs/reference/results.md).
 
-The Direct route checks canonical `upgradeToAndCall(address,bytes)` with empty initialization data. Scenarios, actors and expected behavior are explicitly supplied by the test author.
+**Status:** Experimental, pre-1.0. Results apply only to the declared scenario. Sentinel does not discover all privilege paths, validate storage layout, independently authenticate EVM execution or prove contract security. See the [threat model](docs/threat-model.md).
 
-## Results and trust
-
-A replay `MATCH` means Python reproduced the classification from recorded observations. It can accompany `CHANGED_TO_VIOLATION`; it is not a merge approval. See the [results reference](docs/reference/results.md) for stage, comparison, replay and CI outcomes.
-
-**Status:** Experimental, pre-1.0. Results apply to the declared scenario. Sentinel does not discover every privilege path, verify storage layout, authenticate EVM execution, or prove contract security. See the [threat model](docs/threat-model.md).
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, checks and project layout.
-
-## License
-
-[MIT](LICENSE).
+[Documentation](docs/README.md) · [Contributing](CONTRIBUTING.md) · [MIT license](LICENSE)

@@ -1,63 +1,85 @@
-# Portable Foundry workspace — v0.6 (development)
+# Portable Foundry workspace — v0.6
 
-Protocol Sentinel v0.6 validates a declared **Direct EOA → UUPS** authority scenario in an existing Foundry workspace. The v0.6 runner supports a nested workspace in a Git monorepo and exact pinned submodules. It is separate from the released [v0.5 portable runner](portable-direct-v0.5.md).
+Use the workspace runner to compare a declared Direct EOA/UUPS upgrade attempt before and after an authorized implementation change. It runs your Foundry producer, captures Comparison Evidence 1.1, replays the classification in Python and reproduces the recorded compiler outputs.
 
-**Status:** v0.6 implementation in draft PR #41, not a released interface. The tested external acceptance fixture is [Capminal](../tests/external/capu/); the synthetic faulty V2 is a test-only regression, **not an upstream Capminal finding**.
+**Release candidate:** this branch is not a released v0.6 tag. Pin the reviewed commit when trying it. For the released Evidence 1.0 workflow, see the [v0.5 guide](portable-direct-v0.5.md).
 
-## What the runner checks
+## Try the external acceptance
 
-```text
-Pinned consumer checkout + installed Sentinel gitlink
-    └─ Foundry workspace (possibly nested)
-        └─ One declared Foundry producer test
-            └─ Lossless raw Direct capture
-                └─ Build-provenance v2 + Git-owned source closure
-                    └─ Original Standard JSON, isolated solc replay
-                        └─ Evidence 1.1 + independent Python replay
-                            └─ Trusted PASS / BLOCK / REVIEW (when configured)
+The Capminal acceptance exercises a real, pinned external Foundry workspace with test-only safe and faulty implementations. The faulty migration is synthetic; it is not an upstream vulnerability.
+
+From a checkout of this PR with the toolchain installed:
+
+```bash
+python3.12 -m venv ../sentinel-venv
+source ../sentinel-venv/bin/activate
+python -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
+bash scripts/check_capu_workspace.sh
 ```
 
-A successful producer test is **not** itself an authorization to merge. In particular, a reproduced `CHANGED_TO_VIOLATION` remains a `BLOCK`. Neither replay nor Git source checks authenticate EVM execution independently.
+This requires Git, Foundry 1.8.7, network access to clone the pinned Capminal repository and dependencies, and executable solc `0.8.26+commit.8a97fa7a` in one of the SVM locations checked by the script. The script makes a temporary local integration commit and deletes its temporary checkout on exit. It does not modify or push to the upstream repository.
 
-## Requirements
+| Case | Classification | Trusted decision |
+| --- | --- | --- |
+| Test-only safe upgrade | `STILL_SATISFIED` | `PASS` |
+| Synthetic faulty migration | `CHANGED_TO_VIOLATION` | `BLOCK` |
+| Failed producer or tampered artifact | Rejected | `BLOCK` |
 
-- Python 3.12, Foundry 1.8.7 (the tested CI toolchain), Git, and an exact `solc` build identity. Short Foundry build-info versions are accepted only with pinned compiler commits (`0.8.24+commit.e11b9ed9` or `0.8.26+commit.8a97fa7a`); other versions require a matching full compiler commit identity in build-info.
-- A **clean Git checkout** and pinned, clean Sentinel Git submodule. All compiler source units must belong to that checkout or its pinned Git submodule chain; untracked source files, symlink aliases, external source paths and divergent Git blobs are rejected.
-- A committed workspace `foundry.toml` and any applicable inherited configs; the runner records source unit Git ownership and effective compiler settings from fresh build-info. For fully Git-pinned dependencies, a `foundry.lock` is not required.
-- A uniquely selected producer test inheriting `DirectComparisonCapture`. It records a baseline observation, an authorized change and the new observation. Keep verdict assertions in separate tests.
-- A Git-ignored `artifacts/sentinel/runs` output tree. Foundry must allow the export cheatcode to write there; merge the following into the workspace's **existing** `[profile.default]` configuration (never duplicate a TOML table/key):
+The harness also exercises the Solidity oracle, completed-run verifier and mutation controls. A local invocation uses synthetic GitHub context for the test; it does not demonstrate a protected production workflow. The [producer](../tests/external/capu/CapuSentinelProducer.t.sol) and [configuration](../tests/external/capu/sentinel-safe.toml) are executable examples to adapt.
+
+## Integrate your project
+
+### 1. Check prerequisites
+
+- Git, Python 3.12 or newer, Foundry with the required build-info flags (CI uses 1.8.7), and an executable solc matching the recorded compiler identity.
+- A clean Git checkout containing a tracked `foundry.toml` in the workspace and any inherited configs. The workspace may be the repository root or a nested directory.
+- Compiler sources owned by the checkout or its clean, pinned Git submodule chain. Untracked, changed, outside-checkout or unsupported symlinked sources cannot pass source attestation. A `foundry.lock` is optional for Git-pinned dependencies.
+- One tracked, uniquely selected Foundry producer test and a tracked TOML config.
+- A Git-ignored workspace `artifacts/sentinel/runs/` directory and Foundry permission to write there.
+
+For compiler replay, an explicit `--solc` path is required. If Foundry records only a short compiler identity, Sentinel has pinned commit mappings for `0.8.24` and `0.8.26`; other versions need a matching full build identity in build-info. These are checks of compiler version identity and normalized outputs, not independent authentication of the original EVM execution.
+
+### 2. Install and configure
+
+From your Foundry workspace, add Sentinel as a Git submodule and pin a reviewed v0.6 commit. Until release, the example uses the implementation commit under review:
+
+```bash
+git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/protocol-sentinel
+git -C lib/protocol-sentinel fetch origin feat/v0.6-workspace-context
+git -C lib/protocol-sentinel checkout e6640cd13f117057f06ae0398aa857f3e69ef8c2
+git submodule update --init --recursive
+```
+
+Add the following to the workspace's existing `[profile.default]` in `foundry.toml`. Merge it into an existing `fs_permissions` array if present; do not duplicate TOML keys.
 
 ```toml
 fs_permissions = [{ access = "read-write", path = "artifacts/sentinel/runs" }]
 ```
 
-Use your existing, reviewed remappings. Do not replace your project configuration with the Capminal sample.
+Add `artifacts/sentinel/runs/` to an appropriate `.gitignore`, preserving existing patterns. Keep your project's remappings. Commit `.gitmodules`, the Sentinel gitlink, configuration, producer, any inherited configs and other intended changes. The checkout and submodules must be clean when the runner starts.
 
-## Reproduce the tested Capminal acceptance
+### 3. Write a producer
 
-From a checked-out v0.6 PR branch with Python dependencies installed and an exact `solc 0.8.26` binary in an SVM location:
+Inherit `DirectComparisonCapture`, set up your fixture and use one shared `UpgradeCheck` for both observations:
 
-```bash
-python3 -m pip install -r evidence/requirements-schema.txt -r evidence/requirements-abi.txt
-bash scripts/check_capu_workspace.sh
-```
+1. Observe the baseline with `_observeDirectStage(spec)`.
+2. Perform the intended authorized implementation change in the fixture.
+3. Observe the updated state using the same specification.
+4. Call `_compareDirectUpgrade` and `_exportDirectComparison` with the same `bytes32` scenario ID.
 
-In GitHub Actions the acceptance harness uses the actual `GITHUB_SHA`, `GITHUB_RUN_ID`, `GITHUB_RUN_ATTEMPT` and `GITHUB_WORKFLOW_REF`; local runs use explicitly synthetic CI context. A different run attempt is rejected during independent verification. This tests CI binding, not cryptographic authentication of runner environment variables. A production gate still requires protected workflow and policy provenance.
+| Implementation | Role |
+| --- | --- |
+| Baseline | Active before the authorized transition. |
+| Updated | Installed by the authorized actor between observations. |
+| Candidate | The implementation the actor under test attempts to install during each isolated probe. |
 
-The acceptance script clones the [original Capminal repository](https://github.com/Capminal/capminal-contracts) at pinned commit `40b713b58f39476bcc081d7987c34a46cc085dd9`, stages only the [four test fixtures](../tests/external/capu/), a pinned Sentinel submodule and the scoped Foundry write permission in a temporary checkout, and commits that test-only integration locally. It **never pushes** to Capminal. It runs the native Solidity oracle, safe and faulty Evidence publication, independent completed-run verification, mutation rejection, and a deliberately failed producer. The original Capminal contracts are unchanged.
+The [Capminal producer](../tests/external/capu/CapuSentinelProducer.t.sol) is a complete example in its own fixture, not a drop-in test for a different project. Adapt its actors, proxy, expected revert, candidate and transition to your contracts. Its separate [oracle](../tests/external/capu/AuthorityRegressionOracle.t.sol) shows the underlying fixture and independent assertions.
 
-Expected observations:
+The producer must complete and export one capture, including when it observes an unsafe verdict. Keep expected-verdict assertions in separate tests; the CI gate makes the policy decision. The runner rejects failed, skipped or ambiguous producer selection.
 
-| Test | Replayed classification | Trusted CI |
-| --- | --- | --- |
-| Test-only safe upgrade | `STILL_SATISFIED` | `PASS` |
-| Synthetic test-only faulty role migration | `CHANGED_TO_VIOLATION` | `BLOCK` |
-| Failed producer after export | No completed Evidence | `BLOCK` |
-| Tampered completed artifact | Independent verification rejects | `BLOCK` |
+### 4. Configure and run
 
-## Integrate another Git-pinned Foundry workspace
-
-Install Sentinel as a Git submodule within the consumer's declared workspace, for example `projects/my-app/lib/protocol-sentinel`, pin its commit, commit the gitlink and producer/config files, and ensure the checkout is clean. A producer config selects one exact test:
+Create a tracked `sentinel.toml`, replacing every example value with your own. The scenario ID must exactly match the value passed to the Solidity comparison and export:
 
 ```toml
 [sentinel]
@@ -65,46 +87,50 @@ config_version = "1"
 route = "DIRECT_EOA_UUPS"
 
 [producer]
-id = "my_safe_upgrade"
+id = "my_upgrade"
 contract = "MyAuthorityProducerTest"
-test = "test_ProduceSafe"
+test = "test_Produce"
 source = "test/MyAuthorityProducer.t.sol"
 fixture_id = "my-upgrade-v1"
 scenario_id = "0x0000000000000000000000000000000000000000000000000000000000000001"
 ```
 
-The scenario ID shown above is **only a placeholder**. Replace it with the exact `bytes32` emitted by the Solidity producer. The producer must return successfully even when its comparison verdict is unsafe, because the trusted policy gate makes the merge decision.
+For example, if Solidity uses `keccak256("my-upgrade-v1")` as its scenario ID, `cast keccak "my-upgrade-v1"` prints the value to put in TOML. This ID is scenario identity, not a proof of execution.
 
-Invoke the pinned tool from the workspace root, supplying the exact solc binary:
+After committing the integration, run from the workspace root:
 
 ```bash
-python3 -B lib/protocol-sentinel/scripts/run_workspace_direct.py \
+python -m pip install -r lib/protocol-sentinel/evidence/requirements-schema.txt \
+  -r lib/protocol-sentinel/evidence/requirements-abi.txt
+python -B lib/protocol-sentinel/scripts/run_workspace_direct.py \
   --project "$PWD" \
-  --config sentinel-safe.toml \
-  --solc "/absolute/path/to/solc-0.8.26"
+  --config sentinel.toml \
+  --solc "/absolute/path/to/solc"
 ```
 
-Without a trusted policy, it publishes verified local Evidence but prints `CI DECISION: NOT_EVALUATED`. It does **not** authorize merging.
+Successful local output includes `CLASSIFICATION: …`, `REPLAY: MATCH`, `CI DECISION: NOT_EVALUATED` and a completed directory under `artifacts/sentinel/runs/completed/<run-id>/`. The classification is the result of your scenario. `MATCH` does not mean it is safe: it may accompany `CHANGED_TO_VIOLATION`. No policy is applied in local mode.
 
-In trusted CI, supply `--trusted-policy /absolute/path/to/protected-policy.toml` selected from an independently protected workflow/base revision. The policy v2 binds the workflow repository, consumer repository, consumer commit, Foundry workspace, installed tool commit, and one required scenario. It must not be loaded from untrusted candidate-branch changes. See [the tested acceptance harness](../scripts/check_capu_workspace.sh) for exact fields.
+If Sentinel is installed at another Git-pinned path inside the checkout, invoke its script there and supply `--tool-root /absolute/path/to/protocol-sentinel`. See [configuration and troubleshooting](reference/workspace-v0.6.md).
 
-Exit codes in trusted mode: `0` = PASS; `2` = BLOCK or any verification failure; `3` = REVIEW. The completed run includes `raw-capture.json`, `forge-results.json`, `build/build-provenance.json`, the compiler build-info files, `evidence.json`, `verification.json` and `ci-gate.json`.
+## Trusted CI and completed-run verification
 
-## Independently re-verify a completed run
+Pass `--trusted-policy /absolute/path/to/policy.toml` only from a protected CI workflow that selects and supplies the trusted policy and execution context. The policy binds the workflow repository, consumer repository and commit, workspace, tool commit and required scenario. The policy must live outside the consumer checkout. An absolute path alone is not proof that the policy is trusted. See [trusted CI](guides/ci.md) and the [policy reference](reference/workspace-v0.6.md#trusted-policy).
 
-With the same pinned checkout, tool and trusted policy, run:
+A trusted run returns `0` for PASS, `2` for BLOCK or error, and `3` for REVIEW. A correct replay of `CHANGED_TO_VIOLATION` is BLOCK.
+
+A completed **trusted** run can be checked again using the same checkout, installed tool, producer config, compiler, policy and GitHub run context:
 
 ```bash
-python3 -B lib/protocol-sentinel/scripts/verify_workspace_run.py \
+python -B lib/protocol-sentinel/scripts/verify_workspace_run.py \
   --project "$PWD" \
   --run-dir "/absolute/path/to/artifacts/sentinel/runs/completed/<run-id>" \
-  --config sentinel-safe.toml \
-  --solc "/absolute/path/to/solc-0.8.26" \
-  --trusted-policy "/absolute/path/to/protected-policy.toml"
+  --config sentinel.toml \
+  --solc "/absolute/path/to/solc" \
+  --trusted-policy "/absolute/path/to/policy.toml"
 ```
 
-The verifier reads the published artifacts again, validates source ownership and hashes, repeats the recorded compilation and classification, and recomputes the trusted policy decision. It outputs `PUBLISHED_EVIDENCE=INDEPENDENTLY_REVERIFIED` when successful.
+This verifier requires `ci-gate.json` and the same recorded CI context, including run ID and attempt; it cannot reverify a local `NOT_EVALUATED` run in this mode. It rereads artifacts, checks Git-attested provenance and the recorded Forge result, repeats compiler and classification replay, and recomputes the gate decision. A verified BLOCK still exits `2`; `PUBLISHED_EVIDENCE=INDEPENDENTLY_REVERIFIED` and `CI_DECISION=BLOCK` distinguish it from a rejection.
 
-Like the producer runner, the verifier exits `0` for a verified `PASS`, `2` for a verified `BLOCK` or an invalid artifact, and `3` for a verified `REVIEW`. A successfully reproduced `BLOCK` is not an exit-zero result; consumers should inspect the printed `CI_DECISION` to distinguish an unsafe comparison from a verification error.
+## Limits
 
-**Boundary:** This establishes agreement between recorded observations, compiler inputs/outputs, Git ownership and policy decision within the trusted checkout. It does not independently attest the original EVM execution, all possible privileges, or contract safety. The current v0.6 scope is Direct EOA UUPS only; Timelock remains a separate Solidity route. For the legacy Treasury workflow and Evidence 1.0, keep using the [v0.5 quickstart](portable-direct-v0.5.md).
+The portable runner covers one declared Direct EOA → ERC-1967/UUPS `upgradeToAndCall(address,bytes)` probe with empty initialization calldata per invocation. It does not discover roles or arbitrary governance routes, validate storage layout, or establish contract security. A matching revert does not prove which authorization branch executed. Git/source and replay checks do not independently authenticate the original EVM execution. See the [threat model](threat-model.md).

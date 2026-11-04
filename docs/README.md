@@ -2,22 +2,20 @@
 
 ## Use Sentinel
 
-- [Solidity library quickstart](library-quickstart.md) — check an upgrade attempt in a Foundry test.
-- [Portable Direct quickstart](portable-direct-v0.5.md) — run the pinned example, adapt a producer and publish evidence.
-- [Portable workspace v0.6 (development)](portable-workspace-v0.6.md) — nested Foundry consumer, Git source closure, Evidence 1.1 and isolated compiler replay.
-- [Direct comparison](comparative-authority-quickstart.md) — compare two active implementations.
-- [Timelock route](timelock-route-quickstart.md) — use the separate OpenZeppelin route adapter.
-- [Trusted CI guide](guides/ci.md) — bind the Direct runner to a protected policy.
+- [v0.6 workspace quickstart](portable-workspace-v0.6.md) — integrate an existing Git-pinned Foundry workspace, capture Evidence 1.1 and reverify a trusted run. **Unreleased release candidate.**
+- [v0.5 portable quickstart](portable-direct-v0.5.md) — the released runner and Evidence 1.0.
+- [Solidity library quickstart](library-quickstart.md) and [Direct comparison](comparative-authority-quickstart.md) — use helpers in Foundry tests without Python.
+- [Timelock route](timelock-route-quickstart.md) — separate OpenZeppelin route adapter.
+- [Trusted CI](guides/ci.md) — policy selection, workflow protection and decisions.
 
-## Understand the results
+## Reference
 
-- [Results and decisions](reference/results.md) — stage status, comparison, replay and CI.
-- [Configuration and artifacts](reference/configuration.md) — producer fields, CLI, output and troubleshooting.
-- [Build reproducibility](build-reproducibility.md) and [threat model](threat-model.md).
+- [Workspace configuration and artifacts](reference/workspace-v0.6.md) — v0.6 CLI, policy, output and troubleshooting.
+- [v0.5 configuration and artifacts](reference/configuration.md).
+- [Results and decisions](reference/results.md), [build reproducibility](build-reproducibility.md), and [threat model](threat-model.md).
 
 ## Contribute
 
-- [Contributing](../CONTRIBUTING.md) and [architecture](architecture.md).
-- [Release notes](releases/) and [changelog](../CHANGELOG.md).
-- Design history: [RFC-004](rfc-004-comparative-authority-regression.md), [RFC-004C](rfc-004c-evidence-replay.md), [RFC-005](rfc-005-portable-evidence-ci-gate.md), and [ADRs](adr-005b-trusted-ci-gate.md). These record decisions and past proposals; current guides take precedence for usage.
-- Maintainer evidence demonstrations: [Direct](c2-direct-evidence.md), [Timelock](c3-timelock-evidence.md), and [hardening](c4-hardening.md).
+- [Contributing](../CONTRIBUTING.md), [architecture](architecture.md), [changelog](../CHANGELOG.md) and [release notes](releases/).
+- Design history: [RFC-004](rfc-004-comparative-authority-regression.md), [RFC-004C](rfc-004c-evidence-replay.md), [RFC-005](rfc-005-portable-evidence-ci-gate.md), [ADR-005B](adr-005b-trusted-ci-gate.md). Historical proposals describe their original assumptions.
+- Maintainer evidence demonstrations: [Direct](c2-direct-evidence.md), [Timelock](c3-timelock-evidence.md), [hardening](c4-hardening.md).
