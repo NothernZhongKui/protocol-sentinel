@@ -12,7 +12,7 @@ class WorkspaceAssemblyError(ValueError):
     pass
 
 
-def assemble_workspace(capture, run_id, context, manifest, manifest_digest, forge_version, fixture_id, reproduce_command):
+def assemble_workspace(capture, run_id, context, manifest, manifest_digest, forge_version, fixture_id, reproduce_command, repository_identity):
     required = {
         "format", "chain_id", "scenario_id", "actor", "target",
         "candidate", "expected_revert", "policy",
@@ -95,7 +95,7 @@ def assemble_workspace(capture, run_id, context, manifest, manifest_digest, forg
             "solcVersion": next(iter(versions)),
         },
         "provenance": {
-            "repository": context.repository_root.name,
+            "repository": repository_identity,
             "workspace": context.workspace,
             "toolPath": context.tool_path,
             "toolCommit": context.tool_commit,
