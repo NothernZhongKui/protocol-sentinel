@@ -1,0 +1,84 @@
+name: Sentinel Init Foundry Smoke
+
+on:
+  pull_request:
+    branches: [main, feat/v1-doctor-preflight]
+    paths:
+      - "scripts/sentinel.py"
+      - "scripts/sentinel_init.py"
+      - "scripts/test_sentinel_init.py"
+      - ".github/workflows/adoption-init-foundry.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  template:
+    name: Generated producer compiles and fails closed
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v1.8.7
+      - name: Initialize only forge-std for the external fixture
+        run: |
+          set -euo pipefail
+          git -c protocol.file.allow=always submodule update --init lib/forge-std
+          test -e lib/forge-std/src/Test.sol
+          test ! -e lib/openzeppelin-contracts/contracts/access/AccessControl.sol
+          test ! -e lib/openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol
+      - name: Build a clean external Git-pinned Foundry consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          consumer="$RUNNER_TEMP/sentinel-init-consumer"
+          mkdir -p "$consumer"/{src,test}
+          cd "$consumer"
+          git init -q
+          git config user.name "Sentinel Fixture"
+          git config user.email "fixture@example.invalid"
+          cat >foundry.toml <<'TOML'
+          [profile.default]
+          src = "src"
+          test = "test"
+          libs = ["lib"]
+          solc_version = "0.8.24"
+          remappings = ["forge-std/=lib/forge-std/src/"]
+          fs_permissions = [{ access = "read-write", path = "artifacts/sentinel/runs" }]
+          TOML
+          printf 'artifacts/sentinel/runs/\n' >.gitignore
+          touch test/.gitkeep
+          git add -A
+          git commit -qm "consumer fixture"
+          git -c protocol.file.allow=always submodule add -q "$GITHUB_WORKSPACE" lib/protocol-sentinel
+          git -c protocol.file.allow=always submodule add -q "$GITHUB_WORKSPACE/lib/forge-std" lib/forge-std
+          git add -A
+          git commit -qm "pinned submodules"
+          test ! -e lib/protocol-sentinel/lib/openzeppelin-contracts/contracts/access/AccessControl.sol
+          test ! -e lib/protocol-sentinel/lib/openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol
+          python -B lib/protocol-sentinel/scripts/sentinel.py init --project "$PWD" --route direct-uups
+          test -e test/SentinelAuthorityProducer.t.sol
+          test -e sentinel.toml
+      - name: Compilable template must revert, never pass silently
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/sentinel-init-consumer"
+          set +e
+          forge test --match-path test/SentinelAuthorityProducer.t.sol \
+            --match-test test_ProduceSentinelAuthorityComparison -vv \
+            >"$RUNNER_TEMP/template-forge.log" 2>&1
+          status=$?
+          set -e
+          cat "$RUNNER_TEMP/template-forge.log"
+          test "$status" -ne 0
+          grep -q 'SentinelFixtureIncomplete' "$RUNNER_TEMP/template-forge.log"
+          test ! -d artifacts/sentinel/runs/completed
+          echo 'PASS | Generated producer compiled, reverted as incomplete, and published no Evidence'
