@@ -1,0 +1,21 @@
+# TEMPLATE ONLY: copy into the protected consumer base at
+# .github/sentinel/trusted-policy.toml, then replace the sample identity,
+# approved Sentinel tool SHA and declared scenario with reviewed values.
+# Never generate these from the candidate pull request.
+[policy]
+version = "2"
+repository = "YOUR_ORG/YOUR_REPO"
+consumer_repository = "YOUR_ORG/YOUR_REPO"
+consumer_commit = "0000000000000000000000000000000000000000"
+workspace = "."
+workflow = ".github/workflows/sentinel-gate.yml"
+tool_commit = "0000000000000000000000000000000000000000"
+
+[[required_scenario]]
+id = "my_upgrade"
+scenario_id = "0x0000000000000000000000000000000000000000000000000000000000000001"
+route = "DIRECT_EOA_UUPS"
+source = "test/SentinelAuthorityProducer.t.sol"
+contract = "SentinelAuthorityProducerTest"
+test = "test_ProduceSentinelAuthorityComparison"
+fixture_id = "sentinel-direct-uups-placeholder"

@@ -19,6 +19,10 @@ Run the candidate checkout with the exact pinned Sentinel submodule and matching
 
 Configure branch protection or a repository ruleset to **require** the authority gate and any separate integrity check. Confirm with a deliberately unsafe test PR that `CHANGED_TO_VIOLATION` yields `BLOCK` and a failed required check. A failed Actions job by itself is not proof that a merge is prevented. Review changes to producer and fixtures separately: a valid replay cannot establish that an intentionally weakened scenario still protects the intended invariant.
 
+## v1.0 trusted CI example (under acceptance)
+
+A [protected-base workflow template](../../examples/trusted-ci/README.md) demonstrates an independent preflight that checks the candidate Gitlink and installed Sentinel SHA **before running Sentinel Python** and instantiates a policy v2 file with the exact tested consumer checkout commit. The example includes offline Git manipulation tests but does **not** yet prove required-workflow / CODEOWNERS protection in an external repository. The published v0.6.0 trusted gate remains unchanged.
+
 ## Interpret outcomes
 
 | Verified comparison | Decision |
