@@ -1,0 +1,30 @@
+name: Sentinel Workspace Summary
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/render_workspace_summary.py"
+      - "scripts/test_render_workspace_summary.py"
+      - ".github/workflows/adoption-summary.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  summary:
+    name: Summary current-run safety
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Verify isolated current-run display logic
+        run: python -B scripts/test_render_workspace_summary.py
+      - name: Show renderer usage
+        run: python -B scripts/render_workspace_summary.py --help
