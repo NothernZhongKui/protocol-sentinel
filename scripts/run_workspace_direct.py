@@ -21,7 +21,8 @@ from build_provenance import read_json
 from replay_direct_comparison import replay
 from replay_workspace_build import replay_unit
 from run_direct_comparison import check_lossless
-from run_portable_direct import read_config, verify_producer, write_json
+from producer_config import read_config
+from run_portable_direct import verify_producer, write_json
 from source_closure import attest_source
 from trusted_workspace_gate import read_workspace_policy, evaluate_workspace_gate
 from validate_comparison_schema import load_document
