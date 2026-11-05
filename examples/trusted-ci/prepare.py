@@ -51,6 +51,8 @@ def prepare(trusted_base, consumer, policy_source, output, expected_base, enviro
     require(trusted_base.is_dir() and consumer.is_dir(), "Missing protected base or candidate checkout")
     require(SHA.fullmatch(expected_base) is not None, "Expected trusted base SHA must be a full SHA")
     require(git(trusted_base, "rev-parse", "HEAD") == expected_base, "Trusted base checkout SHA mismatch")
+    require(not git(trusted_base, "status", "--porcelain", "--untracked-files=all"),
+            "Protected base checkout must be unmodified")
     require(policy_source.is_file() and policy_source.is_relative_to(trusted_base),
             "Policy template must come from protected base")
     require(output.is_relative_to(trusted_base) is False and
