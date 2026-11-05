@@ -136,7 +136,7 @@ class DoctorTests(unittest.TestCase):
 
     def test_ignored_output_required(self):
         (self.repo / ".gitignore").write_text("", encoding="utf-8")
-        self.assertTrue(any(s == "FAIL" and "Git-ignored" in m for s, m in self.rows()))
+        self.assertTrue(any(s == "FAIL" and "Add artifacts/sentinel/runs/" in m for s, m in self.rows()))
 
     def test_invalid_producer_config_not_accepted(self):
         (self.project / "sentinel.toml").write_text(
