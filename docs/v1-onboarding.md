@@ -13,7 +13,9 @@ At the Foundry workspace root:
 ```bash
 git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/protocol-sentinel
 git -C lib/protocol-sentinel checkout 82830f957f4340b0ac472d1a1f4518451da231ae
-git submodule update --init -- lib/protocol-sentinel
+# Stage the selected gitlink later with your intended consumer changes.
+# Do not run "git submodule update" before staging/committing the pin:
+# it can restore the previously recorded submodule commit.
 ```
 
 If your project already has the submodule, inspect and update its approved gitlink rather than adding it again. Use **the consumer's** compatible Git-pinned `forge-std` and OpenZeppelin versions. Do not recursively initialize Sentinel's maintainer-only OpenZeppelin copies. Preserve the project's remappings; untracked `node_modules` compiler inputs are not Git-attested.
