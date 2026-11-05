@@ -16,9 +16,9 @@ The template deliberately uses `YOUR_ORG/YOUR_REPO`, an all-zero **approved tool
 
 ## Security invariants
 
-1. A standard `pull_request` job checks out the candidate merge commit with read-only permissions and no persisted credentials; it does not use privileged `pull_request_target` secrets.
+1. A standard `pull_request` job checks out the exact event `github.sha` merge commit (never a moving pull-request ref) with read-only permissions and no persisted credentials; it does not use privileged `pull_request_target` secrets.
 2. The workflow separately checks out the protected base SHA containing its **trusted** prepare script and policy. Protected config must be clean.
-3. **Before executing any Python from the candidate Sentinel checkout**, the base script verifies Gitlink mode `160000`, the exact approved tool commit, actual initialized tool HEAD, and clean tool/consumer checkout. It refuses mismatches and never copies the candidate's policy into trusted storage.
+3. **Before executing any Python from the candidate Sentinel checkout**, the base script verifies Gitlink mode `160000`, the exact approved tool commit, actual initialized tool HEAD, the event's exact `GITHUB_SHA` and PR workflow ref, and clean tool/consumer checkout. It refuses mismatches and never copies the candidate's policy into trusted storage.
 4. The protected scenario/workspace/tool/repository fields cannot be changed by the PR. Only `policy.consumer_commit` is populated from the tested checkout.
 5. The trusted runner handles fresh producer execution, Git source closure, independent compiler/classification replay and `PASS / BLOCK / REVIEW`. The Job Summary only displays output from the current attempt, even if older PASS Evidence is on disk.
 6. The final step propagates the runner's exit code, including `2` for verified BLOCK or an execution error and `3` for REVIEW.
