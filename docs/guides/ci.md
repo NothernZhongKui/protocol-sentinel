@@ -19,9 +19,9 @@ Run the candidate checkout with the exact pinned Sentinel submodule and matching
 
 Configure branch protection or a repository ruleset to **require** the authority gate and any separate integrity check. Confirm with a deliberately unsafe test PR that `CHANGED_TO_VIOLATION` yields `BLOCK` and a failed required check. A failed Actions job by itself is not proof that a merge is prevented. Review changes to producer and fixtures separately: a valid replay cannot establish that an intentionally weakened scenario still protects the intended invariant.
 
-## v1.0 trusted CI example (under acceptance)
+## v1.0 trusted CI example
 
-A [protected-base workflow template](../../examples/trusted-ci/README.md) demonstrates an independent preflight that checks the candidate Gitlink and installed Sentinel SHA **before running Sentinel Python** and instantiates a policy v2 file with the exact tested consumer checkout commit. The example includes offline Git manipulation tests but does **not** yet prove required-workflow / CODEOWNERS protection in an external repository. The published v0.6.0 trusted gate remains unchanged.
+A [protected-base workflow template](../../examples/trusted-ci/README.md) demonstrates an independent preflight that checks the candidate Gitlink and installed Sentinel SHA **before running Sentinel Python** and instantiates a policy v2 file with the exact tested consumer checkout commit. The example includes offline Git manipulation tests and was adapted for real safe/faulty MultiVault GitHub Actions runs. It does **not** install or enforce consumer repository branch rules. The v0.6.0 trusted gate remains unchanged.
 
 ### External protected-workflow boundary (observed)
 
@@ -29,7 +29,7 @@ In the [v1 pilot](https://github.com/NothernZhongKui/protocol-sentinel-consumer/
 
 A protected-base policy and approved-tool preflight do not help when the attacker prevents those steps from running altogether. To enforce a trusted gate, keep an independent integrity or required workflow under protected/default-branch control, require its distinct check alongside the authority job in branch rules, restrict bypass and review producer/fixture updates. A `pull_request_target` integrity workflow defined only on a non-default pilot branch does not activate as a trusted default-branch workflow.
 
-[Consumer PR #15](https://github.com/NothernZhongKui/protocol-sentinel-consumer/pull/15) proposes a default-branch-owned integrity check, but does not by itself prove merge prevention. The v1 release gate remains open until actual ruleset and bypass tests demonstrate that a spoofed green authority job cannot merge.
+[Consumer PR #15](https://github.com/NothernZhongKui/protocol-sentinel-consumer/pull/15) installed a default-branch-owned integrity check. Its safe case passed and a workflow-replacement attempt was rejected. This verifies integrity classification; enforceable merge prevention still requires consumer branch rules and the appropriate owner-review controls. A separate private MultiVault consumer demonstrated real GitHub `PASS` and `BLOCK` using the pinned v1 workflow, but its private `main` is not branch-protected.
 
 ## Interpret outcomes
 

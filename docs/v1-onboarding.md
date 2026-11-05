@@ -1,6 +1,6 @@
-# Direct UUPS — first verified result (v1.0 development)
+# Direct UUPS — first verified result
 
-**Status:** source-tree onboarding guide for unreleased v1.0 work. The latest published release is [v0.6.0](releases/v0.6.0.md). This guide uses the reviewed development commit `82830f957f4340b0ac472d1a1f4518451da231ae`; do not assume that `v0.6.0` contains `sentinel doctor` or `sentinel init`.
+**Version:** Protocol Sentinel v1.0.0. Use the exact published `v1.0.0` commit after release; this release PR leaves the tag uncreated until merge. The `v0.6.0` tag does not contain `sentinel doctor` or `sentinel init`.
 
 This workflow is for a **pre-existing Foundry project** using a canonical ERC-1967/UUPS proxy and **one declared** authority regression scenario. Sentinel does not discover roles, choose a policy, or audit your whole protocol.
 
@@ -12,7 +12,8 @@ At the Foundry workspace root:
 
 ```bash
 git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/protocol-sentinel
-git -C lib/protocol-sentinel checkout 82830f957f4340b0ac472d1a1f4518451da231ae
+git -C lib/protocol-sentinel fetch --tags origin
+git -C lib/protocol-sentinel checkout --detach v1.0.0
 # Stage the selected gitlink later with your intended consumer changes.
 # Do not run "git submodule update" before staging/committing the pin:
 # it can restore the previously recorded submodule commit.
@@ -52,7 +53,10 @@ git add .gitmodules .gitignore foundry.toml lib/protocol-sentinel \
   test/SentinelAuthorityProducer.t.sol sentinel.toml
 git commit -m "test: declare Direct UUPS authority scenario"
 
-# Replace this with an absolute path to the solc version actually used by Forge:
+# Use the absolute executable matching the solc version used by Forge.
+# On macOS, Foundry-managed binaries can be under:
+# "$HOME/Library/Application Support/svm/<version>/solc-<version>"
+# On Linux, check "$HOME/.svm/<version>/solc-<version>".
 SOLC_PATH="/absolute/path/to/solc"
 
 python3.12 -B lib/protocol-sentinel/scripts/sentinel.py doctor \
@@ -90,4 +94,4 @@ Start by getting one local verified result. To enforce a merge decision, adapt t
 
 If you tried this without maintainer help, please open a GitHub issue describing the first blocker, your existing Foundry/solc versions, root vs nested workspace, whether you reached a completed local run, and approximate **hands-on** time excluding toolchain installation. Never include signing keys, private RPC credentials or sensitive project data.
 
-The [v1.0 milestone](roadmap-v1.0.md) still requires independent onboarding evidence before release; these instructions are not themselves proof of an unassisted integration.
+The [milestone record](roadmap-v1.0.md) documents completed acceptance and the follow-on community onboarding work. Do not present an assisted integration as an unaided developer result.

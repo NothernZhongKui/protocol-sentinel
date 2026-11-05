@@ -1,6 +1,14 @@
 # Protocol Sentinel — v1.0 milestone plan
 
-**Status:** active implementation milestone, **not released**. [ADR-007](adr-007-v1-developer-adoption.md) is accepted for implementation. Acceptance evidence and remaining gates below are separate from the published v0.6.0 release.
+**Status:** v1.0.0 release scope finalized; tag pending review and publication. [ADR-007](adr-007-v1-developer-adoption.md) is accepted for implementation. Acceptance evidence and remaining gates below are separate from the published v0.6.0 release.
+
+## v1.0.0 release-scope decision (2026-11-05)
+
+The adoption implementation and independent execution/replay checks are complete for the declared Direct EOA/UUPS route. Evidence includes the existing Treasury and Capminal consumers plus a separately authored MultiVault codebase with verified local and GitHub safe/faulty results. All legacy Evidence schemas, public Solidity APIs and strict source-closure rules remain unchanged.
+
+**Scope decisions:** no new privilege-action route is included in v1.0.0; a new action requires actual demand and a separate ADR. Consumer branch protection, workflow integrity, reviewer privileges and required checks are configured by each repository owner and are not installed by Sentinel. Unassisted community onboarding is tracked as future adoption feedback and is **not** represented as completed. Issue #54 was closed with this decision, not with an assertion of unaided onboarding.
+
+**Release status:** this document describes the v1.0.0 release PR. Publication requires an approved merge and subsequent tag/release; neither is performed by the preparation PR.
 
 ## Product objective
 
@@ -48,7 +56,7 @@ A private, **non-fork** consumer lab based on [nikitavorobie/MultiVault](https:/
 
 **Release accounting:** two external Foundry codebases have execution evidence; **one fully unassisted developer integration is still outstanding**. The independent onboarding issue [#54](https://github.com/NothernZhongKui/protocol-sentinel/issues/54) was closed, but this assisted pilot cannot be counted as satisfying its stated requirement. Do not mark that release gate complete without separate evidence.
 
-**Still required for release:**
+**Original milestone checks and follow-on consumer controls (recorded for review):**
 - Reviewed installation of independent integrity on default/protected workflow source; ruleset requiring both authority and integrity checks on the pilot target, no bypass, protected producer/fixture ownership; demonstrate that [workflow substitution PR #14](https://github.com/NothernZhongKui/protocol-sentinel-consumer/pull/14) cannot merge despite a spoofed green authority job.
 - A second external consumer, and an onboarding attempt conducted without maintainer guidance; record blockers and time-to-first-verified-result separately from toolchain setup.
 - Final compatibility and documentation audit, explicit coverage-action decision or deferral, and review of the precise v1.0 release tag candidate. None of the pilot runs alone authorizes a v1.0 release.

@@ -1,6 +1,6 @@
-# Direct UUPS integration preflight (development branch)
+# Direct UUPS integration preflight
 
-**Scope:** proposed v1.0 usability CLI. It is not present in published v0.6.0. The existing workspace runner and trusted policy gate remain authoritative.
+**Scope:** v1.0.0 read-only integration diagnostic. The workspace runner and trusted policy gate remain authoritative.
 
 In an existing Git-pinned Foundry workspace with Sentinel installed under lib/protocol-sentinel, run:
 
