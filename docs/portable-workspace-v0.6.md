@@ -23,8 +23,11 @@ From your Foundry workspace, add Sentinel as a Git submodule and pin the publish
 ```bash
 git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/protocol-sentinel
 git -C lib/protocol-sentinel checkout v0.6.0
-git -C lib/protocol-sentinel submodule update --init --recursive
 ```
+
+**Dependency ownership:** the Direct UUPS helper imports `forge-std` but does not import OpenZeppelin. Use the compatible, **Git-pinned `forge-std` already owned by your consumer workspace**, and keep the OpenZeppelin sources your own contracts import. Do **not** recursively initialize Sentinel's nested maintainer/test OpenZeppelin copies just to use the Direct UUPS runner. If your consumer has no compatible pinned `forge-std`, install and pin it as a **consumer** submodule before running Forge. Preserve your project's remappings so they resolve to those intended copies; don't silently replace dependency revisions.
+
+This scoped installation has been exercised against the pinned external [Capminal acceptance harness](../scripts/check_capu_workspace.sh): after skipping Sentinel-owned nested library initialization, the build-provenance v2 manifest still attests the physical compiler paths, Git owners, commits, blobs and byte hashes for consumer-owned OpenZeppelin and `forge-std`. The runner continues to reject untracked or mutable sources. This does not add npm/pnpm provenance or guarantee support for every Foundry remapping layout.
 
 Add the following to the workspace's existing `[profile.default]` in `foundry.toml`. Merge it into an existing `fs_permissions` array if present; do not duplicate TOML keys.
 
