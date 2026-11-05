@@ -101,7 +101,7 @@ class SummaryTests(unittest.TestCase):
     def test_stale_previous_pass_not_used_after_current_failure(self):
         # The previous PASS is deliberately present on disk. A failed current
         # attempt has no completed path: never glob the previous directory.
-        output = self.render(run=False, exit_code=2)
+        output = render(None, 2, repository=REPO, sha=SHA, github_run_id=CI_ID, attempt="2")
         self.assertIn("VERIFICATION FAILED", output)
         self.assertNotIn("CI DECISION: PASS", output)
         self.assertNotIn(RUN, output)
