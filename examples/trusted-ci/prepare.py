@@ -48,6 +48,7 @@ def prepare(trusted_base, consumer, policy_source, output, expected_base, enviro
     consumer = Path(consumer).resolve()
     policy_source = Path(policy_source).resolve()
     output = Path(output).absolute()
+    output_parent = output.parent.resolve()
     require(trusted_base.is_dir() and consumer.is_dir(), "Missing protected base or candidate checkout")
     require(SHA.fullmatch(expected_base) is not None, "Expected trusted base SHA must be a full SHA")
     require(git(trusted_base, "rev-parse", "HEAD") == expected_base, "Trusted base checkout SHA mismatch")
@@ -55,8 +56,8 @@ def prepare(trusted_base, consumer, policy_source, output, expected_base, enviro
             "Protected base checkout must be unmodified")
     require(policy_source.is_file() and policy_source.is_relative_to(trusted_base),
             "Policy template must come from protected base")
-    require(output.is_relative_to(trusted_base) is False and
-            not output.is_relative_to(consumer) and output != policy_source,
+    require(not output_parent.is_relative_to(trusted_base) and
+            not output_parent.is_relative_to(consumer) and output != policy_source,
             "Generated policy must be outside protected base and candidate checkout")
     require(not output.exists() and output.parent.is_dir(), "Refuse to overwrite trusted policy output")
 
