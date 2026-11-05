@@ -1,0 +1,30 @@
+name: Sentinel Init Scaffold
+
+on:
+  pull_request:
+    branches: [main, feat/v1-doctor-preflight]
+    paths:
+      - "scripts/sentinel.py"
+      - "scripts/sentinel_init.py"
+      - "scripts/test_sentinel_init.py"
+      - ".github/workflows/adoption-init.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  init:
+    name: Init offline Git fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Test incomplete scaffold and collisions
+        run: python -B scripts/test_sentinel_init.py
+      - name: CLI help
+        run: python -B scripts/sentinel.py init --help
