@@ -14,7 +14,7 @@
   classification and trusted CI policy.
 - Pinned external Capminal acceptance for synthetic safe and faulty
   migrations, failed-producer nonpublication and artifact mutations.
-- Portable workspace v0.6 quickstart and release-candidate review notes.
+- Portable workspace v0.6 quickstart and release notes.
 
 ### Fixed and hardened
 - Keep `MATCH + CHANGED_TO_VIOLATION` as CI `BLOCK`, including a
@@ -39,11 +39,12 @@
   discover every privilege path.
 - The Capminal faulty implementation is test-only and does not imply
   any vulnerability in upstream Capminal.
-- **Not released:** PR #41 remains draft pending maintainer approval
-  and final required checks before merge.
+- Released as `v0.6.0` on 2026-11-04. The review candidate notes
+  describe the historical pre-release acceptance, not current status.
 
-See [v0.6 release-candidate review](docs/releases/v0.6.0-rc-review.md)
-and [portable workspace quickstart](docs/portable-workspace-v0.6.md).
+See [v0.6.0 release notes](docs/releases/v0.6.0.md),
+[historical release-candidate review](docs/releases/v0.6.0-rc-review.md)
+and [workspace quickstart](docs/portable-workspace-v0.6.md).
 
 ## v0.5.1 - 2026-11-03
 
