@@ -1,0 +1,36 @@
+name: Sentinel Doctor Preflight
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/sentinel.py"
+      - "scripts/sentinel_doctor.py"
+      - "scripts/producer_config.py"
+      - "scripts/run_workspace_direct.py"
+      - "scripts/test_sentinel_doctor.py"
+      - ".github/workflows/adoption-doctor.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  doctor:
+    name: Doctor offline Git fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Run read-only preflight regression suite
+        run: |
+          python -B scripts/test_sentinel_doctor.py
+      - name: CLI help
+        run: |
+          python -B scripts/sentinel.py --help
+          python -B scripts/sentinel.py doctor --help
