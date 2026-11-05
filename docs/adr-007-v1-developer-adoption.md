@@ -1,6 +1,6 @@
 # ADR-007: Developer adoption and dependency boundaries toward v1.0
 
-Status: **PROPOSED — architecture review required (Astra)**
+Status: **ACCEPTED FOR IMPLEMENTATION — with Astra's 2026-11-05 conditions**
 Date: 2026-11-05
 Target: Protocol Sentinel v1.0 milestone
 Baseline: released v0.6.0 (Direct EOA/UUPS, Evidence 1.1, trusted policy v2)
@@ -8,7 +8,7 @@ Related: [ADR-005B](adr-005b-trusted-ci-gate.md), [workspace reference](referenc
 
 ## 1. Problem and scope
 
-v0.6 established that an independently authored Foundry producer can run in an external Git-pinned workspace, publish Evidence 1.1, reproduce recorded Solidity classification and compiler outputs, and obtain a trusted CI PASS or BLOCK. A separate real GitHub Actions Capminal pilot also observed a synthetic safe upgrade and a deliberately faulty **test-only** migration: ordinary Foundry tests passed while the Sentinel gate correctly blocked the unsafe scenario. This is not a vulnerability report about upstream Capminal.
+v0.6 established that a **maintainer-authored** producer can run against an **independently authored** external Git-pinned Foundry workspace, publish Evidence 1.1, reproduce recorded Solidity classification and compiler outputs, and obtain a trusted CI PASS or BLOCK. The pinned [Capminal acceptance and its public CI run](releases/v0.6.0-rc-review.md#acceptance-evidence) document the local/synthetic CI controls. A **separate private GitHub Actions Capminal pilot** exercised real safe/faulty PR checks: ordinary Foundry tests passed while Sentinel blocked the deliberately faulty **test-only** migration. The private workflow-run deep link is not yet available to this connected GitHub reviewer; it must be added to the public evidence record only after independently retrieving and verifying its run ID (and with due attention to private-repository visibility). This is not a vulnerability report about upstream Capminal.
 
 What v0.6 has **not** established: that a developer unfamiliar with Sentinel can integrate it unaided; that a failed GitHub check is universally enforced by repository branch rules; or that npm/pnpm-managed compiler inputs satisfy Git source attestation.
 
@@ -68,7 +68,7 @@ Requirements:
 
 Potential code boundaries: `scripts/workspace_context.py`, `scripts/workspace_provenance.py`, `scripts/source_closure.py`, `scripts/run_workspace_direct.py`. Reuse semantics; do not create a weaker shadow verifier.
 
-Acceptance: run on a correctly configured consumer and on missing Foundry config, untracked source, dirty gitlink, missing solc, conflicting remappings, absent fs permissions and missing ignore entry. Confirm zero filesystem or Git-index mutations.
+Acceptance: run on a correctly configured consumer and on missing Foundry config, untracked source, dirty gitlink, missing solc, conflicting remappings, absent fs permissions and missing ignore entry. Confirm zero filesystem or Git-index mutations. **Actual selected import paths, owner Git commits and build/source-closure fidelity remain `DEFERRED` until the fresh compiler build**, then inspect the build manifest as part of the dependency acceptance; a successful Forge compilation alone is insufficient.
 
 ## 5. `sentinel init`: minimal non-authoritative scaffold
 
@@ -82,11 +82,11 @@ Generate only:
 - A producer configuration (`sentinel.toml`) with documented identity fields.
 - Minimal Foundry permission / ignore instructions and a link to a **separate** optional CI template.
 
-Invariant inputs — actor, proxy, implementation, probe candidate, expected revert, fixture, scenario ID and permitted transition — are **user-defined**, never inferred or invented by Sentinel. Template TODOs must prevent an accidental "green" executable security test. `init` never automatically writes a trusted CI policy or marks a producer safe. It must be idempotent or refuse existing-file collisions, support dry-run, and avoid silently replacing `foundry.toml` or `.gitignore`. Prefer printed exact additions over unsafe rewrites.
+Invariant inputs — actor, proxy, implementation, probe candidate, expected revert, fixture, scenario ID and permitted transition — are **user-defined**, never inferred or invented by Sentinel. Choose a **compilable, deliberately incomplete** producer whose producing test reverts with the explicit custom error `SentinelFixtureIncomplete()`, until the developer replaces fixture-specific placeholder logic. The unchanged template must never publish completed Evidence or yield a successful producing test. `init` never automatically writes a trusted CI policy or marks a producer safe. It must be idempotent or refuse existing-file collisions, support dry-run, and avoid silently replacing `foundry.toml` or `.gitignore`. Prefer printed exact additions over unsafe rewrites.
 
 One supported route (`direct-uups`) is enough. No general project generator, package manager or plugin ecosystem.
 
-Acceptance: scaffold builds when a developer explicitly fills the required fixture-specific fields, then exports exactly one real comparison; unmodified template cannot be mistaken for a passing authority property. Exercise repeated invocation and nested Foundry workspace.
+Acceptance: the unmodified scaffold **compiles**, but the producing test reverts with `SentinelFixtureIncomplete()` and never creates `completed/` Evidence. Once the developer fills required fixture-specific fields, it exports exactly one real comparison. Exercise repeated invocation and nested Foundry workspace.
 
 ## 6. CLI, policy and developer-facing results
 
@@ -98,7 +98,7 @@ Keep three distinct concepts:
 
 The v0.6 verdict mapping and exit semantics remain authoritative: trusted `PASS` → 0; trusted `BLOCK`/verification error → 2; trusted `REVIEW` → 3. Local runs without policy report `NOT_EVALUATED`, regardless of a successful `MATCH`. No change to Evidence 1.1 or trusted policy v2 is justified by prettier output.
 
-Add a concise terminal result and a GitHub Job Summary renderer. Both are **presentation-only**: consume the verified result and `ci-gate.json` from the current run; never read an untrusted precomputed `PASS` as authority. When the producer fails or completed Evidence is absent/invalid, show `VERIFICATION FAILED` with the recorded cause, not a manufactured before/after classification. Summary failures must not turn a failed gate green; preserve the real exit code (including through `tee`/pipes).
+Add a concise terminal result and a GitHub Job Summary renderer. Test the specific stale-artifact scenario: a previous run created a verified `PASS`, but the **current attempt fails before publication**. Summary for the current attempt must show `VERIFICATION FAILED`, not select the previous completed bundle, while the trusted gate still returns exit `2`. Both are **presentation-only**: consume the verified result and `ci-gate.json` from the current run; never read an untrusted precomputed `PASS` as authority. When the producer fails or completed Evidence is absent/invalid, show `VERIFICATION FAILED` with the recorded cause, not a manufactured before/after classification. Summary failures must not turn a failed gate green; preserve the real exit code (including through `tee`/pipes).
 
 Use a human-readable table for scenario, BEFORE, AFTER, comparison verdict, Python replay, compiler replay, CI decision and Evidence location. Avoid green success indicators for `MATCH + CHANGED_TO_VIOLATION`.
 
@@ -110,13 +110,14 @@ The reference must demonstrate:
 
 - Checkout of the tested PR revision, including pinned source dependencies.
 - Separate checkout or retrieval of trusted policy from a protected base or another reviewed source; policy resides outside candidate checkout.
-- Binding to the actual tested consumer commit (including GitHub PR merge SHA where applicable), pinned Sentinel tool commit, workflow identity, run ID and attempt.
+- **Before invoking any Python from Sentinel**, a trusted workflow step must compare the candidate Git index's Sentinel gitlink and the actual initialized Sentinel checkout SHA against the **permitted tool commit from the protected base**. Reject mismatches before executing candidate-provided verifier code.
+- The protected base defines the workspace, required producer/scenario and allowed tool SHA. For **each** safe or faulty PR, the trusted workflow then generates a per-run instance of the **existing policy v2** outside the candidate checkout, substituting **the exact SHA of that run's tested consumer checkout** (including a PR merge SHA where applicable) into `consumer_commit`. This SHA can differ between PRs; it must never be accepted solely from a candidate-controlled config. Bind workflow identity, GitHub run ID and attempt as usual.
 - Read-only permissions where possible; avoid running untrusted PR code with privileged `pull_request_target` credentials.
 - Failure-safe artifact upload and Job Summary when the trusted gate returns `BLOCK`, without `continue-on-error` or shell-pipe masking.
 - Separate integrity review for changes to workflows, policy, protected dependency pins and required scenario identifiers.
 - Explicit instructions to configure **required** status checks / branch rules. A red job alone does not prohibit merging. Changes to producer/fixture semantics require review even when the scenario ID stays constant.
 
-The acceptance test is an actual pull request with a controlled, explicitly synthetic authority regression: normal Forge tests pass; independent replay is `MATCH`; trusted gate exits 2 with `BLOCK`; integrity check passes; required branch rule refuses merge. Repeat with a safe upgrade and confirm PASS. Never merge the faulty test PR.
+The acceptance test is an actual pull request with a controlled, explicitly synthetic authority regression: normal Forge tests pass; independent replay is `MATCH`; trusted gate exits 2 with `BLOCK`; integrity check passes; required branch rule refuses merge. Repeat with a safe upgrade and confirm PASS. **Additional bypass tests:** a candidate PR preserves the required check/job name but replaces its body with `exit 0`, or changes the Sentinel gitlink. Under the configured required-workflow/ruleset and without bypass privilege, neither PR may be merged. Protect producer and fixture changes with an explicit owner-review requirement; the same scenario ID can point to a deliberately weakened test. Never merge the faulty or bypass test PR.
 
 ## 8. Documentation information architecture
 
