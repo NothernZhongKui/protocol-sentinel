@@ -98,3 +98,13 @@ jobs:
           status="${{ steps.sentinel.outputs.runner_exit }}"
           if [[ -z "$status" ]]; then exit 2; fi
           exit "$status"
+      - name: Upload Evidence and current-attempt diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sentinel-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            candidate/artifacts/sentinel/runs/completed/
+            ${{ runner.temp }}/sentinel-current.log
+          if-no-files-found: warn
+          retention-days: 7
