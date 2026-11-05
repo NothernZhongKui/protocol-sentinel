@@ -1,0 +1,27 @@
+name: Trusted CI example preflight
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "examples/trusted-ci/**"
+      - ".github/workflows/adoption-trusted-example.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Protected base and tool SHA negative controls
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Test fail-closed base policy and gitlink setup
+        run: python -B examples/trusted-ci/test_prepare.py
