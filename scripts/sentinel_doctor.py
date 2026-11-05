@@ -58,7 +58,7 @@ def _permissions(path):
     return False
 
 
-def inspect(project, tool, config_name, solc):
+def _inspect(project, tool, config_name, solc):
     """Return (status, message) pairs without modifying the checkout."""
     rows = []
 
@@ -162,6 +162,19 @@ def inspect(project, tool, config_name, solc):
     emit("DEFERRED", "Effective Foundry remappings, compiler imports and source closure until fresh build")
     emit("DEFERRED", "Trusted policy and merge enforcement until protected CI run")
     return rows
+
+
+def inspect(project, tool, config_name, solc):
+    """Disable optional Git index locks/refresh while inspecting a workspace."""
+    previous = os.environ.get("GIT_OPTIONAL_LOCKS")
+    os.environ["GIT_OPTIONAL_LOCKS"] = "0"
+    try:
+        return _inspect(project, tool, config_name, solc)
+    finally:
+        if previous is None:
+            os.environ.pop("GIT_OPTIONAL_LOCKS", None)
+        else:
+            os.environ["GIT_OPTIONAL_LOCKS"] = previous
 
 
 def main(argv=None):
