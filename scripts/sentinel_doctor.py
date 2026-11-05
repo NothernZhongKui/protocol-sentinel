@@ -14,7 +14,7 @@ import sys
 import tomllib
 from pathlib import Path
 
-from run_portable_direct import read_config
+from producer_config import read_config
 from source_closure import attest_source
 from workspace_context import resolve_workspace
 
