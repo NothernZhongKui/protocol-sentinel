@@ -127,8 +127,10 @@ class TrustedPreparationTests(unittest.TestCase):
         (tool / "new.txt").write_text("changed")
         commit(tool, "unapproved tool revision")
         commit(self.consumer, "candidate swaps Sentinel revision")
+        env = dict(self.env)
+        env["GITHUB_SHA"] = git(self.consumer, "rev-parse", "HEAD")
         with self.assertRaisesRegex(PreparationError, "gitlink not approved"):
-            self.execute()
+            self.execute(env=env)
 
     def test_reject_wrong_base_revision(self):
         with self.assertRaisesRegex(PreparationError, "base checkout SHA"):
