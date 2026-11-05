@@ -62,6 +62,8 @@ jobs:
         env:
           SOLC_PATH: ${{ vars.SENTINEL_SOLC_PATH }}
         run: |
+          # GitHub invokes bash with -e; capture exit before enforcing it.
+          set +e
           set -uo pipefail
           if [[ "$SOLC_PATH" != /* || ! -x "$SOLC_PATH" ]]; then
             echo "Configure an absolute executable SENTINEL_SOLC_PATH" >"$RUNNER_TEMP/sentinel-current.log"
