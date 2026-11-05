@@ -23,6 +23,14 @@ Configure branch protection or a repository ruleset to **require** the authority
 
 A [protected-base workflow template](../../examples/trusted-ci/README.md) demonstrates an independent preflight that checks the candidate Gitlink and installed Sentinel SHA **before running Sentinel Python** and instantiates a policy v2 file with the exact tested consumer checkout commit. The example includes offline Git manipulation tests but does **not** yet prove required-workflow / CODEOWNERS protection in an external repository. The published v0.6.0 trusted gate remains unchanged.
 
+### External protected-workflow boundary (observed)
+
+In the [v1 pilot](https://github.com/NothernZhongKui/protocol-sentinel-consumer/tree/pilot/v1-trusted-ci-base), safe and synthetic faulty PRs produced the expected fresh `PASS` and `BLOCK` with independent replay. However [test PR #14](https://github.com/NothernZhongKui/protocol-sentinel-consumer/pull/14) replaced the candidate-controlled workflow body with a single `exit 0` while preserving the `Sentinel v1 Authority Gate` check name. [GitHub Actions returned success](https://github.com/NothernZhongKui/protocol-sentinel-consumer/actions/runs/42064261403) **without executing Sentinel**. This is a confirmed example of check-name spoofing, not a Sentinel verification PASS.
+
+A protected-base policy and approved-tool preflight do not help when the attacker prevents those steps from running altogether. To enforce a trusted gate, keep an independent integrity or required workflow under protected/default-branch control, require its distinct check alongside the authority job in branch rules, restrict bypass and review producer/fixture updates. A `pull_request_target` integrity workflow defined only on a non-default pilot branch does not activate as a trusted default-branch workflow.
+
+[Consumer PR #15](https://github.com/NothernZhongKui/protocol-sentinel-consumer/pull/15) proposes a default-branch-owned integrity check, but does not by itself prove merge prevention. The v1 release gate remains open until actual ruleset and bypass tests demonstrate that a spoofed green authority job cannot merge.
+
 ## Interpret outcomes
 
 | Verified comparison | Decision |

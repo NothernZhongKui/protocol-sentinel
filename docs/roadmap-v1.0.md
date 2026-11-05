@@ -1,6 +1,6 @@
 # Protocol Sentinel — v1.0 milestone plan
 
-**Status:** proposed implementation plan, not a released feature list. See [ADR-007](adr-007-v1-developer-adoption.md) for architecture decisions and questions for review.
+**Status:** active implementation milestone, **not released**. [ADR-007](adr-007-v1-developer-adoption.md) is accepted for implementation. Acceptance evidence and remaining gates below are separate from the published v0.6.0 release.
 
 ## Product objective
 
@@ -19,6 +19,27 @@ An unfamiliar Foundry developer should be able to integrate Sentinel into a supp
 | C — Coverage exploration (formerly v0.8) | After external pilot, select one requested declared privileged-action class and draft a separate execution/semantics ADR | No automatic universal access-control framework |
 
 Tracks are incremental reviewable PRs. The public **v1.0** milestone is contingent on evidence gates, not elapsed time or completion of a predetermined feature count. Coverage expansion may be deferred on maintainer + reviewer decision rather than manufacturing demand.
+
+## Implementation snapshot (2026-11-05 UTC)
+
+**Merged in Sentinel:** [ADR-007 #45](https://github.com/NothernZhongKui/protocol-sentinel/pull/45); read-only doctor #46; intentionally incomplete Direct UUPS init #47; current-run Summary #48; selective consumer-owned imports #49/#51; protected-base CI example [#50](https://github.com/NothernZhongKui/protocol-sentinel/pull/50). These are adoption slices, **not** a v1.0 release.
+
+**Real test-only consumer Actions:**
+
+| Probe | GitHub run | Verified observation |
+| --- | --- | --- |
+| Safe Treasury upgrade | [42061646180](https://github.com/NothernZhongKui/protocol-sentinel-consumer/actions/runs/42061646180) | Producer and source closure passed; 42 compiler contracts replayed; STILL_SATISFIED / MATCH / PASS / exit 0 |
+| Synthetic faulty upgrade | [42061812476](https://github.com/NothernZhongKui/protocol-sentinel-consumer/actions/runs/42061812476) | Producer and source closure passed; 42 compiler contracts replayed; CHANGED_TO_VIOLATION / MATCH / BLOCK / exit 2 |
+| Producer failure | [42062309488](https://github.com/NothernZhongKui/protocol-sentinel-consumer/actions/runs/42062309488) | No completed Evidence, VERIFICATION FAILED / exit 2 |
+| Unapproved Sentinel gitlink | [42062438030](https://github.com/NothernZhongKui/protocol-sentinel-consumer/actions/runs/42062438030) | Protected preflight failed before invoking candidate Sentinel Python |
+| Candidate workflow replaced with `exit 0` | [42064261403](https://github.com/NothernZhongKui/protocol-sentinel-consumer/actions/runs/42064261403) | **False-green job** with the same authority gate name and no Sentinel execution; demonstrates CI workflow substitution threat |
+
+The [pilot consumer branch](https://github.com/NothernZhongKui/protocol-sentinel-consumer/tree/pilot/v1-trusted-ci-base) preserves historical v0.5 `main`. The synthetic faulty and bypass PRs are not merged. No independent GitHub merge-prevention claim follows from the gate jobs alone. The consumer currently has no active repository ruleset returned by its ruleset API, and the pilot-only `pull_request_target` integrity workflow is not active on the default branch. [Consumer PR #15](https://github.com/NothernZhongKui/protocol-sentinel-consumer/pull/15) proposes an additional default-branch-owned integrity check; the existing v0.5 workflow integrity intentionally rejects workflow changes until separately reviewed.
+
+**Still required for release:**
+- Reviewed installation of independent integrity on default/protected workflow source; ruleset requiring both authority and integrity checks on the pilot target, no bypass, protected producer/fixture ownership; demonstrate that [workflow substitution PR #14](https://github.com/NothernZhongKui/protocol-sentinel-consumer/pull/14) cannot merge despite a spoofed green authority job.
+- A second external consumer, and an onboarding attempt conducted without maintainer guidance; record blockers and time-to-first-verified-result separately from toolchain setup.
+- Final compatibility and documentation audit, explicit coverage-action decision or deferral, and review of the precise v1.0 release tag candidate. None of the pilot runs alone authorizes a v1.0 release.
 
 ## Evidence and release gates
 
