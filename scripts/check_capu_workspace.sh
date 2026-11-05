@@ -87,7 +87,13 @@ git -C "$CONSUMER" -c protocol.file.allow=always submodule add -q \
   projects/capu/lib/protocol-sentinel
 git -C "$INSTALLED" fetch -q --no-tags "$ROOT" "$TOOL_SHA"
 git -C "$INSTALLED" checkout -q --detach "$TOOL_SHA"
-git -C "$INSTALLED" submodule update --init --recursive -q
+# Direct UUPS uses the consumer's Git-owned dependencies. Sentinel's
+# maintainer-only nested OpenZeppelin/forge-std copies are not initialized.
+# This is a negative control for accidental dependency shadowing.
+test ! -e "$INSTALLED/lib/openzeppelin-contracts/contracts/access/AccessControl.sol"
+test ! -e "$INSTALLED/lib/openzeppelin-contracts-upgradeable/contracts/access/OwnableUpgradeable.sol"
+test ! -e "$INSTALLED/lib/forge-std/src/Test.sol"
+echo "PASS | No Sentinel-owned nested dependency was initialized"
 
 git -C "$CONSUMER" add \
   .gitmodules projects/capu/foundry.toml projects/capu/lib/protocol-sentinel \
@@ -226,6 +232,34 @@ assert verification["build_replay"] == "ISOLATED_COMPILER_OUTPUT_MATCH"
 assert verification["comparison"] == verdict
 assert verification["publication"] == "COMPLETED"
 assert gate["decision"] == decision
+
+# Compiler source-unit ownership is authoritative, not successful build alone.
+# The pinned Capminal fixture imports both forge-std and OpenZeppelin.
+manifest = read("build/build-provenance.json")
+units = manifest["units"]
+sources = [source for unit in units for source in unit["sourceUnits"]]
+assert sources, "No attested compiler source units"
+tool_path = evidence["provenance"]["toolPath"].rstrip("/") + "/"
+expected = {"forge-std": [], "openzeppelin": []}
+for source in sources:
+    path = source["path"]
+    assert path and path != tool_path and not path.startswith(tool_path + "lib/"), (
+        "Unexpected compiler import from Sentinel nested dependency: " + path
+    )
+    if "forge-std/" in path:
+        expected["forge-std"].append(source)
+    if "openzeppelin" in path.lower():
+        expected["openzeppelin"].append(source)
+for kind, entries in expected.items():
+    assert entries, "No Git-attested " + kind + " compiler imports"
+    for entry in entries:
+        assert entry["owner"] != tool_path.rstrip("/"), (
+            "Resolved " + kind + " from Sentinel tool checkout"
+        )
+        assert len(entry["ownerCommit"]) == 40
+        assert len(entry["gitBlob"]) == 40
+        assert len(entry["sha256"]) == 64
+print("PASS | Compiler import provenance: consumer-owned forge-std and OpenZeppelin")
 print("PASS | Completed Evidence 1.1 and trusted policy gate")
 PY
 
