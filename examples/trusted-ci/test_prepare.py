@@ -80,6 +80,9 @@ class TrustedPreparationTests(unittest.TestCase):
         self.base_sha = git(self.base, "rev-parse", "HEAD")
         self.env = {
             "GITHUB_REPOSITORY": "owner/consumer",
+            "GITHUB_EVENT_NAME": "pull_request",
+            "GITHUB_REF": "refs/pull/1/merge",
+            "GITHUB_SHA": self.consumer_sha,
             "GITHUB_WORKFLOW_REF": "owner/consumer/.github/workflows/sentinel-gate.yml@refs/pull/1/merge",
             "GITHUB_RUN_ID": "4242",
             "GITHUB_RUN_ATTEMPT": "1",
@@ -134,6 +137,32 @@ class TrustedPreparationTests(unittest.TestCase):
     def test_reject_wrong_workflow_context(self):
         env = dict(self.env)
         env["GITHUB_WORKFLOW_REF"] = "owner/consumer/.github/workflows/other.yml@refs/heads/main"
+        with self.assertRaisesRegex(PreparationError, "workflow identity"):
+            self.execute(env=env)
+
+    def test_reject_checkout_different_from_event_sha(self):
+        env = dict(self.env)
+        env["GITHUB_SHA"] = "f" * 40
+        with self.assertRaisesRegex(PreparationError, "tested PR merge SHA"):
+            self.execute(env=env)
+
+    def test_reject_non_pr_event(self):
+        env = dict(self.env)
+        env["GITHUB_EVENT_NAME"] = "workflow_dispatch"
+        with self.assertRaisesRegex(PreparationError, "merge-ref context"):
+            self.execute(env=env)
+
+    def test_reject_wrong_pr_ref(self):
+        env = dict(self.env)
+        env["GITHUB_REF"] = "refs/heads/main"
+        with self.assertRaisesRegex(PreparationError, "merge-ref context"):
+            self.execute(env=env)
+
+    def test_reject_workflow_ref_for_different_pr(self):
+        env = dict(self.env)
+        env["GITHUB_WORKFLOW_REF"] = (
+            "owner/consumer/.github/workflows/sentinel-gate.yml@refs/pull/2/merge"
+        )
         with self.assertRaisesRegex(PreparationError, "workflow identity"):
             self.execute(env=env)
 
