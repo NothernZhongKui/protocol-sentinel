@@ -1,8 +1,8 @@
-# Direct UUPS scaffold (development branch)
+# Direct UUPS scaffold
 
-This command is part of the proposed v1.0 adoption work. It is **not in the released v0.6.0 tag**.
+This command is part of Protocol Sentinel v1.0.0. It is not included in the historical v0.6.0 tag.
 
-From a Foundry workspace that already contains a pinned Sentinel git submodule at lib/protocol-sentinel:
+From a Foundry workspace that already contains a pinned Sentinel Git submodule at `lib/protocol-sentinel`, stage the chosen gitlink before running `init` (see [installation](../v1-onboarding.md#1-pin-the-tool-in-your-project)). `init` verifies that the installed submodule revision matches the consumer Git index:
 
 ~~~bash
 python3.12 -B lib/protocol-sentinel/scripts/sentinel.py init \
@@ -22,4 +22,4 @@ The generated test is expected to **compile but fail** until those hooks are imp
 
 The init command does not discover roles or infer safety requirements. It does not install OpenZeppelin, modify foundry.toml, .gitignore or CI policies, or enable merge enforcement.
 
-**Acceptance note:** the first dedicated GitHub Foundry smoke job compiled and exercised the incomplete template in a Git-pinned consumer while initializing only forge-std. That test deliberately produced the incomplete-fixture revert and no completed Evidence. It does **not** yet establish full compiler source-closure provenance for a completed safe/faulty scenario; that remains a separate external acceptance requirement.
+**Acceptance:** the generated template compiles but its producing test rejects the incomplete fixture; a failed producer publishes no completed Evidence. The separate external MultiVault producer and trusted workflow completed verified safe and faulty Evidence 1.1 with independent compiler replay.

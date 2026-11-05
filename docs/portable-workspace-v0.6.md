@@ -1,5 +1,7 @@
 # Portable Foundry workspace — v0.6
 
+For the current v1.0 developer path, start with [First verified result](v1-onboarding.md). This page documents the released v0.6 runner; the maintainer acceptance suite is at the end.
+
 Use the workspace runner to compare a declared Direct EOA/UUPS upgrade attempt before and after an authorized implementation change. It runs your Foundry producer, captures Comparison Evidence 1.1, replays the classification in Python and reproduces the recorded compiler outputs.
 
 **Release:** [v0.6.0](https://github.com/NothernZhongKui/protocol-sentinel/releases/tag/v0.6.0). Pin the release tag for reproducible integration. For the earlier Evidence 1.0 workflow, see the [v0.5 guide](portable-direct-v0.5.md).

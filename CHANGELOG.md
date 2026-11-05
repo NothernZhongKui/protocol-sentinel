@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.0.0 — release preparation
+
+### Developer experience
+- Added read-only, offline `sentinel doctor` for Git-pinned Foundry workspaces. Reports `PASS`, `FAIL`, `WARN`, and `DEFERRED` without falsely claiming compiler replay or CI approval.
+- Added `sentinel init --route direct-uups` with dry-run, collision safety and a deliberately incomplete compiling producer whose test fails until the developer implements the declared invariant.
+- Documented reuse of compatible consumer-owned, Git-pinned `forge-std` and OpenZeppelin dependencies without recursively installing unused maintainer fixtures.
+- Added current-attempt terminal diagnostics and GitHub Job Summary rendering, preserving authoritative verifier decisions and failed-producer behavior.
+- Added a first-verified-result onboarding path and a protected-base trusted CI example.
+
+### Acceptance
+- Validated Direct UUPS safe and deliberately faulty scenarios on the external Treasury, Capminal and MultiVault integrations.
+- MultiVault acceptance: local safe `STILL_SATISFIED / MATCH` and faulty `CHANGED_TO_VIOLATION / MATCH`; each replayed 69 Solidity compiler contracts. Real GitHub Actions safe gate `PASS` and faulty gate `BLOCK` with independent integrity results.
+- Adversarial CI tests cover failed producers, unapproved tool gitlinks and candidate-controlled workflow substitution. Branch protection and owner review remain required consumer repository controls.
+
+### Compatibility and boundaries
+- Retained public Solidity APIs, the v0.5 portable runner and Evidence 1.0, Evidence 1.1, existing Timelock helper, trusted policy v2, strict Git source closure and independent replay semantics.
+- Portable Direct verification still covers one declared EOA/UUPS action per run. No automatic role discovery, storage-layout audit or independent authentication of original EVM execution.
+- An unassisted community onboarding trial and new privilege-action classes are follow-on activities; neither is represented as completed.
+- `v1.0.0` is not published until this release PR is reviewed, merged and the release tag is created.
+
+See [release notes](docs/releases/v1.0.0.md), [first verified result](docs/v1-onboarding.md) and [trusted CI](docs/guides/ci.md).
+
+
 ## v0.6.0 - 2026-11-04
 
 ### Added

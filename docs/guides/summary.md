@@ -1,6 +1,6 @@
 # Trusted workspace GitHub Summary
 
-**Development feature only.** This is a display renderer, not an Evidence verifier or CI gate.
+The v1.0.0 Summary is a display renderer, not an Evidence verifier or CI gate.
 
 The renderer accepts the completed run directory from the **current** workspace invocation. It does not scan previous Evidence directories. When the current producer fails before publication, omit --run-dir and the output will say **VERIFICATION FAILED**, even if previous successful bundles remain on disk.
 
@@ -10,4 +10,4 @@ The renderer validates consistency of the current run's recorded output for disp
 
 For integration guidance see [trusted CI](ci.md) and [ADR-007](../adr-007-v1-developer-adoption.md). An Actions Summary is not a required GitHub merge rule.
 
-Acceptance includes a stale-Evidence test: previous PASS exists, current producer fails, the current Summary reports VERIFICATION FAILED and the trusted workflow exits nonzero. Renderer unit tests cover this but a real protected GitHub acceptance remains outstanding.
+The stale-Evidence regression test asserts: a previous PASS exists, the current producer fails, the Summary reports VERIFICATION FAILED, and the runner exit remains nonzero. This is distinct from GitHub branch-rule enforcement.

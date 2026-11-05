@@ -1,6 +1,6 @@
-# Direct UUPS integration preflight (development branch)
+# Direct UUPS integration preflight
 
-**Scope:** proposed v1.0 usability CLI. It is not present in published v0.6.0. The existing workspace runner and trusted policy gate remain authoritative.
+**Scope:** v1.0.0 read-only integration diagnostic. The workspace runner and trusted policy gate remain authoritative.
 
 In an existing Git-pinned Foundry workspace with Sentinel installed under lib/protocol-sentinel, run:
 
@@ -30,6 +30,6 @@ fs_permissions = [{ access = "read-write", path = "artifacts/sentinel/runs" }]
 
 Merge with existing permissions, preserve remappings, and ensure the Git ignore rules include artifacts/sentinel/runs/.
 
-After preflight, follow the [v0.6 workspace quickstart](../portable-workspace-v0.6.md). A local REPLAY: MATCH can accompany CHANGED_TO_VIOLATION. Only a protected CI workflow with a trusted policy can make the gate decision.
+After preflight, continue with [First verified result](../v1-onboarding.md#3-commit-diagnose-and-run). A local REPLAY: MATCH can accompany CHANGED_TO_VIOLATION. Only a protected CI workflow with a trusted policy can make the gate decision.
 
-**OpenZeppelin:** DirectComparisonCapture does not directly import OpenZeppelin, but the separate Timelock helper and demonstration fixtures do. Selective nested-submodule initialization has not yet been accepted in a clean external build, so this CLI does not change install instructions or relax Git attestation.
+**Dependencies:** DirectComparisonCapture does not import OpenZeppelin, while the separate Timelock helper and demonstration fixtures do. Selective Direct UUPS dependency initialization has since been exercised in the external Capminal acceptance with consumer-owned Git-pinned dependencies and Git source closure. Keep the consumer's own remappings and pins; doctor never installs dependencies or claims source-closure verification without a fresh build.

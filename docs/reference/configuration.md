@@ -1,6 +1,6 @@
 # Portable Direct configuration and artifacts
 
-Applies to the v0.5.1 portable runner and Evidence 1.0. Start with the [v0.5 quickstart](../portable-direct-v0.5.md). For the unreleased v0.6 workspace runner and Evidence 1.1, see the [workspace reference](workspace-v0.6.md).
+Applies to the v0.5.1 portable runner and Evidence 1.0. Start with the [v0.5 quickstart](../portable-direct-v0.5.md). For the v1.0.0 workspace runner and Evidence 1.1, see the [workspace reference](workspace-v0.6.md).
 
 ## Producer configuration
 
