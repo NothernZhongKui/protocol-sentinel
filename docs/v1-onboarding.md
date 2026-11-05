@@ -17,8 +17,7 @@ git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/p
 git -C lib/protocol-sentinel fetch --tags origin
 git -C lib/protocol-sentinel checkout --detach v1.0.0
 # init checks the installed revision against the consumer's Git index.
-git -C "$(git rev-parse --show-toplevel)" add .gitmodules
-git add lib/protocol-sentinel
+git add -- ':(top).gitmodules' lib/protocol-sentinel
 ```
 
 Stage the selected gitlink **before** running `init`: `git submodule add` records the initially checked-out revision, which may differ from `v1.0.0`. Do not run `git submodule update` before staging or committing the chosen pin, as it can restore the indexed revision. If the submodule already exists, inspect and update its approved gitlink rather than adding it again. Use **the consumer's** compatible Git-pinned `forge-std` and OpenZeppelin versions. Do not recursively initialize Sentinel's maintainer-only OpenZeppelin copies. Preserve the project's remappings; untracked `node_modules` compiler inputs are not Git-attested.
@@ -62,9 +61,18 @@ Set an explicit meaningful `fixture_id`, and change `scenario_id` in both Solidi
 Commit the intended consumer files and gitlinks first. `doctor` is **offline/read-only** and reports `PASS`, `FAIL`, `WARN`, `DEFERRED`. It cannot establish compiler source closure or merge approval.
 
 ```bash
-git -C "$(git rev-parse --show-toplevel)" add .gitmodules
-git add .gitignore foundry.toml lib/protocol-sentinel \
+# .gitmodules lives at the repository root, even for a nested Foundry workspace.
+git add -- ':(top).gitmodules'
+git add -- foundry.toml lib/protocol-sentinel \
   test/SentinelAuthorityProducer.t.sol sentinel.toml
+
+# Stage the actual ignore-rule file (workspace and/or repository root).
+if [ -f .gitignore ]; then git add -- .gitignore; fi
+GIT_ROOT="$(git rev-parse --show-toplevel)"
+if [ "$GIT_ROOT" != "$PWD" ] && [ -f "$GIT_ROOT/.gitignore" ]; then
+  git add -- ':(top).gitignore'
+fi
+
 git commit -m "test: declare Direct UUPS authority scenario"
 
 # Use the absolute executable matching the solc version used by Forge.
