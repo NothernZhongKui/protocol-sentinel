@@ -88,8 +88,12 @@ def prepare(trusted_base, consumer, policy_source, output, expected_base, enviro
     workflow = policy["workflow"]
     require(workflow.startswith(".github/workflows/") and workflow.endswith((".yml", ".yaml"))
             and ".." not in Path(workflow).parts, "Invalid protected workflow path")
+    github_ref = environment.get("GITHUB_REF", "")
+    require(environment.get("GITHUB_EVENT_NAME") == "pull_request"
+            and re.fullmatch(r"refs/pull/[1-9][0-9]*/merge", github_ref) is not None,
+            "Expected a pull_request merge-ref context")
     workflow_ref = environment.get("GITHUB_WORKFLOW_REF", "")
-    require(workflow_ref.startswith(repository + "/" + workflow + "@"),
+    require(workflow_ref == repository + "/" + workflow + "@" + github_ref,
             "Unexpected workflow identity")
     for key in ("GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT"):
         value = environment.get(key, "")
@@ -100,6 +104,8 @@ def prepare(trusted_base, consumer, policy_source, output, expected_base, enviro
     # code*. Do not derive an approved tool SHA from the PR's gitlink.
     consumer_sha = git(consumer, "rev-parse", "HEAD")
     require(SHA.fullmatch(consumer_sha) is not None, "Invalid tested consumer SHA")
+    require(consumer_sha == environment.get("GITHUB_SHA", ""),
+            "Candidate checkout differs from GitHub's tested PR merge SHA")
     workspace = policy["workspace"]
     require(workspace == "." or (workspace and not Path(workspace).is_absolute()
             and ".." not in Path(workspace).parts), "Unsafe workspace path")
