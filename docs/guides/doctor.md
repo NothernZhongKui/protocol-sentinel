@@ -32,4 +32,4 @@ Merge with existing permissions, preserve remappings, and ensure the Git ignore 
 
 After preflight, follow the [v0.6 workspace quickstart](../portable-workspace-v0.6.md). A local REPLAY: MATCH can accompany CHANGED_TO_VIOLATION. Only a protected CI workflow with a trusted policy can make the gate decision.
 
-**OpenZeppelin:** DirectComparisonCapture does not directly import OpenZeppelin, but the separate Timelock helper and demonstration fixtures do. Selective nested-submodule initialization has not yet been accepted in a clean external build, so this CLI does not change install instructions or relax Git attestation.
+**Dependencies:** DirectComparisonCapture does not import OpenZeppelin, while the separate Timelock helper and demonstration fixtures do. Selective Direct UUPS dependency initialization has since been exercised in the external Capminal acceptance with consumer-owned Git-pinned dependencies and Git source closure. Keep the consumer's own remappings and pins; doctor never installs dependencies or claims source-closure verification without a fresh build.

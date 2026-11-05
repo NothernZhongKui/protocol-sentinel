@@ -6,6 +6,9 @@ Define an actor and an upgrade action. Sentinel probes that action before and af
 
 ## Get started
 
+For the **unreleased v1.0 developer workflow**, see [first verified result](docs/v1-onboarding.md) (includes `doctor`, `init` and the current development Git pin). The tagged `v0.6.0` guide below remains the released path.
+
+
 | Goal | Guide | Requirements |
 | --- | --- | --- |
 | Check a declared upgrade attempt in a Foundry test | [Solidity library](docs/library-quickstart.md) | Foundry; no Python |

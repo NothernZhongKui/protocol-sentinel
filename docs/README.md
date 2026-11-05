@@ -2,6 +2,9 @@
 
 ## Use Sentinel
 
+- [v1.0 development: first verified result](v1-onboarding.md) — from existing Foundry project to a local Evidence 1.1 result, with an explicit development commit pin. **Not a released v1.0 tag.**
+- [v1 doctor](guides/doctor.md) and [safe init](guides/init.md) — read-only diagnostics and deliberately incomplete producer scaffold.
+
 - [v0.6 workspace quickstart](portable-workspace-v0.6.md) — integrate an existing Git-pinned Foundry workspace, capture Evidence 1.1 and reverify a trusted run. Released in v0.6.0.
 - [v0.5 portable quickstart](portable-direct-v0.5.md) — the earlier runner and Evidence 1.0.
 - [Solidity library quickstart](library-quickstart.md) and [Direct comparison](comparative-authority-quickstart.md) — use helpers in Foundry tests without Python.
