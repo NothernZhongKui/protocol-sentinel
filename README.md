@@ -2,7 +2,7 @@
 
 Execution-based authority regression testing for upgradeable EVM contracts, built for Foundry.
 
-Declare an actor who must **not** gain upgrade authority. Sentinel observes that actor's `upgradeToAndCall` attempt before and after an authorized implementation change, independently replays the recorded classification and maps it to a trusted CI decision. An operator denied an upgrade in V1 but permitted in V2 produces `CHANGED_TO_VIOLATION`; trusted CI returns `BLOCK`.
+Declare an actor who must **not** gain upgrade authority. Sentinel observes that actor's `upgradeToAndCall` attempt before and after an authorized implementation change and independently replays the recorded classification. An optional trusted CI policy maps it to a merge decision. An operator denied an upgrade in V1 but permitted in V2 produces `CHANGED_TO_VIOLATION`; trusted CI returns `BLOCK`.
 
 ## Get started
 

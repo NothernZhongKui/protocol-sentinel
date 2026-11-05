@@ -3,6 +3,7 @@
 ## Start with a Foundry project
 
 - [First verified result](v1-onboarding.md) — pinned Sentinel installation, `init`, `doctor`, one completed Evidence 1.1 run, and optional trusted CI.
+- [Treasury walkthrough](examples/treasury.md) — full synthetic producer, fixture contracts and matching configuration.
 - [Read-only doctor](guides/doctor.md) and [safe init](guides/init.md) — diagnose configuration and fill a deliberately incomplete producer.
 - [Trusted GitHub CI](guides/ci.md) and [current-run Summary](guides/summary.md) — policy v2, protected-base workflow, integrity and merge rules.
 - [Direct UUPS workspace runner](portable-workspace-v0.6.md) — detailed compiler and Git source requirements.

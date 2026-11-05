@@ -8,18 +8,20 @@ This workflow is for a **pre-existing Foundry project** using a canonical ERC-19
 
 Requirements: Git, Python 3.12+, Foundry (CI uses 1.8.7), an executable `solc` matching your project/compiler build-info, and Git-pinned compatible Solidity dependencies.
 
+The commands below use `python3.12`; if your Python 3.12+ executable has a different name, substitute it consistently. The scaffold writes to `test/`; ensure your Foundry configuration discovers tests there.
+
 At the Foundry workspace root:
 
 ```bash
 git submodule add https://github.com/NothernZhongKui/protocol-sentinel.git lib/protocol-sentinel
 git -C lib/protocol-sentinel fetch --tags origin
 git -C lib/protocol-sentinel checkout --detach v1.0.0
-# Stage the selected gitlink later with your intended consumer changes.
-# Do not run "git submodule update" before staging/committing the pin:
-# it can restore the previously recorded submodule commit.
+# init checks the installed revision against the consumer's Git index.
+git -C "$(git rev-parse --show-toplevel)" add .gitmodules
+git add lib/protocol-sentinel
 ```
 
-If your project already has the submodule, inspect and update its approved gitlink rather than adding it again. Use **the consumer's** compatible Git-pinned `forge-std` and OpenZeppelin versions. Do not recursively initialize Sentinel's maintainer-only OpenZeppelin copies. Preserve the project's remappings; untracked `node_modules` compiler inputs are not Git-attested.
+Stage the selected gitlink **before** running `init`: `git submodule add` records the initially checked-out revision, which may differ from `v1.0.0`. Do not run `git submodule update` before staging or committing the chosen pin, as it can restore the indexed revision. If the submodule already exists, inspect and update its approved gitlink rather than adding it again. Use **the consumer's** compatible Git-pinned `forge-std` and OpenZeppelin versions. Do not recursively initialize Sentinel's maintainer-only OpenZeppelin copies. Preserve the project's remappings; untracked `node_modules` compiler inputs are not Git-attested.
 
 Ensure the existing `[profile.default]` includes write permission for Evidence (merge into existing `fs_permissions`, do not duplicate TOML keys):
 
@@ -32,6 +34,7 @@ Ignore `artifacts/sentinel/runs/` in the consumer's `.gitignore`.
 ## 2. Generate a deliberately incomplete producer
 
 ```bash
+mkdir -p test
 python3.12 -B lib/protocol-sentinel/scripts/sentinel.py init \
   --route direct-uups --project . --dry-run
 python3.12 -B lib/protocol-sentinel/scripts/sentinel.py init \
@@ -40,16 +43,27 @@ python3.12 -B lib/protocol-sentinel/scripts/sentinel.py init \
 
 This creates only `test/SentinelAuthorityProducer.t.sol` and `sentinel.toml`. It will **not** rewrite your Foundry config, ignore rules or CI. The generated Solidity test is supposed to **compile but fail** with `SentinelFixtureIncomplete()`. It cannot publish completed Evidence while unfilled.
 
+Before implementing the hooks, distinguish the three implementations involved:
+
+| Implementation | Role |
+| --- | --- |
+| Baseline | Active in the proxy before the authorized transition. |
+| Updated | Installed by the authorized actor between the two observations. |
+| Probe candidate | A separate valid UUPS implementation that the declared actor attempts to install in **both** isolated probes. |
+
+The probe restores its state after each attempt; the authorized transition between probes is performed by your fixture.
+
 Implement the two fixture hooks using your actual contracts: (1) deploy the V1 proxy, declare the **unauthorized actor** and a **separate valid UUPS probe candidate**, with the exact expected authorization revert; (2) perform the real *authorized* V1 → V2 upgrade. Observe the same actor/target/candidate before and after. Do **not** replace the intended restriction with an assertion that the upgrade must be safe in the producer itself—Sentinel must still record a faulty migration.
 
-Set an explicit meaningful `fixture_id`, and change `scenario_id` in both Solidity and `sentinel.toml` to the same `bytes32`. The remaining config fields must identify the **one** producing test exactly. For a complete, independently exercised fixture, see the [external Treasury producer](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/146ec1461bf7774ab57b84a2d7f5bc06dfb70138/test/TreasuryAuthority.t.sol) and its [safe producer TOML](https://github.com/NothernZhongKui/protocol-sentinel-consumer/blob/146ec1461bf7774ab57b84a2d7f5bc06dfb70138/sentinel-safe.toml). Adapt its identity, not its assumptions, to your project.
+Set an explicit meaningful `fixture_id`, and change `scenario_id` in both Solidity and `sentinel.toml` to the same `bytes32`. The remaining config fields must identify the **one** producing test exactly. For a complete executable example, see the [Treasury walkthrough](examples/treasury.md), including both Solidity files and matching TOML from the pinned external consumer. It shows an authorized transition and a separate probe candidate; adapt the fixture and identities to your own contracts.
 
 ## 3. Commit, diagnose and run
 
 Commit the intended consumer files and gitlinks first. `doctor` is **offline/read-only** and reports `PASS`, `FAIL`, `WARN`, `DEFERRED`. It cannot establish compiler source closure or merge approval.
 
 ```bash
-git add .gitmodules .gitignore foundry.toml lib/protocol-sentinel \
+git -C "$(git rev-parse --show-toplevel)" add .gitmodules
+git add .gitignore foundry.toml lib/protocol-sentinel \
   test/SentinelAuthorityProducer.t.sol sentinel.toml
 git commit -m "test: declare Direct UUPS authority scenario"
 
@@ -62,7 +76,9 @@ SOLC_PATH="/absolute/path/to/solc"
 python3.12 -B lib/protocol-sentinel/scripts/sentinel.py doctor \
   --project . --config sentinel.toml --solc "$SOLC_PATH"
 
-python3.12 -m pip install \
+python3.12 -m venv "$HOME/protocol-sentinel-venv"
+source "$HOME/protocol-sentinel-venv/bin/activate"
+python -m pip install \
   -r lib/protocol-sentinel/evidence/requirements-schema.txt \
   -r lib/protocol-sentinel/evidence/requirements-abi.txt
 
@@ -70,7 +86,7 @@ python3.12 -B lib/protocol-sentinel/scripts/run_workspace_direct.py \
   --project "$PWD" --config sentinel.toml --solc "$SOLC_PATH"
 ```
 
-Before running, ensure the checkout and Git submodules are clean; resolve any doctor FAIL. The runner will perform a **fresh producer execution**, attest compiler source ownership, independently replay compiler outputs and classification, then publish a completed Evidence 1.1 bundle on success.
+Keep the Python environment outside the consumer checkout so it does not dirty the Git working tree. Before running, ensure the checkout and Git submodules are clean; resolve any doctor FAIL. The runner will perform a **fresh producer execution**, attest compiler source ownership, independently replay compiler outputs and classification, then publish a completed Evidence 1.1 bundle on success.
 
 Interpret separate fields, not a single green light:
 

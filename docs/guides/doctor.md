@@ -30,6 +30,6 @@ fs_permissions = [{ access = "read-write", path = "artifacts/sentinel/runs" }]
 
 Merge with existing permissions, preserve remappings, and ensure the Git ignore rules include artifacts/sentinel/runs/.
 
-After preflight, follow the [v0.6 workspace quickstart](../portable-workspace-v0.6.md). A local REPLAY: MATCH can accompany CHANGED_TO_VIOLATION. Only a protected CI workflow with a trusted policy can make the gate decision.
+After preflight, continue with [First verified result](../v1-onboarding.md#3-commit-diagnose-and-run). A local REPLAY: MATCH can accompany CHANGED_TO_VIOLATION. Only a protected CI workflow with a trusted policy can make the gate decision.
 
 **Dependencies:** DirectComparisonCapture does not import OpenZeppelin, while the separate Timelock helper and demonstration fixtures do. Selective Direct UUPS dependency initialization has since been exercised in the external Capminal acceptance with consumer-owned Git-pinned dependencies and Git source closure. Keep the consumer's own remappings and pins; doctor never installs dependencies or claims source-closure verification without a fresh build.

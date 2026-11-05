@@ -2,7 +2,7 @@
 
 This command is part of Protocol Sentinel v1.0.0. It is not included in the historical v0.6.0 tag.
 
-From a Foundry workspace that already contains a pinned Sentinel git submodule at lib/protocol-sentinel:
+From a Foundry workspace that already contains a pinned Sentinel Git submodule at `lib/protocol-sentinel`, stage the chosen gitlink before running `init` (see [installation](../v1-onboarding.md#1-pin-the-tool-in-your-project)). `init` verifies that the installed submodule revision matches the consumer Git index:
 
 ~~~bash
 python3.12 -B lib/protocol-sentinel/scripts/sentinel.py init \
