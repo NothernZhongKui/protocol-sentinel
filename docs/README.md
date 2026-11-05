@@ -7,6 +7,7 @@
 - [Solidity library quickstart](library-quickstart.md) and [Direct comparison](comparative-authority-quickstart.md) — use helpers in Foundry tests without Python.
 - [Timelock route](timelock-route-quickstart.md) — separate OpenZeppelin route adapter.
 - [Trusted CI](guides/ci.md) — policy selection, workflow protection and decisions.
+- [Direct UUPS dependency setup](portable-workspace-v0.6.md#2-install-and-configure) — reuse consumer Git-pinned OpenZeppelin and forge-std; no nested Sentinel OZ initialization required for the tested route.
 
 ## Reference
 
