@@ -1,0 +1,100 @@
+# CONSUMER TEMPLATE — enforce with protected rules before trusting this job.
+name: Sentinel Authority Gate
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  authority-gate:
+    name: Sentinel Authority Gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          path: candidate
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: trusted-base
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+      - name: Initialize consumer Git submodules (not Sentinel's nested copies)
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE/candidate"
+          for dep in lib/protocol-sentinel lib/forge-std lib/openzeppelin-contracts lib/openzeppelin-contracts-upgradeable; do
+            if git ls-files --stage -- "$dep" | grep -q '^160000 '; then
+              git submodule update --init -- "$dep"
+            fi
+          done
+      - name: Verify allowed tool SHA BEFORE executing candidate Sentinel Python
+        id: preflight
+        run: |
+          set -euo pipefail
+          python3.12 -B "$GITHUB_WORKSPACE/trusted-base/.github/sentinel/prepare.py" \
+            --trusted-base "$GITHUB_WORKSPACE/trusted-base" \
+            --consumer "$GITHUB_WORKSPACE/candidate" \
+            --template "$GITHUB_WORKSPACE/trusted-base/.github/sentinel/trusted-policy.toml" \
+            --output "$RUNNER_TEMP/trusted-policy.toml" \
+            --base-sha "${{ github.event.pull_request.base.sha }}"
+      - uses: foundry-rs/foundry-toolchain@v1
+        if: steps.preflight.outcome == 'success'
+        with:
+          version: v1.8.7
+      - name: Install verified-run dependencies
+        if: steps.preflight.outcome == 'success'
+        run: |
+          set -euo pipefail
+          python3.12 -m pip install \
+            -r "$GITHUB_WORKSPACE/candidate/lib/protocol-sentinel/evidence/requirements-schema.txt" \
+            -r "$GITHUB_WORKSPACE/candidate/lib/protocol-sentinel/evidence/requirements-abi.txt"
+          python3.12 -m pip check
+      - name: Run and preserve current result
+        if: steps.preflight.outcome == 'success'
+        id: sentinel
+        env:
+          SOLC_PATH: ${{ vars.SENTINEL_SOLC_PATH }}
+        run: |
+          set -uo pipefail
+          if [[ "$SOLC_PATH" != /* || ! -x "$SOLC_PATH" ]]; then
+            echo "Configure an absolute executable SENTINEL_SOLC_PATH" >"$RUNNER_TEMP/sentinel-current.log"
+            status=2
+          else
+            python3.12 -B "$GITHUB_WORKSPACE/candidate/lib/protocol-sentinel/scripts/run_workspace_direct.py" \
+              --project "$GITHUB_WORKSPACE/candidate" \
+              --config sentinel.toml --solc "$SOLC_PATH" \
+              --trusted-policy "$RUNNER_TEMP/trusted-policy.toml" \
+              >"$RUNNER_TEMP/sentinel-current.log" 2>&1
+            status=$?
+          fi
+          echo "runner_exit=$status" >>"$GITHUB_OUTPUT"
+          exit 0
+      - name: Display current-attempt summary
+        if: always() && steps.preflight.outcome == 'success'
+        run: |
+          status="${{ steps.sentinel.outputs.runner_exit }}"
+          if [[ -z "$status" ]]; then status=2; fi
+          current=""
+          if [[ -f "$RUNNER_TEMP/sentinel-current.log" ]]; then
+            current="$(sed -n 's/^COMPLETED: //p' "$RUNNER_TEMP/sentinel-current.log" | tail -n 1)"
+          fi
+          set -- 
+          if [[ -n "$current" ]]; then set -- --run-dir "$current"; fi
+          python3.12 -B "$GITHUB_WORKSPACE/candidate/lib/protocol-sentinel/scripts/render_workspace_summary.py" \
+            "$@" --runner-exit "$status" --repository "$GITHUB_REPOSITORY" \
+            --sha "$GITHUB_SHA" --github-run-id "$GITHUB_RUN_ID" \
+            --attempt "$GITHUB_RUN_ATTEMPT" --summary-path "$GITHUB_STEP_SUMMARY" || true
+          if [[ -f "$RUNNER_TEMP/sentinel-current.log" ]]; then cat "$RUNNER_TEMP/sentinel-current.log"; fi
+      - name: Enforce actual runner exit
+        if: always()
+        run: |
+          status="${{ steps.sentinel.outputs.runner_exit }}"
+          if [[ -z "$status" ]]; then exit 2; fi
+          exit "$status"
